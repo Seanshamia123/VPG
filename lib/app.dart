@@ -1,3 +1,6 @@
+import 'package:escort/screens/login.dart';
+import 'package:escort/screens/sign_options.dart';
+import 'package:escort/screens/sign_up.dart';
 import 'package:escort/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +14,7 @@ class App extends StatelessWidget {
           .system, //either dark or light according to the device settings
       theme: AppTheme.lightTheme, //lighttheme by default
       darkTheme: AppTheme.darkTheme,
+      home: SignOptions(),
     );
   }
 }

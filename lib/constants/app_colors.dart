@@ -21,4 +21,19 @@ class AppColors {
     850: Color(0xFF2D3748), // Near-black gray for subtle accents
     900: Color(0xFF1F2A44), // Deepest gray for backgrounds or text
   });
+  // Text Colors
+  static const Color textPrimary = Color(0xFF2D3748); // Dark slate gray
+  static const Color textSecondary = Color(0xFF6B7280); // Cool gray
+  static const Color textWhite = Color(0xFFF7FAFC); // Off-white
+
+  // Background Colors
+  static const Color light = Color(0xFFEFF3F6); // Light silver
+  static const Color dark = Color(0xFF1A202C); // Deep charcoal
+  static const Color primaryBackground = Color(0xFFF7FAFC); // Soft white-blue
+
+  // Background Container Colors
+  static const Color lightContainer = Color(0xFFFFFFFF); // Pure white
+  static Color darkContainer = Color(
+    0xFFFFFFFF, //static Color darkContainer = TColors.white.withOpacity(0.1);
+  ).withOpacity(0.1); // Semi-transparent white
 }
