@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Insets {
   static const double maxWidth = 1280;
   static double get med => 12;
@@ -129,4 +131,21 @@ class Sizes {
 
   //Grid view spacing
   static const double gridViewSpacing = 16.0;
+
+  //Circular Avatar
+  static const double avatarRadiusSm = 16.0; //Mobile
+  static const double avatarRadiusMd = 20.0; //Tablet
+  static const double avatarRadiusLg = 24.0; //Desktop
+}
+
+// New function to get appropriate AppInsets based on screen size
+AppInsets getAppInsets(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  if (screenWidth < 600) {
+    return SmallInsets();
+  } else if (screenWidth < 1200) {
+    return MediumInsets();
+  } else {
+    return LargeInsets();
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:escort/device_utility/device_checker.dart';
-import 'package:escort/screens/login.dart';
-import 'package:escort/style/app_size.dart';
+import 'package:escort/screens/shared%20screens/login.dart';
+import 'package:escort/styles/app_size.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';

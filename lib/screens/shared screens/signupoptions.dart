@@ -1,7 +1,8 @@
-import 'package:escort/screens/login.dart';
-import 'package:escort/style/card_styling.dart';
+import 'package:escort/screens/advertisers%20screens/subscription.dart';
+import 'package:escort/screens/shared%20screens/login.dart';
+import 'package:escort/styles/card_styling.dart';
 import 'package:flutter/material.dart';
-import 'package:escort/style/app_size.dart'; // Assuming Sizes is defined here
+import 'package:escort/styles/app_size.dart'; // Assuming Sizes is defined here
 
 class SignOptions extends StatelessWidget {
   const SignOptions({super.key});
@@ -24,14 +25,16 @@ class SignOptions extends StatelessWidget {
                     children: [
                       SignUpCard(
                         type: 'user',
-                        icon: Icons.person_outline,
+                        icon: const Icon(Icons.person_outline),
                         title: 'Sign up as User',
+                        onTap: () {}, // take you normal user page to signup
                       ),
                       const SizedBox(height: Sizes.spaceBtwItems),
                       SignUpCard(
                         type: 'advertiser',
-                        icon: Icons.business_center_outlined,
+                        icon: const Icon(Icons.business_center_outlined),
                         title: 'Sign up as Advertiser',
+                        onTap: () {},
                       ),
                     ],
                   )
@@ -40,14 +43,22 @@ class SignOptions extends StatelessWidget {
                     children: [
                       SignUpCard(
                         type: 'user',
-                        icon: Icons.person_outline,
+                        icon: const Icon(Icons.person_outline),
                         title: 'Sign up as User',
+                        onTap: () {},
                       ),
                       const SizedBox(width: Sizes.spaceBtwItems),
                       SignUpCard(
                         type: 'advertiser',
-                        icon: Icons.business_center_outlined,
+                        icon: const Icon(Icons.business_center_outlined),
                         title: 'Sign up as Advertiser',
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) =>
+                                Dialog(child: SubscriptionDialog()),
+                          );
+                        },
                       ),
                     ],
                   ),

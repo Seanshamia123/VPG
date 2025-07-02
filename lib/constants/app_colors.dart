@@ -5,9 +5,13 @@ class AppColors {
   static const Color secondaryColor = Color(
     0xFF1A3C5A,
   ); // Deep navy for secondary elements
-  static const Color darkBackgroundColor = Color(
-    0xFF1C2526,
-  ); // Dark charcoal for background
+  static const Color darkBackgroundColor = Color(0xFF1C2526);
+  static const Color background = Color(0xFFF7F7F7);
+  static const Color primary = Color(0xFF7341FF);
+  static const Color border = Color(0xFFE0E0E0);
+  static const Color text = Color(0xFF545454);
+  static const Color grey = Colors.grey;
+  // Dark charcoal for background
   static const MaterialColor gray = MaterialColor(0xFF8C8C8C, {
     50: Color(0xFFF9FAFB), // Very light gray for subtle backgrounds
     100: Color(0xFFF1F2F4), // Light gray for cards or sections

@@ -1,7 +1,8 @@
 import 'package:escort/device_utility/device_checker.dart';
-import 'package:escort/screens/sign_options.dart';
+import 'package:escort/screens/shared%20screens/signupoptions.dart';
 import 'package:flutter/material.dart';
-import 'package:escort/style/app_size.dart';
+import 'package:escort/styles/app_size.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 class Login extends StatelessWidget {
@@ -22,10 +23,10 @@ class Login extends StatelessWidget {
             padding: EdgeInsets.all(insets.padding),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: context.isDesktop
-                    ? 400
-                    : context.isTablet
+                maxWidth: StyleContext(context).isTablet
                     ? 600
+                    : StyleContext(context).isDesktop
+                    ? 400
                     : context.screenWidth * 0.9,
               ),
               child: Column(
@@ -159,11 +160,9 @@ class Login extends StatelessWidget {
                     child: const Text('Login'),
                   ),
                   const SizedBox(height: Sizes.spaceBtwSections),
-                  //Sign up but
+                  //Sign up button when clicked takes you to option cards to choose from
                   ElevatedButton(
-                    onPressed: () {
-                      SignOptions();
-                    },
+                    onPressed: () => Get.to(SignOptions()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,

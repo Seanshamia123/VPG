@@ -88,3 +88,15 @@ class MediumTextStyle implements Textstyle {
   TextStyle get bodyLgMedium =>
       const TextStyle(fontSize: 18, fontWeight: FontWeight.w500);
 }
+
+// New function to get appropriate Textstyle based on screen size
+Textstyle getTextStyle(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  if (screenWidth < 600) {
+    return SmallTextStyle();
+  } else if (screenWidth < 1200) {
+    return MediumTextStyle();
+  } else {
+    return LargeTextStyle();
+  }
+}
