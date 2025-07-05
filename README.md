@@ -48,8 +48,7 @@ python -m venv venv
 # Activate virtual environment
 # On Linux/Mac:
 source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
+
 ```
 
 ### 3. Install Dependencies
@@ -65,18 +64,18 @@ pip install flask flask-sqlalchemy flask-migrate flask-cors pymysql python-doten
 
 ### 4. Configure MySQL Database
 
-#### Option A: Using MySQL Workbench (Recommended)
+#### Option A: Using MySQL Workbench (Recommended run line by line)
 
 1. Open **MySQL Workbench**
 2. Connect to your MySQL server
 3. Create a new database:
    ```sql
-   CREATE DATABASE your_database_name;
+   CREATE DATABASE VPG;
    ```
 4. Create a new user (optional but recommended):
    ```sql
-   CREATE USER 'your_username'@'localhost' IDENTIFIED BY 'your_password';
-   GRANT ALL PRIVILEGES ON your_database_name.* TO 'your_username'@'localhost';
+   CREATE USER 'sean'@'localhost' IDENTIFIED BY 'your_password';
+   GRANT ALL PRIVILEGES ON VPG.* TO 'sean'@'localhost';
    FLUSH PRIVILEGES;
    ```
 
