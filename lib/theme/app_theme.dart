@@ -1,5 +1,5 @@
 import 'package:escort/constants/app_colors.dart';
-import 'package:escort/style/app_size.dart';
+import 'package:escort/styles/app_size.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
