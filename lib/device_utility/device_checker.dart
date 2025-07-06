@@ -1,9 +1,8 @@
 import 'package:escort/style/app_size.dart';
 import 'package:escort/style/textstyle.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
-//checks whether the device is either a mobile , desktop or a tablet
+// Enum to classify device types
 enum FormFactorType { mobile, tablet, desktop }
 
 extension StyleContext on BuildContext {
@@ -13,10 +12,11 @@ extension StyleContext on BuildContext {
 
   ThemeData get theme => Theme.of(this);
 
+  // Determine device type based on standard screen width breakpoints
   FormFactorType get formFactor {
     if (width < 600) {
       return FormFactorType.mobile;
-    } else if (width < 900) {
+    } else if (width < 1024) {
       return FormFactorType.tablet;
     } else {
       return FormFactorType.desktop;
@@ -28,53 +28,46 @@ extension StyleContext on BuildContext {
   bool get isDesktop => formFactor == FormFactorType.desktop;
   bool get isDesktopOrTablet => isTablet || isDesktop;
 
+  // Text styles adjusted per device type
   Textstyle get textStyle {
     switch (formFactor) {
       case FormFactorType.mobile:
-      case FormFactorType.tablet:
         return SmallTextStyle();
+      case FormFactorType.tablet:
+        return MediumTextStyle(); // Assuming a MediumTextStyle exists or can be added
       case FormFactorType.desktop:
         return LargeTextStyle();
     }
   }
 
+  // Insets adjusted per device type
   AppInsets get insets {
     switch (formFactor) {
       case FormFactorType.mobile:
         return SmallInsets();
       case FormFactorType.tablet:
+        return MediumInsets(); // Assuming a MediumInsets exists or can be added
       case FormFactorType.desktop:
         return LargeInsets();
     }
   }
 
-  //AppLocalizations get texts =>
-  //AppLocalizations.of(this) ?? lookupAppLocalizations(const Locale('en'));
-
   ColorScheme get colorscheme => theme.colorScheme;
 
-  // Navigate to a screen
-  static void navigateToScreen(BuildContext context, Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  // Navigate to a screen using the current context
+  void navigateToScreen(Widget screen) {
+    Navigator.push(this, MaterialPageRoute(builder: (_) => screen));
   }
 
   // Check if the app is in dark mode
-  static bool isDarkMode(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
-  }
+  bool get isDarkMode => theme.brightness == Brightness.dark;
 
   // Get screen size
-  static Size screenSize() {
-    return MediaQuery.of(Get.context!).size;
-  }
+  Size get screenSize => mq.size;
 
   // Get screen height
-  static double screenHeight() {
-    return MediaQuery.of(Get.context!).size.height;
-  }
+  double get screenHeight => mq.size.height;
 
   // Get screen width
-  static double screenWidth() {
-    return MediaQuery.of(Get.context!).size.width;
-  }
+  double get screenWidth => mq.size.width;
 }
