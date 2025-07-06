@@ -9,8 +9,8 @@ class Config:
     # MySQL Configuration
     MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
     MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
-    MYSQL_USER = os.environ.get('MYSQL_USER') or 'sophie'
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or 'smm_smm_m8'
+    MYSQL_USER = os.environ.get('MYSQL_USER') or 'sean'
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '12345'
     MYSQL_DB = os.environ.get('MYSQL_DB') or 'VPG'
     
     # Construct DATABASE_URL for MySQL
