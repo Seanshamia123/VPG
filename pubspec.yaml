@@ -9,8 +9,12 @@ environment:
   sdk: ^3.8.0
 
 dependencies:
+  image_picker: ^1.0.4
+  video_player: ^2.8.1
+  # google_fonts: ^6.1.0
   flutter:
     sdk: flutter
+   
 
  #utility Packages
   http: ^1.1.0
@@ -24,11 +28,15 @@ dependencies:
   iconsax: ^0.0.8 
   cupertino_icons: ^1.0.8
   flutter_vector_icons: ^2.0.0
-  google_fonts: ^5.1.0
+  google_fonts: ^6.1.0
+
+  # google_fonts: ^5.1.0
 #state management
   get: ^4.6.5
   get_storage: ^2.1.1 
   timeago: ^3.7.1
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.12.3
 
 #product Specific
 
