@@ -4,24 +4,26 @@ from . import db
 class User(db.Model):
     __tablename__ = 'users'
     
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer,primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False) #prefered username by the user himself
     name = db.Column(db.String(255), nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    number = db.Column(db.String(20), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=False)
     location = db.Column(db.String(255), nullable=False)
-    gender = db.Column(db.Enum('male', 'female', 'other', name='gender_enum'), nullable=False)
-    profile_picture = db.Column(db.String(500), nullable=True)  # URL or file path
-    is_active = db.Column(db.Boolean, default=True)
+    gender = db.Column(db.Enum('Male', 'Female', 'other', name='advertiser_gender_enum'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
+    last_active = db.Column(db.TIMESTAMP)
+    password_hash = db.Column(db.String(100))
+
     # Add indexes for better performance
     __table_args__ = (
         db.Index('idx_user_name', 'name'),
         db.Index('idx_user_email', 'email'),
         db.Index('idx_user_location', 'location'),
         db.Index('idx_user_gender', 'gender'),
-        db.Index('idx_user_active', 'is_active'),
+        db.Index('idx_user_active', 'last_active'),
+        db.Index('idx_advertiser_password', 'password_hash'),
     )
     
     def to_dict(self):
