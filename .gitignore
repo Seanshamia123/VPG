@@ -47,3 +47,5 @@ app.*.map.json
 
 .env/
 /server/config.py
+
+.env
