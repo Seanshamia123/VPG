@@ -27,7 +27,7 @@ class Advertiser(db.Model):
         db.Index('idx_advertiser_location', 'location'),
         db.Index('idx_advertiser_gender', 'gender'),
         db.Index('idx_advertiser_verified', 'is_verified'),
-        db.Index('idx_advertiser_bio', 'bio'),
+    
         db.Index('idx_advertiser_password', 'password_hash'),
         db.Index('idx_advertiser_online', 'is_online'),
         db.Index('idx_advertiser_active', 'last_active'),

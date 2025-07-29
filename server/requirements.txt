@@ -6,3 +6,11 @@ PyMySQL==1.1.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
 cryptography==41.0.0
+flasgger
+PyMySQL  
+Package 
+Flask-RESTful            
+faker
+werkzeug
+
+
