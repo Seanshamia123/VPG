@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 import uuid
-from . import db
+from database import db
 
 class UserBlock(db.Model):
     __tablename__ = 'user_blocks'

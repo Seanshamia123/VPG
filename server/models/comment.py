@@ -1,12 +1,12 @@
 from datetime import datetime
-from . import db
+from database import db
 
 class Comment(db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     target_type = db.Column(db.Enum('post', 'profile', name='comment_target_type'), nullable=False)
-    target_id = db.Column(nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)
     parent_comment_id = db.Column(db.ForeignKey('comments.id'))
     content = db.Column(db.Text, nullable=False)
     likes_count = db.Column(db.Integer, default=0)

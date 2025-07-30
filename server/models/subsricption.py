@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 import uuid
-from . import db
+from database import db
 
 class Subscription(db.Model):
     __tablename__ = 'subscriptions'

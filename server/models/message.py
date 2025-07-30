@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 import uuid
-from . import db
+from database import db
 
 class Message(db.Model):
     __tablename__ = 'messages'

@@ -1,5 +1,5 @@
 from datetime import datetime
-from . import db
+from database import db
 
 class Advertiser(db.Model):
     __tablename__ = 'advertisers'
