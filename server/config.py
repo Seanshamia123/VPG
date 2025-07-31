@@ -7,12 +7,12 @@ class Config:
     SECRET_KEY = os.environ.get('732ffbadb13fee4198fbd1e32394e7366c595da6cc66d2a3') or 'dev-secret-key'
     
     # MySQL Configuration
-    MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
-    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
-    MYSQL_USER = os.environ.get('MYSQL_USER') or 'sean'
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '12345'
-    MYSQL_DB = os.environ.get('MYSQL_DB') or 'VPG'
-    
+    MYSQL_HOST = os.environ.get('localhost') 
+    MYSQL_PORT = int(os.environ.get(3306))
+    MYSQL_USER = os.environ.get('sean')
+    MYSQL_PASSWORD = os.environ.get('12345')
+    MYSQL_DB = os.environ.get('VPG')
+
     # Construct DATABASE_URL for MySQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'

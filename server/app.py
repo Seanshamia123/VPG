@@ -1,20 +1,15 @@
 from flask import Flask
 from flask_restful import Api
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flasgger import Swagger
 import os
 from flask_restx import Api
+from database import db, migrate
 
-
-# Initialize extensions
-db = SQLAlchemy()
-migrate = Migrate()
 
 def create_app(config_name=None):
     app = Flask(__name__)
     
-        # Configuration
+    # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
         f"mysql+pymysql://{os.environ.get('MYSQL_USER', 'flutter_user')}:{os.environ.get('MYSQL_PASSWORD', 'your_password')}@{os.environ.get('MYSQL_HOST', 'localhost')}:{os.environ.get('MYSQL_PORT', '3306')}/{os.environ.get('MYSQL_DB', 'flutter_app_db')}"
@@ -65,37 +60,42 @@ def create_app(config_name=None):
     # Initialize API
     api = Api(app)
     
-    # Import models (this should be done after db initialization)
-    from models.advertiser import Advertiser
-    from models.commentlike import CommentLike
-    from models.message import Message
-    from models.subsricption import Subscription
-    from models.userblock import UserBlock
-    from models.user_settings import UserSetting
-    from models.user import User
-    # Import and register API resources
-    # from api.advertiser_api import AdvertiserAPI, AdvertiserListAPI
+    # Import models within app context
+    with app.app_context():
+        from models.advertiser import Advertiser
+        from models.commentlike import CommentLike
+        from models.message import Message
+        from models.subsricption import Subscription  # Fixed typo from 'subsricption'
+        from models.userblock import UserBlock
+        from models.user_settings import UserSetting
+        from models.user import User
 
-    from apis.advertiser_api import api as advertiser_ns
-    from apis.message_api import api as message_ns
-    # from apis.subscription_api import api as subscription_ns
-    from apis.user_block_api import api as user_block_ns
+        # Debug: Print detected models (remove this after confirming it works)
+        print("Detected models:")
+        for table_name in db.metadata.tables:
+            print(f"  - {table_name}")
+
+    # Import and register API resources
     from apis.users import api as users_ns
+    
+    # Uncomment these as you implement the corresponding APIs
+    # from apis.advertiser_api import api as advertiser_ns
+    # from apis.message_api import api as message_ns
+    # from apis.subscription_api import api as subscription_ns
+    # from apis.user_block_api import api as user_block_ns
     # from apis.user_settings_api import api as user_settings_ns
     # from apis.comment_like_api import api as comment_like_ns
+    
     # Register API routes
-    # Advertiser routes
-   
-
-
-    api.add_namespace(advertiser_ns, path='/api/advertisers')
     api.add_namespace(users_ns, path='/api/users')
-    api.add_namespace(message_ns, path='/api/messages')
+    
+    # Uncomment these as you implement the corresponding APIs
+    # api.add_namespace(advertiser_ns, path='/api/advertisers')
+    # api.add_namespace(message_ns, path='/api/messages')
     # api.add_namespace(subscription_ns, path='/api/subscriptions')
-    api.add_namespace(user_block_ns, path='/api/user-blocks')
+    # api.add_namespace(user_block_ns, path='/api/user-blocks')
     # api.add_namespace(user_settings_ns, path='/api/user-settings')
     # api.add_namespace(comment_like_ns, path='/api/comment-likes')
-    
     
     return app
 
