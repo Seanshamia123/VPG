@@ -2,9 +2,12 @@ from flask import Flask
 from flask_restful import Api
 from flasgger import Swagger
 import os
+import sys
 from flask_restx import Api
 from database import db, migrate
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def create_app(config_name=None):
     app = Flask(__name__)
@@ -12,7 +15,7 @@ def create_app(config_name=None):
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or \
-        f"mysql+pymysql://{os.environ.get('MYSQL_USER', 'flutter_user')}:{os.environ.get('MYSQL_PASSWORD', 'your_password')}@{os.environ.get('MYSQL_HOST', 'localhost')}:{os.environ.get('MYSQL_PORT', '3306')}/{os.environ.get('MYSQL_DB', 'flutter_app_db')}"
+        f"mysql+pymysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD', 'your_password')}@{os.environ.get('MYSQL_HOST', 'localhost')}:{os.environ.get('MYSQL_PORT', '3306')}/{os.environ.get('MYSQL_DB', 'flutter_app_db')}"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,

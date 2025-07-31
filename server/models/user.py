@@ -1,5 +1,6 @@
 from datetime import datetime
 from database import db
+
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -13,7 +14,8 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
-    password_hash = db.Column(db.String(100))
+    password_hash = db.Column(db.String(256))  # or 512 if you're paranoid
+
 
     # Add indexes for better performance
     __table_args__ = (

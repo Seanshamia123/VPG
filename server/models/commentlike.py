@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 import uuid
 from database import db
+
 class CommentLike(db.Model):
     __tablename__ = 'comment_likes'
     id = db.Column(db.Integer,primary_key=True)

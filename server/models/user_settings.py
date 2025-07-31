@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 import uuid
 from database import db
+
 class UserSetting(db.Model):
     __tablename__ = 'user_settings'
     
