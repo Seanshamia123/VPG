@@ -18,7 +18,7 @@ class Advertiser(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
     bio = db.Column(db.Text)
-    password_hash = db.Column(db.String(100))
+    password_hash = db.Column(db.String(256))
 
     # Add indexes for better performance
     __table_args__ = (
