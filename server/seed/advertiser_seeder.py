@@ -2,7 +2,7 @@
 Advertiser seeder for populating the advertisers table
 """
 import random
-from faker import Faker
+from faker import Faker # type: ignore
 from werkzeug.security import generate_password_hash
 from models.advertiser import Advertiser
 from app import db

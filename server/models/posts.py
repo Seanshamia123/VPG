@@ -5,9 +5,8 @@ from database import db
 
 class Post(db.Model):
     __tablename__ = 'posts'
-    
     id = db.Column(db.Integer,primary_key=True)
-    user_id = db.Column(db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    advertiser_id = db.Column(db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     image_id = db.Column(db.Text)
     caption = db.Column(db.Text)
     created_at = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())

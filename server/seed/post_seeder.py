@@ -2,7 +2,7 @@
 Post seeder for populating the posts table
 """
 import random
-from faker import Faker
+from faker import Faker # type: ignore
 from models.user import User
 from models.posts import Post
 from app import db

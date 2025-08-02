@@ -1,6 +1,9 @@
 from .seed_users import seed_users
+# from .advertiser_seeder import seed_advertisers
+from .messages_seeder import seed_messages
+from .conversation_seeder import seed_conversations
 # Add other seed imports as needed
-# from .seed_posts import seed_posts
+from .post_seeder import seed_posts
 # from .seed_user_blocks import seed_user_blocks
 
 def seed_all():
@@ -9,8 +12,10 @@ def seed_all():
     
     # Seed in dependency order
     seed_users()
-    # Add other seed functions as needed
-    # seed_posts()
+    # seed_advertisers()
+    seed_messages()
+    seed_conversations()
+    seed_posts()
     # seed_user_blocks()
-    
+
     print("Database seeding completed!")
