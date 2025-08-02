@@ -1,6 +1,5 @@
 from .seed_users import seed_users
 from .seed_advertisers import seed_advertisers
-# from .advertiser_seeder import seed_advertisers
 from .messages_seeder import seed_messages
 from .conversation_seeder import seed_conversations
 # Add other seed imports as needed
@@ -13,7 +12,7 @@ def seed_all():
     
     # Seed in dependency order
     seed_users()
-    # seed_advertisers()
+    seed_advertisers()
     seed_messages()
     seed_conversations()
     seed_posts()

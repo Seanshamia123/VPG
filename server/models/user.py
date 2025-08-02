@@ -15,7 +15,6 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
     password_hash = db.Column(db.String(256))  # or 512 if you're paranoid
-    profile_picture = db.Column(db.String(255))  # or Text if you're storing large data
 
 
 
@@ -37,7 +36,6 @@ class User(db.Model):
             'number': self.number,
             'location': self.location,
             'gender': self.gender,
-            'profile_picture': self.profile_picture,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
@@ -50,7 +48,6 @@ class User(db.Model):
             'name': self.name,
             'location': self.location,
             'gender': self.gender,
-            'profile_picture': self.profile_picture,
             'created_at': self.created_at.isoformat()
         }
     
