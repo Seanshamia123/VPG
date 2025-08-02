@@ -82,7 +82,7 @@ def create_app(config_name=None):
     from apis.users import api as users_ns
     
     # Uncomment these as you implement the corresponding APIs
-    # from apis.advertiser_api import api as advertiser_ns
+    from apis.advertiser_api import api as advertiser_ns
     # from apis.message_api import api as message_ns
     # from apis.subscription_api import api as subscription_ns
     # from apis.user_block_api import api as user_block_ns
@@ -93,7 +93,7 @@ def create_app(config_name=None):
     api.add_namespace(users_ns, path='/api/users')
     
     # Uncomment these as you implement the corresponding APIs
-    # api.add_namespace(advertiser_ns, path='/api/advertisers')
+    api.add_namespace(advertiser_ns, path='/api/advertisers')
     # api.add_namespace(message_ns, path='/api/messages')
     # api.add_namespace(subscription_ns, path='/api/subscriptions')
     # api.add_namespace(user_block_ns, path='/api/user-blocks')

@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import Post, User, Comment, db
-from .decorators import token_required
+# from .decorators import token_required
 
 api = Namespace('posts', description='Post management operations')
 
@@ -42,7 +42,7 @@ post_with_user_model = api.model('PostWithUser', {
 class PostList(Resource):
     @api.doc('list_posts')
     @api.marshal_list_with(post_with_user_model)
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Get all posts (feed)"""
         try:
@@ -83,7 +83,7 @@ class PostList(Resource):
     @api.doc('create_post')
     @api.expect(post_create_model)
     @api.marshal_with(post_model)
-    @token_required
+    # @token_required
     def post(self, current_user):
         """Create a new post"""
         try:
@@ -117,7 +117,7 @@ class PostList(Resource):
 class PostDetail(Resource):
     @api.doc('get_post')
     @api.marshal_with(post_with_user_model)
-    @token_required
+    # @token_required
     def get(self, current_user, post_id):
         """Get post by ID"""
         try:
@@ -147,7 +147,7 @@ class PostDetail(Resource):
     @api.doc('update_post')
     @api.expect(post_update_model)
     @api.marshal_with(post_model)
-    @token_required
+    # @token_required
     def put(self, current_user, post_id):
         """Update post (only by owner)"""
         try:
@@ -178,7 +178,7 @@ class PostDetail(Resource):
             api.abort(500, f'Failed to update post: {str(e)}')
     
     @api.doc('delete_post')
-    @token_required
+    # @token_required
     def delete(self, current_user, post_id):
         """Delete post (only by owner)"""
         try:
@@ -200,7 +200,7 @@ class PostDetail(Resource):
 @api.route('/<int:post_id>/comments')
 class PostComments(Resource):
     @api.doc('get_post_comments')
-    @token_required
+    # @token_required
     def get(self, current_user, post_id):
         """Get comments for a post"""
         try:
@@ -252,7 +252,7 @@ class PostComments(Resource):
 class MyPosts(Resource):
     @api.doc('get_my_posts')
     @api.marshal_list_with(post_model)
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Get current user's posts"""
         try:
@@ -289,7 +289,7 @@ class MyPosts(Resource):
 @api.route('/search')
 class SearchPosts(Resource):
     @api.doc('search_posts')
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Search posts by caption"""
         try:

@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import User, Post, UserBlock, db
-from .decorators import token_required
+# from .decorators import token_required
 
 api = Namespace('users', description='User management operations')
 
@@ -33,8 +33,8 @@ user_block_model = api.model('UserBlock', {
 class UserList(Resource):
     @api.doc('list_users')
     @api.marshal_list_with(user_model)
-    @token_required
-    def get(self, current_user):
+    # @token_required
+    def get(self):
         """Get all active users"""
         try:
             page = request.args.get('page', 1, type=int)
@@ -61,7 +61,7 @@ class UserList(Resource):
 class UserDetail(Resource):
     @api.doc('get_user')
     @api.marshal_with(user_model)
-    @token_required
+    # @token_required
     def get(self, current_user, user_id):
         """Get user by ID"""
         try:
@@ -77,7 +77,7 @@ class UserDetail(Resource):
     @api.doc('update_user')
     @api.expect(user_update_model)
     @api.marshal_with(user_model)
-    @token_required
+    # @token_required
     def put(self, current_user, user_id):
         """Update user profile (only own profile)"""
         try:
@@ -93,7 +93,7 @@ class UserDetail(Resource):
             api.abort(500, f'Failed to update user: {str(e)}')
     
     @api.doc('delete_user')
-    @token_required
+    # @token_required
     def delete(self, current_user, user_id):
         """Delete user account (only own account)"""
         try:
@@ -109,7 +109,7 @@ class UserDetail(Resource):
 @api.route('/<int:user_id>/posts')
 class UserPosts(Resource):
     @api.doc('get_user_posts')
-    @token_required
+    # @token_required
     def get(self, current_user, user_id):
         """Get posts by user"""
         try:
@@ -140,7 +140,7 @@ class UserPosts(Resource):
 class UserProfile(Resource):
     @api.doc('get_current_user_profile')
     @api.marshal_with(user_model)
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Get current user profile"""
         try:
@@ -153,7 +153,7 @@ class UserProfile(Resource):
 class BlockUser(Resource):
     @api.doc('block_user')
     @api.expect(user_block_model)
-    @token_required
+    # @token_required
     def post(self, current_user):
         """Block a user"""
         try:
@@ -196,7 +196,7 @@ class BlockUser(Resource):
 @api.route('/unblock/<int:blocked_id>')
 class UnblockUser(Resource):
     @api.doc('unblock_user')
-    @token_required
+    # @token_required
     def delete(self, current_user, blocked_id):
         """Unblock a user"""
         try:
@@ -219,7 +219,7 @@ class UnblockUser(Resource):
 @api.route('/blocked')
 class BlockedUsers(Resource):
     @api.doc('get_blocked_users')
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Get list of blocked users"""
         try:
@@ -237,7 +237,7 @@ class BlockedUsers(Resource):
 @api.route('/search')
 class SearchUsers(Resource):
     @api.doc('search_users')
-    @token_required
+    # @token_required
     def get(self, current_user):
         """Search users by name or username"""
         try:
