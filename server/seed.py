@@ -30,7 +30,7 @@ def main():
                 print("Available seeders: users")
         else:
             print("Clearing tables...")
-            db.drop_all()
+            #db.drop_all()
             print("Creating tables...")
             db.create_all()
             seed_all()

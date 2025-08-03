@@ -5,7 +5,6 @@ from database import db
 
 class Post(db.Model):
     __tablename__ = 'posts'
-    
     id = db.Column(db.Integer,primary_key=True)
     advertiser_id = db.Column(db.ForeignKey('advertisers.id', ondelete='CASCADE'), nullable=False)
     image_id = db.Column(db.Text)

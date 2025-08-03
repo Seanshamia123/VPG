@@ -15,7 +15,6 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
     password_hash = db.Column(db.String(256))  # or 512 if you're paranoid
-    profile_picture = db.Column(db.String(255))  # or Text if you're storing large data
 
 
 
