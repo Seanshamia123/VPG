@@ -37,7 +37,6 @@ class User(db.Model):
             'number': self.number,
             'location': self.location,
             'gender': self.gender,
-            'profile_picture': self.profile_picture,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
@@ -50,7 +49,6 @@ class User(db.Model):
             'name': self.name,
             'location': self.location,
             'gender': self.gender,
-            'profile_picture': self.profile_picture,
             'created_at': self.created_at.isoformat()
         }
     
