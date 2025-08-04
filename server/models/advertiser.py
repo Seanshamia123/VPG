@@ -4,16 +4,17 @@ from database import db
 class Advertiser(db.Model):
     __tablename__ = 'advertisers'
     
-    id = db.Column(db.Integer,primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False) #prefered username by the user himself
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     phone_number = db.Column(db.String(20), nullable=False)
     location = db.Column(db.String(255), nullable=False)
     gender = db.Column(db.Enum('Male', 'Female', 'other', name='advertiser_gender_enum'), nullable=False)
-    profile_image_url = db.Column(db.String(500), nullable=True)  # URL or file path
+    profile_image_url = db.Column(db.String(500), nullable=True)
     is_verified = db.Column(db.Boolean, default=False)
     is_online = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)  # Added missing field
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
@@ -27,7 +28,6 @@ class Advertiser(db.Model):
         db.Index('idx_advertiser_location', 'location'),
         db.Index('idx_advertiser_gender', 'gender'),
         db.Index('idx_advertiser_verified', 'is_verified'),
-    
         db.Index('idx_advertiser_password', 'password_hash'),
         db.Index('idx_advertiser_online', 'is_online'),
         db.Index('idx_advertiser_active', 'last_active'),
@@ -36,14 +36,17 @@ class Advertiser(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'username': self.username,
             'name': self.name,
             'email': self.email,
-            'number': self.number,
+            'phone_number': self.phone_number,  # Fixed field name
             'location': self.location,
             'gender': self.gender,
             'profile_image_url': self.profile_image_url,
             'is_verified': self.is_verified,
-            'is_active': self.is_active,
+            'is_active': self.is_active,  # Fixed field reference
+            'is_online': self.is_online,
+            'bio': self.bio,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -52,11 +55,13 @@ class Advertiser(db.Model):
         """Return dict without sensitive information"""
         return {
             'id': self.id,
+            'username': self.username,
             'name': self.name,
             'location': self.location,
             'gender': self.gender,
             'profile_image_url': self.profile_image_url,
             'is_verified': self.is_verified,
+            'bio': self.bio,
             'created_at': self.created_at.isoformat()
         }
     

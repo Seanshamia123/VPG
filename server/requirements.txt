@@ -8,9 +8,9 @@ python-dotenv==1.0.0
 cryptography==41.0.0
 flasgger
 PyMySQL  
-Package 
 Flask-RESTful            
 faker
 werkzeug
-
+flask-restx
+PyJWT
 

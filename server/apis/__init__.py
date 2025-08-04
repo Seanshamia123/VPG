@@ -8,7 +8,7 @@ from .message_api import api as messages_ns
 from .conversations import api as conversations_ns
 # from .subscriptions import api as subscriptions_ns
 from .auth import api as auth_ns
-# from .user_settings_api import api as user_settings_ns
+from .user_settings import api as user_settings_ns
 
 # Create the main API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -17,7 +17,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 api = Api(
     api_bp,
     version='1.0',
-    title='Social Media API',
+    title='VPG API',
     description='A comprehensive social media platform API with user management, posts, comments, messaging, and more',
     doc='/docs/',  # Swagger UI will be available at /api/docs/
     contact='developer@example.com',
@@ -41,6 +41,7 @@ api.add_namespace(posts_ns, path='/posts')
 api.add_namespace(comments_ns, path='/comments')
 api.add_namespace(messages_ns, path='/messages')
 api.add_namespace(conversations_ns, path='/conversations')
+api.add_namespace(user_settings_ns, path='/user-settings')
 # api.add_namespace(subscriptions_ns, path='/subscriptions')
 # api.add_namespace(user_settings_ns, path='/user-settings')
 

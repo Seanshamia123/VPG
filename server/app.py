@@ -6,6 +6,7 @@ import sys
 from flask_restx import Api
 from database import db, migrate
 from dotenv import load_dotenv
+from server.apis import comments
 
 load_dotenv()
 
@@ -43,8 +44,8 @@ def create_app(config_name=None):
     swagger_template = {
         "swagger": "2.0",
         "info": {
-            "title": "Social Media API",
-            "description": "API for social media application",
+            "title": "VPG API",
+            "description": "API for VPG",
             "version": "1.0.0"
         },
         "consumes": [
@@ -83,10 +84,13 @@ def create_app(config_name=None):
     
     # Uncomment these as you implement the corresponding APIs
     from apis.advertiser_api import api as advertiser_ns
-    # from apis.message_api import api as message_ns
+    from apis.message_api import api as message_ns
+    from apis.user_settings import api as user_settings_ns
+    from apis.posts import api as posts_ns
+    from apis.comments import api as comments_ns
+    from apis.auth import api as auth_ns
     # from apis.subscription_api import api as subscription_ns
     # from apis.user_block_api import api as user_block_ns
-    # from apis.user_settings_api import api as user_settings_ns
     # from apis.comment_like_api import api as comment_like_ns
     
     # Register API routes
@@ -94,7 +98,12 @@ def create_app(config_name=None):
     
     # Uncomment these as you implement the corresponding APIs
     api.add_namespace(advertiser_ns, path='/api/advertisers')
-    # api.add_namespace(message_ns, path='/api/messages')
+    api.add_namespace(message_ns, path='/api/messages')
+    api.add_namespace(posts_ns, path='/api/posts')
+    api.add_namespace(user_settings_ns, path='/api/user-settings')
+    api.add_namespace(comments_ns, path='/comments')
+    api.add_namespace(auth_ns, path='/auth')
+
     # api.add_namespace(subscription_ns, path='/api/subscriptions')
     # api.add_namespace(user_block_ns, path='/api/user-blocks')
     # api.add_namespace(user_settings_ns, path='/api/user-settings')
