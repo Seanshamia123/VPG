@@ -101,7 +101,7 @@ def create_app(config_name=None):
     api.add_namespace(message_ns, path='/api/messages')
     api.add_namespace(posts_ns, path='/api/posts')
     api.add_namespace(user_settings_ns, path='/api/user-settings')
-    api.add_namespace(comments_ns, path='/comments')
+    api.add_namespace(comments_ns, path='/api/comments')
     api.add_namespace(auth_ns, path='/auth')
 
     # api.add_namespace(subscription_ns, path='/api/subscriptions')

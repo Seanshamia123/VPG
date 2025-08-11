@@ -87,8 +87,12 @@ class CommentList(Resource):
             else:
                 api.abort(400, 'Invalid target_type')
             
-            # Validate parent comment if provided
-            if parent_comment_id:
+            # Fix: Handle parent_comment_id properly
+            # If parent_comment_id is 0, None, or empty string, set it to None
+            if parent_comment_id in [0, None, '', '0']:
+                parent_comment_id = None
+            else:
+                # Validate parent comment if provided and not null
                 parent_comment = Comment.query.get(parent_comment_id)
                 if not parent_comment:
                     api.abort(404, 'Parent comment not found')
@@ -99,7 +103,7 @@ class CommentList(Resource):
                 user_id=current_user.id,
                 target_type=target_type,
                 target_id=target_id,
-                parent_comment_id=parent_comment_id,
+                parent_comment_id=parent_comment_id,  # This will now be None for top-level comments
                 content=content
             )
             
@@ -121,7 +125,6 @@ class CommentList(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to create comment: {str(e)}')
-
 @api.route('/<int:comment_id>')
 class CommentDetail(Resource):
     @api.doc('get_comment')
