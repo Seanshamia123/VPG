@@ -1,9 +1,4 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy # type: ignore
-
-# Initialize SQLAlchemy
-db = SQLAlchemy()
-
+from database import db 
 # Import all models here
 from .user import User
 from .advertiser import Advertiser

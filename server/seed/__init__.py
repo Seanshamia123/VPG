@@ -16,6 +16,7 @@ def seed_all():
     seed_conversations()
     seed_posts()
     seed_messages()
+
     # seed_user_blocks()
 
     print("Database seeding completed!")
