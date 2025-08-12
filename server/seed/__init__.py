@@ -13,9 +13,9 @@ def seed_all():
     # Seed in dependency order
     seed_users()
     seed_advertisers()
-    seed_messages()
     seed_conversations()
     seed_posts()
+    seed_messages()
     # seed_user_blocks()
 
     print("Database seeding completed!")
