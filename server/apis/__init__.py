@@ -43,6 +43,6 @@ api.add_namespace(messages_ns, path='/messages')
 api.add_namespace(conversations_ns, path='/conversations')
 api.add_namespace(user_settings_ns, path='/user-settings')
 # api.add_namespace(subscriptions_ns, path='/subscriptions')
-# api.add_namespace(user_settings_ns, path='/user-settings')
+api.add_namespace(user_settings_ns, path='/user-settings')
 
 __all__ = ['api_bp']

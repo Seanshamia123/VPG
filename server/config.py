@@ -13,6 +13,12 @@ class Config:
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '12345'
     MYSQL_DB = os.environ.get('MYSQL_DB') or 'VPG'
 
+    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME') or 'VPG_UPLOADS'
+    CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY') or '398774447228892'
+    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET') or 'WBDJI-xZEAUZ6eU4z3_EPWpvlXA'
+    CLOUDINARY_UPLOAD_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'VPG_UPLOADS')
+
+
     # Construct DATABASE_URL for MySQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'

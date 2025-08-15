@@ -13,4 +13,4 @@ faker
 werkzeug
 flask-restx
 PyJWT
-
+cloudinary==1.36.0

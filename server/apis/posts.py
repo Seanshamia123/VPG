@@ -3,32 +3,42 @@ from flask_restx import Namespace, Resource, fields
 from models import Post, Advertiser, Comment, db
 from .decorators import token_required_simple as token_required
 
+import time
+import base64
+# from cloudinary_service import get_service as get_cloudinary_service 
+
 api = Namespace('posts', description='Post management operations')
 
 # Models for Swagger documentation
+image_upload_model = api.model('ImageUpload', {
+    'image': fields.String(required=True, description='Base64 encoded image or image data'),
+    'caption': fields.String(description='Post caption'),
+    'folder': fields.String(description='Cloudinary folder (optional)')
+})
+
 post_model = api.model('Post', {
     'id': fields.Integer(description='Post ID'),
     'advertiser_id': fields.Integer(description='Advertiser ID who created the post'),
-    'image_id': fields.String(description='Image ID or URL'),
+    'image_url': fields.String(description='Image URL from Cloudinary'),
     'caption': fields.String(description='Post caption'),
     'created_at': fields.String(description='Creation timestamp'),
     'updated_at': fields.String(description='Last update timestamp')
 })
 
 post_create_model = api.model('PostCreate', {
-    'image_id': fields.String(required=True, description='Image ID or URL'),
+    'image': fields.String(required=True, description='Base64 encoded image data'),
     'caption': fields.String(description='Post caption')
 })
 
 post_update_model = api.model('PostUpdate', {
     'caption': fields.String(description='Updated post caption'),
-    'image_id': fields.String(description='Updated image ID or URL')
+    'image': fields.String(description='Base64 encoded image data for update')
 })
 
 post_with_advertiser_model = api.model('PostWithAdvertiser', {
     'id': fields.Integer(description='Post ID'),
     'advertiser_id': fields.Integer(description='Advertiser ID'),
-    'image_id': fields.String(description='Image ID or URL'),
+    'image_url': fields.String(description='Image URL from Cloudinary'),
     'caption': fields.String(description='Post caption'),
     'created_at': fields.String(description='Creation timestamp'),
     'updated_at': fields.String(description='Last update timestamp'),
@@ -38,6 +48,46 @@ post_with_advertiser_model = api.model('PostWithAdvertiser', {
         'username': fields.String(description='Username')
     }))
 })
+
+@api.route('/upload-image')
+class ImageUpload(Resource):
+    @api.doc('upload_image')
+    @api.expect(image_upload_model)
+    @token_required
+    def post(self, current_advertiser):
+        """Upload image to Cloudinary and return URL"""
+        try:
+            data = request.get_json()
+            
+            if not data or not data.get('image'):
+                api.abort(400, 'Image data is required')
+            
+            # Generate unique public_id for the image
+            public_id = f"post_{current_advertiser.id}_{int(time.time())}"
+            folder = data.get('folder', 'vpg/posts')
+            
+            # Upload to Cloudinary
+            cloudinary_service = get_cloudinary_service()
+            result = cloudinary_service.upload_base64_image(
+                data['image'],
+                folder=folder,
+                public_id=public_id
+            )
+            
+            if not result['success']:
+                api.abort(400, f'Image upload failed: {result["error"]}')
+            
+            return {
+                'success': True,
+                'image_url': result['secure_url'],
+                'public_id': result['public_id'],
+                'width': result.get('width'),
+                'height': result.get('height'),
+                'format': result.get('format')
+            }, 201
+            
+        except Exception as e:
+            api.abort(500, f'Failed to upload image: {str(e)}')
 
 @api.route('/')
 class PostList(Resource):
@@ -65,7 +115,7 @@ class PostList(Resource):
                 post_dict = {
                     'id': post.id,
                     'advertiser_id': post.advertiser_id,
-                    'image_id': post.image_id,
+                    'image_url': post.image_url,
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
                     'updated_at': post.updated_at.isoformat() if post.updated_at else None,
@@ -87,12 +137,10 @@ class PostList(Resource):
     @api.marshal_with(post_model)
     @token_required
     def post(self, current_advertiser):
-        """Create a new post"""
+        """Create a new post with image upload to Cloudinary"""
         print("=== POST CREATION DEBUG START ===")
         print(f"DEBUG: current_advertiser parameter: {current_advertiser}")
         print(f"DEBUG: current_advertiser type: {type(current_advertiser)}")
-        print(f"DEBUG: self object: {self}")
-        print(f"DEBUG: self type: {type(self)}")
         
         # Check if current_advertiser is actually the PostList object (wrong parameter order)
         if isinstance(current_advertiser, PostList):
@@ -107,9 +155,9 @@ class PostList(Resource):
                 print("DEBUG: No JSON data received")
                 api.abort(400, 'No JSON data provided')
             
-            if not data.get('image_id'):
-                print("DEBUG: image_id is missing")
-                api.abort(400, 'image_id is required')
+            if not data.get('image'):
+                print("DEBUG: image data is missing")
+                api.abort(400, 'image is required')
             
             # Verify current_advertiser has the required attributes
             if not hasattr(current_advertiser, 'id'):
@@ -119,13 +167,30 @@ class PostList(Resource):
             advertiser_id = current_advertiser.id
             print(f"DEBUG: Using advertiser_id: {advertiser_id}")
             
+            # Upload image to Cloudinary first
+            public_id = f"post_{advertiser_id}_{int(time.time())}"
+            cloudinary_service = get_cloudinary_service()
+            upload_result = cloudinary_service.upload_base64_image(
+                data['image'],
+                folder='vpg/posts',
+                public_id=public_id
+            )
+            
+            if not upload_result['success']:
+                print(f"DEBUG: Image upload failed: {upload_result['error']}")
+                api.abort(400, f'Image upload failed: {upload_result["error"]}')
+            
+            image_url = upload_result['secure_url']
+            print(f"DEBUG: Image uploaded successfully: {image_url}")
+            
+            # Create post with the Cloudinary URL
             post = Post(
                 advertiser_id=advertiser_id,
-                image_id=data['image_id'],
+                image_url=image_url,
                 caption=data.get('caption', '')
             )
             
-            print(f"DEBUG: Created post object: advertiser_id={post.advertiser_id}, image_id={post.image_id}")
+            print(f"DEBUG: Created post object: advertiser_id={post.advertiser_id}, image_url={post.image_url}")
             
             db.session.add(post)
             db.session.commit()
@@ -136,7 +201,7 @@ class PostList(Resource):
             result = {
                 'id': post.id,
                 'advertiser_id': post.advertiser_id,
-                'image_id': post.image_id,
+                'image_url': post.image_url,
                 'caption': post.caption,
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None
@@ -171,7 +236,7 @@ class PostDetail(Resource):
             return {
                 'id': post.id,
                 'advertiser_id': post.advertiser_id,
-                'image_id': post.image_id,
+                'image_url': post.image_url,
                 'caption': post.caption,
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None,
@@ -202,7 +267,7 @@ class PostDetail(Resource):
                 api.abort(404, 'Post not found')
             
             print(f"DEBUG: Found post - id: {post.id}, advertiser_id: {post.advertiser_id}")
-            print(f"DEBUG: Current post data - image_id: {post.image_id}, caption: {post.caption}")
+            print(f"DEBUG: Current post data - image_url: {post.image_url}, caption: {post.caption}")
             
             if post.advertiser_id != current_advertiser.id:
                 print(f"DEBUG: Permission denied - post owner: {post.advertiser_id}, current user: {current_advertiser.id}")
@@ -217,6 +282,7 @@ class PostDetail(Resource):
             
             # Track if any changes were made
             changes_made = False
+            old_image_url = post.image_url
             
             # Update caption if provided
             if 'caption' in data:
@@ -226,19 +292,35 @@ class PostDetail(Resource):
                 changes_made = True
             
             # Update image if provided
-            if 'image_id' in data:
-                if not data['image_id']:
-                    print("DEBUG: Empty image_id provided")
-                    api.abort(400, 'image_id cannot be empty')
+            if 'image' in data:
+                if not data['image']:
+                    print("DEBUG: Empty image data provided")
+                    api.abort(400, 'image data cannot be empty')
                 
-                old_image_id = post.image_id
-                post.image_id = data['image_id']
-                print(f"DEBUG: Image update - old: '{old_image_id}' -> new: '{post.image_id}'")
+                # Upload new image to Cloudinary
+                public_id = f"post_{current_advertiser.id}_{post_id}_{int(time.time())}"
+                cloudinary_service = get_cloudinary_service()
+                upload_result = cloudinary_service.upload_base64_image(
+                    data['image'],
+                    folder='vpg/posts',
+                    public_id=public_id
+                )
+                
+                if not upload_result['success']:
+                    print(f"DEBUG: Image upload failed: {upload_result['error']}")
+                    api.abort(400, f'Image upload failed: {upload_result["error"]}')
+                
+                # Update with new image URL
+                post.image_url = upload_result['secure_url']
+                print(f"DEBUG: Image update - old: '{old_image_url}' -> new: '{post.image_url}'")
                 changes_made = True
+                
+                # Optionally delete old image from Cloudinary if you want to clean up
+                # You'd need to extract the public_id from the old URL to do this
             
             if not changes_made:
                 print("DEBUG: No changes made")
-                api.abort(400, 'At least one field (caption or image_id) must be provided for update')
+                api.abort(400, 'At least one field (caption or image) must be provided for update')
             
             print("DEBUG: About to commit changes...")
             db.session.commit()
@@ -246,12 +328,12 @@ class PostDetail(Resource):
             
             # Refresh the post to get updated timestamp
             db.session.refresh(post)
-            print(f"DEBUG: Post after refresh - image_id: {post.image_id}, caption: {post.caption}")
+            print(f"DEBUG: Post after refresh - image_url: {post.image_url}, caption: {post.caption}")
             
             result = {
                 'id': post.id,
                 'advertiser_id': post.advertiser_id,
-                'image_id': post.image_id,
+                'image_url': post.image_url,
                 'caption': post.caption,
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None
@@ -268,26 +350,31 @@ class PostDetail(Resource):
             traceback.print_exc()
             db.session.rollback()
             api.abort(500, f'Failed to update post: {str(e)}')
-        @api.doc('delete_post')
-        @token_required
-        def delete(self, current_advertiser, post_id):
-            """Delete post (only by owner)"""
-            try:
-                post = Post.query.get(post_id)
-                if not post:
-                    api.abort(404, 'Post not found')
-                
-                if post.advertiser_id != current_advertiser.id:
-                    api.abort(403, 'Can only delete your own posts')
-                
-                db.session.delete(post)
-                db.session.commit()
-                
-                return {'message': 'Post deleted successfully'}
-                
-            except Exception as e:
-                db.session.rollback()
-                api.abort(500, f'Failed to delete post: {str(e)}')
+    
+    @api.doc('delete_post')
+    @token_required
+    def delete(self, current_advertiser, post_id):
+        """Delete post (only by owner)"""
+        try:
+            post = Post.query.get(post_id)
+            if not post:
+                api.abort(404, 'Post not found')
+            
+            if post.advertiser_id != current_advertiser.id:
+                api.abort(403, 'Can only delete your own posts')
+            
+            # Optionally delete image from Cloudinary
+            # You'd need to extract public_id from image_url to do this
+            # Example: cloudinary_service.delete_image(public_id)
+            
+            db.session.delete(post)
+            db.session.commit()
+            
+            return {'message': 'Post deleted successfully'}
+            
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, f'Failed to delete post: {str(e)}')
 
 
 @api.route('/<int:post_id>/comments')
@@ -367,7 +454,7 @@ class MyPosts(Resource):
                 post_dict = {
                     'id': post.id,
                     'advertiser_id': post.advertiser_id,
-                    'image_id': post.image_id,
+                    'image_url': post.image_url,
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
                     'updated_at': post.updated_at.isoformat() if post.updated_at else None
@@ -409,7 +496,7 @@ class SearchPosts(Resource):
                 post_dict = {
                     'id': post.id,
                     'advertiser_id': post.advertiser_id,
-                    'image_id': post.image_id,
+                    'image_url': post.image_url,
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
                     'updated_at': post.updated_at.isoformat() if post.updated_at else None,
