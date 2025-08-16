@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import User, Post, UserBlock, db
-# from .decorators import token_required
+from .decorators import token_required
 
 api = Namespace('users', description='User management operations')
 
@@ -77,7 +77,7 @@ class UserDetail(Resource):
     @api.doc('update_user')
     @api.expect(user_update_model)
     @api.marshal_with(user_model)
-    # @token_required
+    @token_required
     def put(self, current_user, user_id):
         """Update user profile (only own profile)"""
         try:
@@ -93,7 +93,7 @@ class UserDetail(Resource):
             api.abort(500, f'Failed to update user: {str(e)}')
     
     @api.doc('delete_user')
-    # @token_required
+    @token_required
     def delete(self, current_user, user_id):
         """Delete user account (only own account)"""
         try:
@@ -109,7 +109,7 @@ class UserDetail(Resource):
 @api.route('/<int:user_id>/posts')
 class UserPosts(Resource):
     @api.doc('get_user_posts')
-    # @token_required
+    @token_required
     def get(self, current_user, user_id):
         """Get posts by user"""
         try:
@@ -140,7 +140,7 @@ class UserPosts(Resource):
 class UserProfile(Resource):
     @api.doc('get_current_user_profile')
     @api.marshal_with(user_model)
-    # @token_required
+    @token_required
     def get(self, current_user):
         """Get current user profile"""
         try:
@@ -153,7 +153,7 @@ class UserProfile(Resource):
 class BlockUser(Resource):
     @api.doc('block_user')
     @api.expect(user_block_model)
-    # @token_required
+    @token_required
     def post(self, current_user):
         """Block a user"""
         try:
@@ -196,30 +196,26 @@ class BlockUser(Resource):
 @api.route('/unblock/<int:blocked_id>')
 class UnblockUser(Resource):
     @api.doc('unblock_user')
-    # @token_required
+    @token_required
     def delete(self, current_user, blocked_id):
         """Unblock a user"""
-        try:
-            user_block = UserBlock.query.filter_by(
-                blocker_id=current_user.id,
-                blocked_id=blocked_id
-            ).first()
-            
-            if not user_block:
-                api.abort(404, 'Block relationship not found')
-            
-            db.session.delete(user_block)
-            db.session.commit()
-            
-            return {'message': 'User unblocked successfully'}
-            
-        except Exception as e:
-            api.abort(500, f'Failed to unblock user: {str(e)}')
+        user_block = UserBlock.query.filter_by(
+            blocker_id=current_user.id,
+            blocked_id=blocked_id
+        ).first()
+
+        if not user_block:
+            api.abort(404, 'Block relationship not found')
+
+        db.session.delete(user_block)
+        db.session.commit()
+
+        return {'message': 'User unblocked successfully'}
 
 @api.route('/blocked')
 class BlockedUsers(Resource):
     @api.doc('get_blocked_users')
-    # @token_required
+    @token_required
     def get(self, current_user):
         """Get list of blocked users"""
         try:
@@ -237,7 +233,7 @@ class BlockedUsers(Resource):
 @api.route('/search')
 class SearchUsers(Resource):
     @api.doc('search_users')
-    # @token_required
+    @token_required
     def get(self, current_user):
         """Search users by name or username"""
         try:
