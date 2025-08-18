@@ -16,3 +16,15 @@ class UserSetting(db.Model):
     selected_theme = db.Column(db.String(20), default='light')
     created_at = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "notification_enabled": self.notification_enabled,
+            "dark_mode_enabled": self.dark_mode_enabled,
+            "show_online_status": self.show_online_status,
+            "read_receipts": self.read_receipts,
+            "selected_language": self.selected_language,
+            "selected_theme": self.selected_theme
+        }
