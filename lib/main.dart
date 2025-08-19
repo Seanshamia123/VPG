@@ -34,7 +34,7 @@ class Escort extends StatelessWidget {
         '/vipgalz': (context) => VideoSplashScreen(),
         '/sign-options': (context) => const SignOptions(),
         '/login': (context) => const Login(),
-        '/sign-up': (context) => const Signup(type: 'user',),
+        '/sign-up': (context) => const Signup(userType: 'user'),
         '/home': (context) => const HomeScreen(),
         // '/profile': (context) => const ProfileScreen(),
         '/advertiser': (context) => const AdvertiserProfile(),

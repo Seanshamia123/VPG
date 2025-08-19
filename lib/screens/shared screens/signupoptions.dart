@@ -1,6 +1,9 @@
+// signupoptions.dart
 import 'package:escort/screens/advertisers%20screens/subscription.dart';
 import 'package:escort/screens/shared%20screens/login.dart';
+import 'package:escort/screens/shared%20screens/signup.dart'; // Import your signup screen
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class SignOptions extends StatelessWidget {
   const SignOptions({super.key});
@@ -97,7 +100,15 @@ class SignOptions extends StatelessWidget {
                                       icon: Icons.person_outline,
                                       title: 'Sign up as User',
                                       subtitle: 'Join our exclusive community',
-                                      onTap: () {}, // take you normal user page to signup
+                                      onTap: () {
+                                        // Navigate to signup page with user type
+                                        Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const Signup(userType: 'user'),
+                                        ),
+                                      );
+                                      },
                                     ),
                                     const SizedBox(height: 24),
                                     GlamorousSignUpCard(
@@ -106,10 +117,39 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as Advertiser',
                                       subtitle: 'Promote your premium services',
                                       onTap: () {
+                                        // For advertisers, you might want to show subscription first
+                                        // or navigate directly to signup
                                         showDialog(
                                           context: context,
-                                          builder: (context) =>
-                                              const Dialog(child: SubscriptionDialog()),
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Choose Option'),
+                                            content: const Text('Would you like to see subscription options or proceed directly to signup?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => const Dialog(child: SubscriptionDialog()),
+                                                  );
+                                                },
+                                                child: const Text('View Subscriptions'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) => const Signup(userType: 'advertiser'),
+                                                        ),
+                                                      );
+
+                                                },
+                                                child: const Text('Direct Signup'),
+                                              ),
+                                            ],
+                                          ),
                                         );
                                       },
                                     ),
@@ -125,7 +165,15 @@ class SignOptions extends StatelessWidget {
                                       icon: Icons.person_outline,
                                       title: 'Sign up as User',
                                       subtitle: 'Join our exclusive community',
-                                      onTap: () {},
+                                      onTap: () {
+                                        // Navigate to signup page with user type
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const Signup(userType: 'user'),
+                                          ),
+                                        );
+                                 },
                                     ),
                                     GlamorousSignUpCard(
                                       type: 'advertiser',
@@ -133,10 +181,37 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as Advertiser',
                                       subtitle: 'Promote your premium services',
                                       onTap: () {
+                                        // For advertisers, you might want to show subscription first
                                         showDialog(
                                           context: context,
-                                          builder: (context) =>
-                                              const Dialog(child: SubscriptionDialog()),
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Choose Option'),
+                                            content: const Text('Would you like to see subscription options or proceed directly to signup?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => const Dialog(child: SubscriptionDialog()),
+                                                  );
+                                                },
+                                                child: const Text('View Subscriptions'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (context) => const Signup(userType: 'advertiser'),
+                                                            ),
+                                                          );
+                                                },
+                                                child: const Text('Direct Signup'),
+                                              ),
+                                            ],
+                                          ),
                                         );
                                       },
                                     ),
@@ -169,10 +244,7 @@ class SignOptions extends StatelessWidget {
                             ),
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const Login()),
-                                );
+                                Get.to(() => const Login());
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,

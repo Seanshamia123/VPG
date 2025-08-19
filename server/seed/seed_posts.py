@@ -18,12 +18,12 @@ def seed_posts():
     # Sample Kenyan-themed captions for posts
     captions = [
         "Beautiful sunrise over Mount Kenya! 🌅 #MountKenya #Kenya #Nature",
-        "Enjoying nyama choma with friends at the weekend! 🍖 #NyamaChoma #Friends #Weekend",
+        "Enjoying nyama choma with friends at the weekend! 🖤 #NyamaChoma #Friends #Weekend",
         "Traffic jam on Thika Road again... but the matatu music keeps me entertained 🚌 #ThikaRoad #Nairobi #MataturCulture",
         "Fresh mandazi from mama mboga this morning! 😋 #Mandazi #Breakfast #Kenyan",
         "Watching lions at Maasai Mara - Kenya is truly beautiful! 🦁 #MaasaiMara #Safari #Wildlife",
         "Ugali and sukuma wiki for lunch - simple but delicious! 🍽️ #Ugali #SukumaWiki #KenyanFood",
-        "Beach vibes at Diani - the Indian Ocean is so blue! 🏖️ #DianiBeach #Beach #Mombasa",
+        "Beach vibes at Diani - the Indian Ocean is so blue! 🖤️ #DianiBeach #Beach #Mombasa",
         "Stuck in Nairobi traffic but grateful for another day! 🚗 #NairobiTraffic #Grateful #Life",
         "Traditional Kikuyu dance at the cultural festival today! 💃 #Culture #Traditional #Dance",
         "Early morning jog around Karura Forest - fresh air! 🏃‍♀️ #KaruraForest #Jogging #Fitness",
@@ -37,21 +37,21 @@ def seed_posts():
         "Street food adventures in downtown Nairobi! 🌮 #StreetFood #Downtown #Nairobi",
         "Hiking at Ngong Hills - amazing views of the city! ⛰️ #NgongHills #Hiking #Views",
         "Traditional beadwork from Maasai artisans - so beautiful! 💎 #Maasai #Beadwork #Art",
-        "Fish and chips at the coast - nothing beats it! 🐟 #FishAndChips #Coast #Mombasa",
+        "Fish and chips at the coast - nothing beats it! 🟤 #FishAndChips #Coast #Mombasa",
         "Rugby match at RFUEA - supporting our local team! 🏉 #Rugby #RFUEA #Sports",
         "Fresh fruit salad with tropical fruits 🥭 #FruitSalad #Tropical #Healthy",
         "Traditional Luo music performance - so energetic! 🎵 #LuoMusic #Traditional #Performance",
         "Morning prayers at the local mosque 🕌 #Prayers #Faith #Community",
         "Volunteering at the children's home today ❤️ #Volunteering #Community #Children",
-        "Traditional Luhya wedding ceremony - beautiful! 💒 #Wedding #Luhya #Traditional",
+        "Traditional Luhya wedding ceremony - beautiful! 💑 #Wedding #Luhya #Traditional",
         "Fresh samosas from the local vendor 🥟 #Samosas #StreetFood #Delicious",
-        "Early morning at Nairobi National Park 🦏 #NairobiNationalPark #Wildlife #Morning",
+        "Early morning at Nairobi National Park 🦁 #NairobiNationalPark #Wildlife #Morning",
         "Traditional Kalenjin running training session! 🏃‍♂️ #Kalenjin #Running #Training",
         "Weekend market shopping in Gikomba 🛍️ #Gikomba #Market #Shopping",
         "Fresh coconut water at the beach 🥥 #CoconutWater #Beach #Refreshing",
         "Traditional Embu dance performance at school 🎭 #EmbuDance #School #Culture",
         "Motorcycle taxi (boda boda) ride to work 🏍️ #BodaBoda #Transport #Work",
-        "Fresh fish from Lake Victoria - dinner sorted! 🐟 #LakeVictoria #Fish #Dinner",
+        "Fresh fish from Lake Victoria - dinner sorted! 🟤 #LakeVictoria #Fish #Dinner",
         "Traditional Turkana jewelry - such craftsmanship! 💍 #Turkana #Jewelry #Craft",
         "Sunday service at the local church ⛪ #Church #Sunday #Faith",
         "Fresh githeri for lunch - comfort food! 🍛 #Githeri #Lunch #ComfortFood",
@@ -104,8 +104,8 @@ def seed_posts():
             updated_at = created_at + timedelta(minutes=random.randint(0, 60))
             
             post_data = {
-                "advertiser_id": advertiser.id,  # Assuming Post.user_id still refers to advertiser
-                "image_id": random.choice(image_urls),
+                "advertiser_id": advertiser.id,
+                "image_url": random.choice(image_urls),  # Changed from image_id to image_url
                 "caption": random.choice(captions),
                 "created_at": created_at,
                 "updated_at": updated_at
@@ -137,6 +137,3 @@ def seed_posts():
 
 if __name__ == "__main__":
     seed_posts()
-
-
-
