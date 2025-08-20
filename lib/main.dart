@@ -10,15 +10,13 @@ import 'package:escort/screens/shared screens/signup.dart';
 import 'package:escort/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 
-
-
 void main() {
   runApp(const Escort());
 }
 
 class Escort extends StatelessWidget {
   const Escort({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -27,14 +25,16 @@ class Escort extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      
+
       // Start with SignOptions instead of HomeScreen
       initialRoute: '/sign-options',
       routes: {
         '/vipgalz': (context) => VideoSplashScreen(),
         '/sign-options': (context) => const SignOptions(),
         '/login': (context) => const Login(),
-        '/sign-up': (context) => const Signup(type: 'user',),
+        '/sign-up': (context) => const Signup(
+              type: 'user',
+            ),
         '/home': (context) => const HomeScreen(),
         // '/profile': (context) => const ProfileScreen(),
         '/advertiser': (context) => const AdvertiserProfile(),
