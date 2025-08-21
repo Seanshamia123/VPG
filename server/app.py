@@ -5,11 +5,15 @@ import os
 from flask_restx import Api as RestxApi
 from database import db, migrate
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 load_dotenv()
 
 def create_app(config_name=None):
     app = Flask(__name__)
+
+    CORS(app, origins=["http://localhost:*"])
+
     
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')

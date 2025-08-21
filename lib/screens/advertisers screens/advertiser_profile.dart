@@ -1,6 +1,6 @@
 import 'package:escort/device_utility/device_checker.dart';
 import 'package:escort/screens/settings_screen.dart';
-import 'package:escort/screens/shared%20screens/reviewspage.dart';
+import 'package:escort/screens/shared_screens/reviewspage.dart';
 import 'package:escort/screens/terms_and_conditions_screen.dart';
 import 'package:escort/styles/app_size.dart';
 import 'package:escort/styles/post_cards_styling.dart';

@@ -1,5 +1,5 @@
 import 'package:escort/screens/advertisers%20screens/subscription.dart';
-import 'package:escort/screens/shared%20screens/signup.dart';
+import 'package:escort/screens/shared_screens/signup.dart';
 import 'package:escort/styles/textstyle.dart';
 import 'package:flutter/material.dart';
 

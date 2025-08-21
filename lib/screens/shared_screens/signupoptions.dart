@@ -1,7 +1,7 @@
 // signupoptions.dart
 import 'package:escort/screens/advertisers%20screens/subscription.dart';
-import 'package:escort/screens/shared%20screens/login.dart';
-import 'package:escort/screens/shared%20screens/signup.dart'; // Import your signup screen
+import 'package:escort/screens/shared_screens/login.dart';
+import 'package:escort/screens/shared_screens/signup.dart'; // Import your signup screen
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

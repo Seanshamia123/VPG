@@ -1,8 +1,8 @@
-// signup.dart
+// Enhanced signup.dart with Navigator and simplified success handling
 import 'package:escort/device_utility/device_checker.dart';
-import 'package:escort/screens/shared%20screens/login.dart';
+import 'package:escort/screens/shared_screens/login.dart';
 import 'package:escort/styles/app_size.dart';
-import 'package:escort/services/auth_service.dart'; // Import the auth service
+import 'package:escort/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -24,7 +24,7 @@ class _SignupState extends State<Signup> {
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _locationController = TextEditingController();
-  final _bioController = TextEditingController(); // Only for advertisers
+  final _bioController = TextEditingController();
   
   String _selectedGender = 'Male';
   bool _isPasswordVisible = false;
@@ -43,19 +43,35 @@ class _SignupState extends State<Signup> {
     super.dispose();
   }
 
-Future<void> _handleSignup() async {
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (!_agreeToTerms) {
-      Get.snackbar(
-        'Error',
-        'Please agree to the Terms and Conditions',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackBar('Please agree to the Terms and Conditions');
       return;
     }
 
@@ -103,92 +119,182 @@ Future<void> _handleSignup() async {
         );
       }
 
-      // Debug: Print the result
-      print('=== SIGNUP RESULT ===');
-      print('Success: ${result['success']}');
+      // Enhanced debugging
+      print('=== SIGNUP RESULT DEBUG ===');
+      print('Result Type: ${result.runtimeType}');
+      print('Result Keys: ${result.keys.toList()}');
       print('Full result: $result');
-      print('=====================');
+      print('Success field exists: ${result.containsKey('success')}');
+      if (result.containsKey('success')) {
+        print('Success value: ${result['success']}');
+        print('Success value type: ${result['success'].runtimeType}');
+      }
+      print('==========================');
 
-      if (result['success']) {
-        // Store tokens and user info (implement secure storage)
-        final data = result['data'];
-        
-        // Safely extract data with null checks
-        String? accessToken = data['access_token'];
-        String? refreshToken = data['refresh_token'];
-        dynamic userId = data['user_id'];
-        String? userType = data['user_type'];
-        
-        print('=== TOKEN EXTRACTION ===');
-        print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
-        print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
-        print('User ID: $userId');
-        print('User Type: $userType');
-        print('========================');
-        
-        // TODO: Store tokens securely using SharedPreferences or FlutterSecureStorage
-        // await _storeTokens(accessToken, refreshToken, userId, userType);
-        
-        Get.snackbar(
-          'Success',
-          'Account created successfully! Welcome to VipGalz!',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
+      // Simplified success detection
+      bool isSuccess = _determineSuccess(result);
+      print('Final success determination: $isSuccess');
 
-        // Navigate to appropriate screen based on user type
-        if (userType == 'user') {
-          // Navigate to user dashboard/home
-          // Get.offAll(() => const UserDashboard());
-          Get.offAll(() => const Login()); // Temporary - replace with user dashboard
-        } else {
-          // Navigate to advertiser dashboard
-          // Get.offAll(() => const AdvertiserDashboard());
-          Get.offAll(() => const Login()); // Temporary - replace with advertiser dashboard
+      if (isSuccess) {
+        // Store tokens and user info if available
+        _handleSuccessfulRegistration(result);
+        
+        // Show success message using ScaffoldMessenger
+        _showSuccessSnackBar('Account created successfully! Welcome to VipGalz!');
+        
+        // Wait a bit to show the success message
+        await Future.delayed(const Duration(milliseconds: 1000));
+
+        // Navigate to login screen using Navigator
+        if (mounted) {
+          print('Navigating to login screen using Navigator...');
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const Login()),
+            (route) => false, // Remove all previous routes
+          );
         }
         
       } else {
-        // Enhanced error display
-        String errorMessage = result['message'] ?? 'Registration failed';
-        int? statusCode = result['statusCode'];
-        
-        if (statusCode != null) {
-          errorMessage += ' (Status: $statusCode)';
-        }
-        
+        // Handle registration failure
+        String errorMessage = _extractErrorMessage(result);
         print('Registration failed: $errorMessage');
-        
-        Get.snackbar(
-          'Error',
-          errorMessage,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 4),
-        );
+        _showErrorSnackBar(errorMessage);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('=== EXCEPTION DURING SIGNUP ===');
       print('Exception: $e');
       print('Exception type: ${e.runtimeType}');
-      print('Stack trace: ${StackTrace.current}');
+      print('Stack trace: $stackTrace');
       print('===============================');
       
-      Get.snackbar(
-        'Error',
-        'Something went wrong. Please try again. Error: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackBar('Something went wrong. Please try again.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
+  bool _determineSuccess(Map<String, dynamic> result) {
+    // Check for explicit success indicators
+    if (result.containsKey('success')) {
+      var success = result['success'];
+      if (success is bool) return success;
+      if (success is String) return success.toLowerCase() == 'true';
+    }
+    
+    // Check status field
+    if (result.containsKey('status')) {
+      String status = result['status'].toString().toLowerCase();
+      if (status == 'success' || status == 'ok') return true;
+    }
+    
+    // Check HTTP status codes
+    if (result.containsKey('statusCode')) {
+      int statusCode = result['statusCode'];
+      if (statusCode >= 200 && statusCode < 300) return true;
+    }
+    
+    // Check for presence of tokens or user data
+    if (result.containsKey('data') && result['data'] != null) {
+      final data = result['data'];
+      if (data is Map) {
+        if (data.containsKey('access_token') || 
+            data.containsKey('user_id') || 
+            data.containsKey('token')) {
+          return true;
+        }
+      }
+    }
+    
+    // Check message for success indicators
+    if (result.containsKey('message')) {
+      String message = result['message'].toString().toLowerCase();
+      if (message.contains('success') || 
+          message.contains('created') || 
+          message.contains('registered') ||
+          message.contains('welcome')) {
+        return true;
+      }
+    }
+    
+    // If no explicit error and we have some data, assume success
+    if (!result.containsKey('error') && 
+        !result.containsKey('errors') && 
+        result.isNotEmpty) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  String _extractErrorMessage(Map<String, dynamic> result) {
+    String errorMessage = 'Registration failed';
+    
+    // Check various error fields
+    if (result.containsKey('message')) {
+      errorMessage = result['message'].toString();
+    } else if (result.containsKey('error')) {
+      var error = result['error'];
+      if (error is String) {
+        errorMessage = error;
+      } else if (error is Map && error.containsKey('message')) {
+        errorMessage = error['message'].toString();
+      }
+    } else if (result.containsKey('errors')) {
+      var errors = result['errors'];
+      if (errors is String) {
+        errorMessage = errors;
+      } else if (errors is List && errors.isNotEmpty) {
+        errorMessage = errors.first.toString();
+      } else if (errors is Map) {
+        // Handle validation errors
+        List<String> errorList = [];
+        errors.forEach((key, value) {
+          if (value is List) {
+            errorList.addAll(value.map((e) => e.toString()));
+          } else {
+            errorList.add(value.toString());
+          }
+        });
+        if (errorList.isNotEmpty) {
+          errorMessage = errorList.join(', ');
+        }
+      }
+    }
+    
+    // Add status code if available
+    if (result.containsKey('statusCode')) {
+      errorMessage += ' (Status: ${result['statusCode']})';
+    }
+    
+    return errorMessage;
+  }
+
+  void _handleSuccessfulRegistration(Map<String, dynamic> result) {
+    if (result.containsKey('data') && result['data'] != null) {
+      final data = result['data'];
+      
+      // Safely extract data with null checks
+      String? accessToken = data['access_token'];
+      String? refreshToken = data['refresh_token'];
+      dynamic userId = data['user_id'];
+      String? userType = data['user_type'];
+      
+      print('=== TOKEN EXTRACTION ===');
+      print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
+      print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
+      print('User ID: $userId');
+      print('User Type: $userType');
+      print('========================');
+      
+      // TODO: Store tokens securely using SharedPreferences or FlutterSecureStorage
+      // await _storeTokens(accessToken, refreshToken, userId, userType);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final insets = context.insets;
@@ -201,7 +307,7 @@ Future<void> _handleSignup() async {
         title: Text('Sign Up as ${widget.userType.capitalize}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Center(
@@ -563,7 +669,9 @@ Future<void> _handleSignup() async {
                         
                         // Already have account link
                         TextButton(
-                          onPressed: () => Get.to(() => const Login()),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const Login()),
+                          ),
                           child: Text(
                             "Already have an account? Sign In",
                             style: TextStyle(color: colorScheme.primary),

@@ -1,12 +1,12 @@
 import 'package:escort/screens/advertisers screens/advertiser_profile.dart';
 import 'package:escort/screens/advertisers screens/checkout.dart';
 import 'package:escort/screens/advertisers screens/subscription.dart';
-import 'package:escort/screens/shared screens/message.dart';
+import 'package:escort/screens/shared_screens/message.dart';
 import 'package:escort/screens/splash_screen.dart';
 import 'package:escort/theme/app_theme.dart';
-import 'package:escort/screens/shared screens/signupoptions.dart';
-import 'package:escort/screens/shared screens/login.dart';
-import 'package:escort/screens/shared screens/signup.dart';
+import 'package:escort/screens/shared_screens/signupoptions.dart';
+import 'package:escort/screens/shared_screens/login.dart';
+import 'package:escort/screens/shared_screens/signup.dart';
 import 'package:escort/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 

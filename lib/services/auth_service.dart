@@ -145,61 +145,94 @@ class AuthService {
   }
 
   // Login
-  static Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-    required String userType,
-  }) async {
+// Add this method to your existing AuthService class
+
+static Future<Map<String, dynamic>> login({
+  required String email,
+  required String password,
+  required String userType, // 'user' or 'advertiser'
+}) async {
+  final url = Uri.parse('$baseUrl/login');
+  
+  // Create the request body
+  final requestBody = {
+    'email': email.trim(),
+    'password': password,
+    'user_type': userType,
+  };
+
+  print('=== LOGIN REQUEST ===');
+  print('URL: $url');
+  print('Body: ${requestBody.toString()}');
+  print('====================');
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: json.encode(requestBody),
+    );
+
+    print('=== LOGIN RESPONSE ===');
+    print('Status Code: ${response.statusCode}');
+    print('Headers: ${response.headers}');
+    print('Body: ${response.body}');
+    print('======================');
+
+    // Parse the response
+    Map<String, dynamic> responseData;
     try {
-      final requestData = {
-        'email': email,
-        'password': password,
-        'user_type': userType,
-      };
-
-      // Debug: Print the request data
-      print('=== LOGIN REQUEST ===');
-      print('URL: $baseUrl/login');
-      print('Request Data: ${json.encode(requestData)}');
-      print('====================');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(requestData),
-      );
-
-      // Debug: Print the response
-      print('=== LOGIN RESPONSE ===');
-      print('Status Code: ${response.statusCode}');
-      print('Headers: ${response.headers}');
-      print('Body: ${response.body}');
-      print('======================');
-
-      final responseData = json.decode(response.body);
-      
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': responseData,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? responseData['error'] ?? 'Login failed',
-        };
-      }
-    } catch (e) {
-      print('Error in login: $e');
-      return {
-        'success': false,
-        'message': 'Network error. Please check your connection and try again.',
-      };
+      responseData = json.decode(response.body);
+    } catch (jsonError) {
+      print('JSON parsing error: $jsonError');
+      throw Exception('Invalid response format from server');
     }
-  }
 
+    // Add status code to response data for better error handling
+    responseData['statusCode'] = response.statusCode;
+
+    // Check if login was successful
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      // Success - check if we have the required fields
+      if (responseData.containsKey('access_token')) {
+        print('Login successful - tokens received');
+        return responseData;
+      } else {
+        print('Login response missing access_token');
+        throw Exception('Invalid response: missing access token');
+      }
+    } else {
+      // Error response
+      print('Login failed with status: ${response.statusCode}');
+      
+      // Return error response for proper error handling
+      String errorMessage = 'Login failed';
+      if (responseData.containsKey('message')) {
+        errorMessage = responseData['message'];
+      } else if (responseData.containsKey('error')) {
+        errorMessage = responseData['error'].toString();
+      }
+      
+      responseData['error'] = errorMessage;
+      return responseData;
+    }
+  } catch (e) {
+    print('=== LOGIN EXCEPTION ===');
+    print('Exception Type: ${e.runtimeType}');
+    print('Exception: $e');
+    print('======================');
+    
+    // Return error response instead of throwing
+    return {
+      'success': false,
+      'error': 'Network error: ${e.toString()}',
+      'statusCode': 500,
+    };
+  }
+}
   // Helper method to test connection
   static Future<bool> testConnection() async {
     try {
