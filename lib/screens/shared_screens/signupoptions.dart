@@ -244,7 +244,10 @@ class SignOptions extends StatelessWidget {
                             ),
                             child: ElevatedButton(
                               onPressed: () {
-                                Get.to(() => const Login());
+                                 Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const Login()),
+              (route) => false,
+            );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,

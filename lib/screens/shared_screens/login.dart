@@ -8,6 +8,7 @@ import 'package:escort/styles/app_size.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:escort/services/user_session.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -228,25 +229,81 @@ class _LoginState extends State<Login> {
     
     return errorMessage;
   }
-
-  void _handleSuccessfulLogin(Map<String, dynamic> result) {
-    // Extract user data and tokens
-    String? accessToken = result['access_token'];
-    String? refreshToken = result['refresh_token'];
-    dynamic userId = result['user_id'];
-    String? userType = result['user_type'];
+Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
+  // Extract user data and tokens
+  String? accessToken = result['access_token'];
+  String? refreshToken = result['refresh_token'];
+  dynamic userId = result['user_id'] ?? result['id'];
+  String? userType = result['user_type'] ?? _selectedUserType;
+  
+  print('=== SUCCESSFUL LOGIN DATA ===');
+  print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
+  print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
+  print('User ID: $userId');
+  print('User Type: $userType');
+  print('Full Response: $result');
+  print('==============================');
+  
+  // Prepare basic user data from login response
+  Map<String, dynamic> userData = {
+    'email': _emailController.text.trim(),
+    'user_type': userType ?? _selectedUserType,
+    'is_online': true, // Assume online after login
+  };
+  
+  // Add any additional data from login response
+  if (userId != null) userData['id'] = userId;
+  if (result.containsKey('username')) userData['username'] = result['username'];
+  if (result.containsKey('name')) userData['name'] = result['name'];
+  
+  try {
+    // First, save basic session data
+    await UserSession.saveUserSession(
+      userData: userData,
+      accessToken: accessToken ?? '',
+      refreshToken: refreshToken,
+      userType: userType ?? _selectedUserType,
+    );
     
-    print('=== SUCCESSFUL LOGIN DATA ===');
-    print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
-    print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
-    print('User ID: $userId');
-    print('User Type: $userType');
-    print('==============================');
+    print('Basic user session saved successfully');
     
-    // TODO: Store tokens securely using SharedPreferences or FlutterSecureStorage
-    // await _storeUserSession(accessToken, refreshToken, userId, userType);
+    // Now fetch complete profile data
+    if (userId != null) {
+      Map<String, dynamic>? completeProfile;
+      
+      if (userType == 'advertiser') {
+        completeProfile = await UserSession.fetchAdvertiserProfile(int.parse(userId.toString()));
+      } else {
+        completeProfile = await UserSession.fetchUserProfile(int.parse(userId.toString()));
+      }
+      
+      if (completeProfile != null) {
+        // Merge the complete profile with existing session data
+        final mergedData = {...userData, ...completeProfile};
+        
+        // Update session with complete profile data
+        await UserSession.saveUserSession(
+          userData: mergedData,
+          accessToken: accessToken ?? '',
+          refreshToken: refreshToken,
+          userType: userType ?? _selectedUserType,
+        );
+        
+        print('=== COMPLETE PROFILE SAVED ===');
+        print('Complete Profile Data: $mergedData');
+        print('==============================');
+      } else {
+        print('Failed to fetch complete profile, using basic data');
+      }
+    } else {
+      print('No user ID found, cannot fetch complete profile');
+    }
+    
+  } catch (e) {
+    print('Error during profile setup: $e');
+    // Continue with navigation even if profile fetch fails
   }
-
+}    
   @override
   Widget build(BuildContext context) {
     final insets = context.insets;
