@@ -1,21 +1,54 @@
-# cloudinary_service.py - Create this as a NEW FILE in your project
+# cloudinary_service.py - Fixed version
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 from flask import current_app
 import time
+import os
 
 class CloudinaryService:
     def __init__(self):
-        self.configure_cloudinary()
+        self._configured = False
     
     def configure_cloudinary(self):
         """Configure Cloudinary with credentials"""
-        cloudinary.config(
-            cloud_name=current_app.config.get('CLOUDINARY_CLOUD_NAME'),
-            api_key=current_app.config.get('CLOUDINARY_API_KEY'),
-            api_secret=current_app.config.get('CLOUDINARY_API_SECRET')
-        )
+        try:
+            # Use environment variables directly if current_app is not available
+            cloud_name = None
+            api_key = None
+            api_secret = None
+            
+            try:
+                # Try to get from Flask config first
+                cloud_name = current_app.config.get('CLOUDINARY_CLOUD_NAME')
+                api_key = current_app.config.get('CLOUDINARY_API_KEY')
+                api_secret = current_app.config.get('CLOUDINARY_API_SECRET')
+            except RuntimeError:
+                # Fall back to environment variables if no app context
+                cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
+                api_key = os.environ.get('CLOUDINARY_API_KEY')
+                api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+            
+            cloudinary.config(
+                cloud_name=cloud_name,
+                api_key=api_key,
+                api_secret=api_secret
+            )
+            self._configured = True
+            
+        except Exception as e:
+            print(f"Warning: Cloudinary configuration failed: {e}")
+            self._configured = False
+    
+    def init_app(self, app):
+        """Initialize with Flask app"""
+        with app.app_context():
+            self.configure_cloudinary()
+    
+    def _ensure_configured(self):
+        """Ensure Cloudinary is configured before operations"""
+        if not self._configured:
+            self.configure_cloudinary()
     
     def upload_image(self, image_data, folder="vpg/posts", public_id=None):
         """
@@ -30,13 +63,23 @@ class CloudinaryService:
             dict: Cloudinary upload response
         """
         try:
+            self._ensure_configured()
+            
             upload_options = {
                 'folder': folder,
-                'upload_preset': current_app.config.get('CLOUDINARY_UPLOAD_PRESET'),
                 'resource_type': 'image',
                 'quality': 'auto',
                 'fetch_format': 'auto'
             }
+            
+            # Try to get upload preset from config
+            try:
+                upload_preset = current_app.config.get('CLOUDINARY_UPLOAD_PRESET')
+                if upload_preset:
+                    upload_options['upload_preset'] = upload_preset
+            except RuntimeError:
+                # No app context, skip upload preset
+                pass
             
             if public_id:
                 upload_options['public_id'] = public_id
@@ -100,6 +143,7 @@ class CloudinaryService:
             dict: Deletion result
         """
         try:
+            self._ensure_configured()
             result = cloudinary.uploader.destroy(public_id)
             return {
                 'success': result.get('result') == 'ok',
@@ -123,6 +167,7 @@ class CloudinaryService:
             str: Generated URL
         """
         try:
+            self._ensure_configured()
             if transformation:
                 return cloudinary.CloudinaryImage(public_id).build_url(**transformation)
             else:
@@ -130,5 +175,21 @@ class CloudinaryService:
         except Exception as e:
             return None
 
-# Initialize the service
+# Global service instance
+_service = None
+
+def get_service():
+    """Get the global CloudinaryService instance"""
+    global _service
+    if _service is None:
+        _service = CloudinaryService()
+        # Try to initialize with current app if available
+        try:
+            _service.init_app(current_app)
+        except RuntimeError:
+            # No app context available yet, will configure later
+            pass
+    return _service
+
+# Create instance but don't configure yet
 cloudinary_service = CloudinaryService()

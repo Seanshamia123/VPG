@@ -5,11 +5,15 @@ import os
 from flask_restx import Api as RestxApi
 from database import db, migrate
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 load_dotenv()
 
 def create_app(config_name=None):
     app = Flask(__name__)
+
+    CORS(app, origins=["http://localhost:*"])
+
     
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -26,6 +30,12 @@ def create_app(config_name=None):
         'pool_timeout': 20,
         'max_overflow': 0
     }
+    
+    # Cloudinary configuration
+    app.config['CLOUDINARY_CLOUD_NAME'] = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    app.config['CLOUDINARY_API_KEY'] = os.environ.get('CLOUDINARY_API_KEY')
+    app.config['CLOUDINARY_API_SECRET'] = os.environ.get('CLOUDINARY_API_SECRET')
+    app.config['CLOUDINARY_UPLOAD_PRESET'] = os.environ.get('CLOUDINARY_UPLOAD_PRESET')
         
     # Swagger configuration
     swagger_config = {
@@ -70,6 +80,10 @@ def create_app(config_name=None):
         from models.userblock import UserBlock
         from models.user_settings import UserSetting
         from models.user import User
+        
+        # Initialize Cloudinary service
+        from server.cloudinary_service import cloudinary_service
+        cloudinary_service.init_app(app)
 
     # Import and register APIs AFTER app is created
     from apis.users import api as users_ns
@@ -96,7 +110,8 @@ def create_app(config_name=None):
 if __name__ == '__main__':
     app = create_app()
     with app.app_context():
+        # Initialize Cloudinary service within app context
         from server.cloudinary_service import cloudinary_service
-        cloudinary_service.configure_cloudinary()
+        cloudinary_service.init_app(app)
         db.create_all()
     app.run(debug=True, port=5002)

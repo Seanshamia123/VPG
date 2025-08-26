@@ -33,7 +33,7 @@ user_block_model = api.model('UserBlock', {
 class UserList(Resource):
     @api.doc('list_users')
     @api.marshal_list_with(user_model)
-    # @token_required
+    @token_required
     def get(self):
         """Get all active users"""
         try:
@@ -61,7 +61,7 @@ class UserList(Resource):
 class UserDetail(Resource):
     @api.doc('get_user')
     @api.marshal_with(user_model)
-    # @token_required
+    @token_required
     def get(self, current_user, user_id):
         """Get user by ID"""
         try:
