@@ -1,8 +1,7 @@
-import 'package:escort/models/messages/chat_message.dart';
 import 'package:escort/models/messages/converstaion.dart';
 import 'package:escort/widgets/messages/chat_list.dart';
-import 'package:escort/widgets/messages/converstion_view.dart';
-import 'package:escort/widgets/messages/placeholder.dart';
+import 'package:escort/screens/messages/chat_screen.dart';
+import 'package:escort/services/messages_service.dart';
 import 'package:escort/styles/app_size.dart';
 import 'package:escort/device_utility/device_checker.dart';
 import 'package:flutter/material.dart';
@@ -15,43 +14,48 @@ class Message extends StatefulWidget {
 }
 
 class _MessageState extends State<Message> {
-  String? selectedConversationId;
+  bool loading = true;
+  List<Conversation> conversations = [];
 
-  final List<Conversation> conversations = [
-    Conversation(
-      id: '1',
-      username: 'Honei_Atlanta',
-      profilePicture: 'assets/images/profile.png',
-      lastMessage: 'You sent a post',
-      timestamp: '8m',
-    ),
-    Conversation(
-      id: '2',
-      username: 'Sweet_Caroline',
-      profilePicture: 'assets/images/profile.png',
-      lastMessage: 'Hey, how are you?',
-      timestamp: '4h',
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  final Map<String, List<ChatMessage>> conversationMessages = {
-    '1': [
-      ChatMessage(text: 'Hello!', isSentByMe: false, timestamp: '10:00 AM'),
-      ChatMessage(text: 'Hi there!', isSentByMe: true, timestamp: '10:01 AM'),
-    ],
-    '2': [
-      ChatMessage(
-        text: 'How are you?',
-        isSentByMe: false,
-        timestamp: '11:00 AM',
-      ),
-      ChatMessage(
-        text: 'I\'m good, thanks!',
-        isSentByMe: true,
-        timestamp: '11:02 AM',
-      ),
-    ],
-  };
+  Future<void> _load() async {
+    final recent = await MessagesService.fetchRecent();
+    setState(() {
+      conversations = recent.map<Conversation>((c) {
+        final id = (c['conversation_id'] ?? c['id'] ?? '').toString();
+        final lm = c['last_message'] as Map<String, dynamic>?;
+        final participant = c['participant'] as Map<String, dynamic>?;
+        final username =
+            (participant != null
+                    ? (participant['name'] ?? participant['username'])
+                    : (lm != null
+                          ? (lm['sender']?['name'] ?? lm['sender']?['username'])
+                          : 'Conversation $id'))
+                .toString();
+        final avatar =
+            (participant != null
+                    ? (participant['profile_image_url'] ?? '')
+                    : '')
+                .toString();
+        final ts = (c['last_message_at'] ?? '').toString();
+        return Conversation(
+          id: id,
+          username: username,
+          profilePicture: avatar.isNotEmpty
+              ? avatar
+              : 'assets/images/profile.png',
+          lastMessage: (lm != null ? (lm['content'] ?? '') : '').toString(),
+          timestamp: ts,
+        );
+      }).toList();
+      loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,9 +64,13 @@ class _MessageState extends State<Message> {
     final insets = context.insets;
     double screenWidth = MediaQuery.of(context).size.width;
 
-    return screenWidth < 600
-        ? _buildMobileLayout(context, colorScheme, textStyle, insets)
-        : _buildDesktopTabletLayout(context, colorScheme, textStyle);
+    if (loading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return _buildMobileLayout(context, colorScheme, textStyle, insets);
   }
 
   Widget _buildMobileLayout(
@@ -70,90 +78,6 @@ class _MessageState extends State<Message> {
     colorScheme,
     textStyle,
     insets,
-  ) {
-    return Scaffold(
-      appBar: selectedConversationId == null
-          ? AppBar(
-              title: Text(
-                'Escort',
-                style: textStyle.titleMdMedium.copyWith(
-                  color: colorScheme.primary,
-                ),
-              ),
-              backgroundColor: colorScheme.surface,
-              elevation: 1,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {},
-                  tooltip: 'Search',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.home),
-                  onPressed: () {},
-                  tooltip: 'Home',
-                ),
-                Padding(
-                  padding: EdgeInsets.all(Insets.sm),
-                  child: CircleAvatar(
-                    radius: context.isMobile
-                        ? Sizes.avatarRadiusSm
-                        : context.isTablet
-                        ? Sizes.avatarRadiusMd
-                        : Sizes.avatarRadiusLg,
-                    backgroundImage: AssetImage("assets/images/profile.png"),
-                  ),
-                ),
-              ],
-            )
-          : AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
-                    selectedConversationId = null;
-                  });
-                },
-                tooltip: 'Back',
-              ),
-              title: Text(
-                conversations
-                    .firstWhere((conv) => conv.id == selectedConversationId)
-                    .username,
-                style: textStyle.titleMdMedium,
-              ),
-              backgroundColor: colorScheme.surface,
-              elevation: 1,
-            ),
-      body: Padding(
-        padding: EdgeInsets.all(Insets.med),
-        child: selectedConversationId == null
-            ? ChatList(
-                conversations: conversations,
-                onSelectConversation: (id) {
-                  setState(() {
-                    selectedConversationId = id;
-                  });
-                },
-              )
-            : ConversationView(
-                messages: conversationMessages[selectedConversationId] ?? [],
-                onSendMessage: (newMessage) {
-                  setState(() {
-                    conversationMessages[selectedConversationId]!.add(
-                      newMessage,
-                    );
-                  });
-                },
-              ),
-      ),
-    );
-  }
-
-  Widget _buildDesktopTabletLayout(
-    BuildContext context,
-    colorScheme,
-    textStyle,
   ) {
     return Scaffold(
       appBar: AppBar(
@@ -187,42 +111,21 @@ class _MessageState extends State<Message> {
           ),
         ],
       ),
-      body: Row(
-        children: [
-          Container(
-            width: 300,
-            color: colorScheme.surfaceVariant,
-            child: ChatList(
-              conversations: conversations,
-              onSelectConversation: (id) {
-                setState(() {
-                  selectedConversationId = id;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(left: BorderSide(color: colorScheme.outline)),
-                color: colorScheme.background,
-              ),
-              child: selectedConversationId == null
-                  ? const PlaceholderWidget()
-                  : ConversationView(
-                      messages:
-                          conversationMessages[selectedConversationId] ?? [],
-                      onSendMessage: (newMessage) {
-                        setState(() {
-                          conversationMessages[selectedConversationId]!.add(
-                            newMessage,
-                          );
-                        });
-                      },
-                    ),
-            ),
-          ),
-        ],
+      body: Padding(
+        padding: EdgeInsets.all(Insets.med),
+        child: ChatList(
+          conversations: conversations,
+          onSelectConversation: (id) async {
+            final cid = int.tryParse(id);
+            if (cid != null) {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(conversationId: cid),
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }

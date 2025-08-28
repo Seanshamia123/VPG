@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:escort/services/user_session.dart';
 import 'package:escort/services/settings_service.dart';
 import 'package:escort/theme/theme_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'terms_and_conditions_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'settings/notification_preferences_screen.dart';
+import 'settings/privacy_security_screen.dart';
+import 'settings/download_preferences_screen.dart';
+import 'settings/blocked_accounts_screen.dart';
+import 'settings/profile_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -21,10 +29,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedTheme = 'Dark';
   bool _loading = true;
 
+  // Local preference keys
+  static const _kPrefLocationEnabled = 'pref_location_enabled';
+  static const _kPrefAutoPlayVideos = 'pref_auto_play_videos';
+
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _loadLocalPrefs().then((_) => _loadSettings());
+  }
+
+  Future<void> _loadLocalPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _locationEnabled = prefs.getBool(_kPrefLocationEnabled) ?? _locationEnabled;
+      _autoPlayVideos = prefs.getBool(_kPrefAutoPlayVideos) ?? _autoPlayVideos;
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -41,6 +61,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _selectedTheme = theme.substring(0,1).toUpperCase() + theme.substring(1);
           _loading = false;
         });
+        // Sync theme with server preference
+        if (_selectedTheme == 'Dark') {
+          await ThemeController.set(ThemeMode.dark);
+        } else if (_selectedTheme == 'Light') {
+          await ThemeController.set(ThemeMode.light);
+        } else {
+          await ThemeController.set(ThemeMode.system);
+        }
       } else {
         setState(() => _loading = false);
       }
@@ -98,7 +126,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Profile Settings',
               subtitle: 'Edit your profile information',
               onTap: () {
-                // Navigate to profile settings
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileSettingsScreen()),
+                );
               },
             ),
             _buildSettingItem(
@@ -106,7 +136,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Privacy & Security',
               subtitle: 'Manage your privacy settings',
               onTap: () {
-                _showPrivacySettings();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()),
+                );
               },
             ),
             _buildSettingItem(
@@ -114,7 +146,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Blocked Accounts',
               subtitle: 'Manage blocked users',
               onTap: () {
-                // Navigate to blocked accounts
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BlockedAccountsScreen()),
+                );
               },
             ),
 
@@ -135,7 +169,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Notification Preferences',
               subtitle: 'Customize notification types',
               onTap: () {
-                _showNotificationPreferences();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NotificationPreferencesScreen()),
+                );
               },
             ),
 
@@ -146,8 +182,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Location Services',
               subtitle: 'Allow location access',
               value: _locationEnabled,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _locationEnabled = value);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool(_kPrefLocationEnabled, value);
               },
             ),
             _buildSwitchItem(
@@ -208,10 +246,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Auto-play Videos',
               subtitle: 'Automatically play videos in feed',
               value: _autoPlayVideos,
-              onChanged: (value) {
-                setState(() {
-                  _autoPlayVideos = value;
-                });
+              onChanged: (value) async {
+                setState(() { _autoPlayVideos = value; });
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool(_kPrefAutoPlayVideos, value);
               },
             ),
 
@@ -230,7 +268,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Download Preferences',
               subtitle: 'Media download settings',
               onTap: () {
-                _showDownloadSettings();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DownloadPreferencesScreen()),
+                );
               },
             ),
             _buildSettingItem(
@@ -240,6 +280,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: () {
                 _showClearCacheDialog();
               },
+            ),
+
+            // Reset settings to defaults
+            _buildSettingItem(
+              icon: Icons.restore,
+              title: 'Reset Settings',
+              subtitle: 'Restore defaults for this account',
+              onTap: _confirmReset,
             ),
 
             // Support Section
@@ -284,7 +332,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Terms of Service',
               subtitle: 'Read our terms and conditions',
               onTap: () {
-                // Navigate to terms
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TermsAndConditionsScreen()),
+                );
               },
             ),
             _buildSettingItem(
@@ -292,7 +342,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Privacy Policy',
               subtitle: 'Read our privacy policy',
               onTap: () {
-                // Navigate to privacy policy
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                );
               },
             ),
 
@@ -540,6 +592,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.grey[800],
       ),
     );
+  }
+
+  Future<void> _confirmReset() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Reset Settings', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This will reset your account settings to defaults. Local preferences like downloads will also be reset on this device.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _resetAllSettings();
+            },
+            child: const Text('Reset', style: TextStyle(color: Colors.yellow)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetAllSettings() async {
+    final id = await UserSession.getUserId();
+    if (id == null) return;
+    try {
+      await SettingsService.reset(int.parse(id.toString()));
+
+      // Reset local prefs
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kPrefLocationEnabled);
+      await prefs.remove(_kPrefAutoPlayVideos);
+      // Notification prefs (if present)
+      await prefs.remove('notif_messages');
+      await prefs.remove('notif_comments');
+      await prefs.remove('notif_mentions');
+      await prefs.remove('notif_marketing');
+      // Download prefs (if present)
+      await prefs.remove('dl_wifi_only');
+      await prefs.remove('dl_auto_photos');
+      await prefs.remove('dl_auto_videos');
+
+      // Reset local toggles to defaults
+      setState(() {
+        _locationEnabled = true;
+        _autoPlayVideos = false;
+        _notificationsEnabled = true;
+        _showOnlineStatus = true;
+        _readReceipts = true;
+        _selectedLanguage = 'English';
+        _selectedTheme = 'Light';
+      });
+
+      // Reload server settings and apply theme
+      await _loadSettings();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings reset to defaults')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to reset: $e')),
+        );
+      }
+    }
   }
 
   void _showClearCacheDialog() {

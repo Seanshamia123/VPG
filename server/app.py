@@ -6,6 +6,7 @@ from flask_restx import Api as RestxApi
 from database import db, migrate
 from dotenv import load_dotenv
 from flask_cors import CORS
+from flask_socketio import SocketIO, join_room, leave_room, emit
 
 load_dotenv()
 
@@ -71,6 +72,10 @@ def create_app(config_name=None):
     swagger = Swagger(app, config=swagger_config, template=swagger_template)
     
     api = RestxApi(app)
+    # Initialize Socket.IO and store on app extensions
+    socketio = SocketIO(cors_allowed_origins='*')
+    socketio.init_app(app, cors_allowed_origins='*')
+    app.extensions['socketio'] = socketio
 
     # Import models inside app context
     with app.app_context():
@@ -113,6 +118,26 @@ def create_app(config_name=None):
     def health():
         return jsonify({"status": "ok"}), 200
 
+    # Basic Socket.IO events
+    @socketio.on('join_conversation')
+    def on_join(data):
+        try:
+            conv_id = data.get('conversation_id')
+            if conv_id:
+                join_room(f"conv_{conv_id}")
+                emit('joined', {'room': f"conv_{conv_id}"})
+        except Exception:
+            pass
+
+    @socketio.on('leave_conversation')
+    def on_leave(data):
+        try:
+            conv_id = data.get('conversation_id')
+            if conv_id:
+                leave_room(f"conv_{conv_id}")
+        except Exception:
+            pass
+
     return app
 
 if __name__ == '__main__':
@@ -122,4 +147,5 @@ if __name__ == '__main__':
         from server.cloudinary_service import cloudinary_service
         cloudinary_service.init_app(app)
         db.create_all()
-    app.run(debug=True, port=5002)
+    # Run through SocketIO to enable websockets
+    app.extensions['socketio'].run(app, debug=True, port=5002)

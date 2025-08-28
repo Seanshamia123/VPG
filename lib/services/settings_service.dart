@@ -12,5 +12,8 @@ class SettingsService {
   static Future<Map<String, dynamic>> createOrUpdate(int userId, Map<String, dynamic> payload) async {
     return ApiClient.postJson('${ApiConfig.api}/user-settings/user/$userId/create-or-update', payload, auth: true);
   }
-}
 
+  static Future<Map<String, dynamic>> reset(int userId) async {
+    return ApiClient.postJson('${ApiConfig.api}/user-settings/reset/$userId', {}, auth: true);
+  }
+}

@@ -67,9 +67,12 @@ class ChatList extends StatelessWidget {
                       radius: context.isMobile
                           ? Sizes.avatarRadiusSm
                           : context.isTablet
-                          ? Sizes.avatarRadiusMd
-                          : Sizes.avatarRadiusLg,
-                      backgroundImage: AssetImage(conversation.profilePicture),
+                              ? Sizes.avatarRadiusMd
+                              : Sizes.avatarRadiusLg,
+                      backgroundImage: conversation.profilePicture.startsWith('http')
+                          ? NetworkImage(conversation.profilePicture)
+                          : AssetImage(conversation.profilePicture) as ImageProvider,
+                      backgroundColor: Colors.grey[800],
                     ),
                     title: Text(
                       conversation.username,

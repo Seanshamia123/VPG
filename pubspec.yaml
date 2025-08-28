@@ -40,6 +40,7 @@ dependencies:
   google_maps_flutter: ^2.12.3
   shared_preferences: ^2.5.3
   image_cropper: ^9.1.0
+  socket_io_client: ^2.0.3+1
 
 #product Specific
 

@@ -24,4 +24,44 @@ class UserService {
       auth: true,
     );
   }
+
+  static Future<Map<String, dynamic>> updateProfile(
+    int userId, {
+    String? name,
+    String? phoneNumber,
+    String? location,
+  }) async {
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (location != null) 'location': location,
+    };
+    return ApiClient.putJson(
+      '${ApiConfig.api}/users/$userId',
+      body,
+      auth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> getBlockedUsers() async {
+    return ApiClient.getJson(
+      '${ApiConfig.api}/users/blocked',
+      auth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> blockUser(int blockedId) async {
+    return ApiClient.postJson(
+      '${ApiConfig.api}/users/block',
+      {'blocked_id': blockedId},
+      auth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> unblockUser(int blockedId) async {
+    return ApiClient.deleteJson(
+      '${ApiConfig.api}/users/unblock/$blockedId',
+      auth: true,
+    );
+  }
 }

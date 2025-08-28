@@ -1,18 +1,22 @@
 // import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 // import 'package:http/http.dart' as http;
 import 'package:escort/services/post_service.dart';
 import 'package:escort/models/post.dart' as ModelPost;
-import 'search/search_delegate.dart';
 
 import 'settings_screen.dart';
 import 'terms_and_conditions_screen.dart';
 import 'package:escort/services/advertiser_service.dart';
+import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
 import 'package:escort/services/messages_service.dart';
-// Uses your existing token helpers (no direct use here)
-// import 'package:escort/services/user_session.dart';
+import 'package:escort/services/user_session.dart';
+import 'package:escort/services/conversations_service.dart';
+import 'package:escort/services/comments_service.dart';
+import 'package:escort/screens/messages/chat_screen.dart';
+import 'package:escort/services/post_likes_service.dart';
 
 // ---------- Models ----------
 class UserProfile {
@@ -37,6 +41,8 @@ class FeedPost {
   final String? location; // optional UI field
   final FeedAdvertiser advertiser;
   final DateTime createdAt;
+  final int likeCount;
+  final bool likedByMe;
 
   FeedPost({
     required this.id,
@@ -45,6 +51,8 @@ class FeedPost {
     required this.createdAt,
     this.caption,
     this.location,
+    this.likeCount = 0,
+    this.likedByMe = false,
   });
 
   factory FeedPost.fromJson(Map<String, dynamic> json) {
@@ -55,6 +63,8 @@ class FeedPost {
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       advertiser: FeedAdvertiser.fromJson(json['advertiser'] ?? const {}),
       location: json['location'] as String?,
+      likeCount: int.tryParse('${json['likes_count'] ?? 0}') ?? 0,
+      likedByMe: (json['liked_by_me'] as bool?) ?? false,
     );
   }
 }
@@ -724,13 +734,19 @@ class _HomeScreenState extends State<HomeScreen>
   late Animation<double> _slideAnimation;
   late Future<List<Map<String, dynamic>>> _futureTopAdvertisers;
 
-  // User profile data
+  // Inline advertiser search state
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  Timer? _searchDebounce;
+  bool _showAdvSuggestions = false;
+  List<Map<String, dynamic>> _advSuggestions = [];
+
+  // User profile data (loaded from session after init)
   UserProfile userProfile = UserProfile(
-    name: 'Roster_123',
-    username: '@roster123',
-    profileImageUrl:
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    location: 'New York, NY',
+    name: 'User',
+    username: '@user',
+    profileImageUrl: '',
+    location: '',
   );
 
   // Server-backed feed
@@ -807,6 +823,15 @@ class _HomeScreenState extends State<HomeScreen>
       page: 1,
       perPage: 10,
     );
+
+    _searchFocus.addListener(() {
+      if (!_searchFocus.hasFocus) {
+        setState(() => _showAdvSuggestions = false);
+      }
+    });
+
+    // Load current user's profile from session
+    _loadCurrentUserFromSession();
   }
 
   Future<List<FeedPost>> _fetchFeed() async {
@@ -830,6 +855,8 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               createdAt: p.createdAt,
               location: null,
+              likeCount: p.likeCount,
+              likedByMe: p.likedByMe,
             ),
           )
           .toList();
@@ -842,7 +869,91 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentUserFromSession() async {
+    try {
+      final data = await UserSession.getCurrentUserData();
+      if (data != null) {
+        final displayName =
+            (data['name']?.toString() ?? data['username']?.toString() ?? 'User')
+                .trim();
+        String uname = (data['username']?.toString() ?? 'user').trim();
+        if (uname.isNotEmpty && !uname.startsWith('@')) uname = '@' + uname;
+        final imageUrl = (data['profile_image_url']?.toString() ?? '').trim();
+        final loc = (data['location']?.toString() ?? '').trim();
+        setState(() {
+          userProfile = UserProfile(
+            name: displayName.isEmpty ? 'User' : displayName,
+            username: uname.isEmpty ? '@user' : uname,
+            profileImageUrl: imageUrl,
+            location: loc,
+          );
+        });
+      }
+    } catch (_) {
+      // keep defaults if session not ready
+    }
+  }
+
+  // Build user avatar: network image or initials if none (WhatsApp-style)
+  Widget _buildUserAvatar({required double radius}) {
+    final img = (userProfile.profileImageUrl).trim();
+    if (img.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(img),
+        backgroundColor: Colors.grey[700],
+      );
+    }
+    final initials = _initialsFor(userProfile.name);
+    final color = _avatarColorFor(userProfile.name);
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: color,
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          fontSize: radius * 0.9,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  String _initialsFor(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r"\s+"))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'U';
+    final first = parts.first[0].toUpperCase();
+    final second = parts.length > 1 ? parts[1][0].toUpperCase() : '';
+    return (first + second);
+  }
+
+  Color _avatarColorFor(String name) {
+    const palette = [
+      Color(0xFF1ABC9C), // turquoise
+      Color(0xFF3498DB), // peter river
+      Color(0xFFF39C12), // orange
+      Color(0xFFE74C3C), // alizarin
+      Color(0xFF9B59B6), // amethyst
+      Color(0xFF2ECC71), // emerald
+      Color(0xFF16A085), // green sea
+      Color(0xFF2980B9), // belize hole
+    ];
+    final code = name.isEmpty
+        ? 0
+        : name.codeUnits.fold<int>(0, (a, b) => a + b);
+    return palette[code % palette.length];
   }
 
   void _toggleDrawer() {
@@ -869,6 +980,101 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _refresh() async {
     setState(() => _futureFeed = _fetchFeed());
+  }
+
+  void _onSearchChanged(String q) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      final query = q.trim();
+      if (query.isEmpty) {
+        setState(() {
+          _advSuggestions = [];
+          _showAdvSuggestions = false;
+        });
+        return;
+      }
+      final results = await AdvertiserService.search(
+        query,
+        page: 1,
+        perPage: 8,
+      );
+      if (!mounted) return;
+      setState(() {
+        _advSuggestions = results;
+        _showAdvSuggestions = true;
+      });
+    });
+  }
+
+  Widget _buildAdvertiserSuggestionsPanel() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      constraints: const BoxConstraints(maxHeight: 280),
+      child: _advSuggestions.isEmpty
+          ? const SizedBox(height: 0)
+          : ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: _advSuggestions.length,
+              separatorBuilder: (_, __) =>
+                  Divider(color: Colors.grey[800], height: 1),
+              itemBuilder: (context, i) {
+                final a = _advSuggestions[i];
+                final id = int.tryParse(a['id']?.toString() ?? '') ?? 0;
+                final name = (a['name'] ?? a['username'] ?? 'Advertiser')
+                    .toString();
+                final username = (a['username'] ?? '').toString();
+                final location = (a['location'] ?? '').toString();
+                final avatar = (a['profile_image_url'] ?? '').toString();
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: avatar.isNotEmpty
+                        ? NetworkImage(avatar)
+                        : null,
+                    backgroundColor: Colors.grey[800],
+                    child: avatar.isEmpty
+                        ? const Icon(Icons.person, color: Colors.white70)
+                        : null,
+                  ),
+                  title: Text(
+                    name,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    '${username.isNotEmpty ? '@$username • ' : ''}$location',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                  onTap: () async {
+                    setState(() {
+                      _showAdvSuggestions = false;
+                      _searchController.clear();
+                      _searchFocus.unfocus();
+                    });
+                    if (id > 0) {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AdvertiserPublicProfileScreen(advertiserId: id),
+                        ),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+    );
   }
 
   @override
@@ -918,14 +1124,6 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () async {
-              final delegate = await _loadSearchDelegate();
-              // ignore: use_build_context_synchronously
-              showSearch(context: context, delegate: delegate);
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
@@ -934,18 +1132,14 @@ class _HomeScreenState extends State<HomeScreen>
             child: InkWell(
               onTap: _toggleDrawer,
               borderRadius: BorderRadius.circular(16),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundImage: NetworkImage(userProfile.profileImageUrl),
-                backgroundColor: Colors.grey[800],
-              ),
+              child: _buildUserAvatar(radius: 16),
             ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Composer placeholder
+          // Inline advertiser search with suggestions
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -955,21 +1149,39 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: NetworkImage(userProfile.profileImageUrl),
-                  backgroundColor: Colors.grey[700],
-                ),
+                _buildUserAvatar(radius: 16),
                 const SizedBox(width: 12),
+                const Icon(Icons.search, color: Colors.white70, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    "What's on your mind ?",
-                    style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocus,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    cursorColor: Colors.yellow,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: "What's on your mind ?",
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 16,
+                      ),
+                    ),
+                    onChanged: _onSearchChanged,
+                    onTap: () {
+                      if (_searchController.text.isNotEmpty &&
+                          _advSuggestions.isNotEmpty) {
+                        setState(() => _showAdvSuggestions = true);
+                      }
+                    },
                   ),
                 ),
               ],
             ),
           ),
+
+          if (_showAdvSuggestions) _buildAdvertiserSuggestionsPanel(),
 
           // Top advertisers strip (dynamic)
           SizedBox(
@@ -1053,6 +1265,9 @@ class _HomeScreenState extends State<HomeScreen>
                       itemBuilder: (context, index) {
                         final post = _fallbackPosts[index];
                         return _buildPostCard(
+                          postId: index, // Use index as dummy postId
+                          advertiserId:
+                              index, // Use index as dummy advertiserId
                           name: post['name'],
                           username: post['username'],
                           location: post['location'],
@@ -1071,6 +1286,7 @@ class _HomeScreenState extends State<HomeScreen>
                     itemBuilder: (context, index) {
                       final p = posts[index];
                       return _buildPostCard(
+                        postId: p.id,
                         name: p.advertiser.name,
                         username: '@${p.advertiser.username}',
                         location: p.location ?? '—',
@@ -1079,6 +1295,9 @@ class _HomeScreenState extends State<HomeScreen>
                             'https://via.placeholder.com/100x100.png?text=AD',
                         image: p.imageUrl,
                         caption: p.caption ?? '',
+                        advertiserId: p.advertiser.id,
+                        likeCount: p.likeCount,
+                        likedByMe: p.likedByMe,
                       );
                     },
                   );
@@ -1091,19 +1310,49 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Future<dynamic> _loadSearchDelegate() async {
-    // Lazy import to avoid cyc deps
-    // ignore: unused_local_variable
-    return AppSearchDelegate();
+  // (Legacy search delegate methods removed; inline search now used.)
+
+  // Local UI state for likes per post
+  final Set<int> _likedPostIds = <int>{};
+  final Map<int, int> _postLikeCounts = <int, int>{};
+
+  void _startChatWithAdvertiser(int advertiserId) async {
+    // You may want to fetch or create a conversation with the advertiser here
+    // For now, just navigate to the ChatScreen with the advertiserId
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ChatScreen(conversationId: 0)),
+    );
+  }
+
+  void _openCommentsForPost(int postId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: _CommentsSheet(postId: postId),
+      ),
+    );
   }
 
   Widget _buildPostCard({
+    required int postId,
     required String name,
     required String username,
     required String location,
     required String profileImage,
     required String image,
     required String caption,
+    required int advertiserId,
+    int likeCount = 0,
+    bool likedByMe = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1155,7 +1404,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
                 const Spacer(),
-                Icon(Icons.more_vert, color: Colors.grey[400]),
+                IconButton(
+                  tooltip: 'Message',
+                  icon: const Icon(Icons.send, color: Colors.white70),
+                  onPressed: () => _startChatWithAdvertiser(advertiserId),
+                ),
               ],
             ),
           ),
@@ -1187,18 +1440,55 @@ class _HomeScreenState extends State<HomeScreen>
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(
-                        Icons.favorite_border,
-                        color: Colors.white,
+                      icon: Icon(
+                        (_likedPostIds.contains(postId) || likedByMe)
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: (_likedPostIds.contains(postId) || likedByMe)
+                            ? Colors.redAccent
+                            : Colors.white,
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final currentlyLiked =
+                            _likedPostIds.contains(postId) || likedByMe;
+                        try {
+                          if (currentlyLiked) {
+                            final res = await PostLikesService.unlike(postId);
+                            final cnt =
+                                int.tryParse('${res['likes_count'] ?? 0}') ?? 0;
+                            setState(() {
+                              _likedPostIds.remove(postId);
+                              _postLikeCounts[postId] = cnt;
+                            });
+                          } else {
+                            final res = await PostLikesService.like(postId);
+                            final cnt =
+                                int.tryParse('${res['likes_count'] ?? 0}') ?? 0;
+                            setState(() {
+                              _likedPostIds.add(postId);
+                              _postLikeCounts[postId] = cnt;
+                            });
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to update like: $e'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    Text(
+                      '${_postLikeCounts[postId] ?? likeCount}',
+                      style: const TextStyle(color: Colors.white70),
                     ),
                     IconButton(
                       icon: const Icon(
                         Icons.chat_bubble_outline,
                         color: Colors.white,
                       ),
-                      onPressed: () {},
+                      onPressed: () => _openCommentsForPost(postId),
                     ),
                     IconButton(
                       icon: const Icon(Icons.share, color: Colors.white),
@@ -1282,11 +1572,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(userProfile.profileImageUrl),
-                  backgroundColor: Colors.grey[700],
-                ),
+                _buildUserAvatar(radius: 40),
                 const SizedBox(height: 12),
                 Text(
                   userProfile.name,
@@ -1632,6 +1918,168 @@ class _ProfileOption extends StatelessWidget {
           const Spacer(),
           const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
         ],
+      ),
+    );
+  }
+}
+
+// ===== Comments Bottom Sheet =====
+class _CommentsSheet extends StatefulWidget {
+  final int postId;
+  const _CommentsSheet({required this.postId});
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final TextEditingController _controller = TextEditingController();
+  bool loading = true;
+  List<Map<String, dynamic>> comments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final data = await CommentsService.fetchPostComments(
+      widget.postId,
+      page: 1,
+      perPage: 50,
+    );
+    if (!mounted) return;
+    setState(() {
+      comments = data;
+      loading = false;
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    await CommentsService.addPostComment(postId: widget.postId, content: text);
+    _controller.clear();
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const Text(
+                'Comments',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (loading)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    itemCount: comments.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(color: Colors.grey[800], height: 1),
+                    itemBuilder: (context, i) {
+                      final c = comments[i];
+                      final user = c['user'] as Map<String, dynamic>?;
+                      final name = user != null
+                          ? (user['name'] ?? user['username'] ?? 'User')
+                                .toString()
+                          : 'User';
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.grey[800],
+                          child: const Icon(
+                            Icons.person,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
+                        ),
+                        title: Text(
+                          name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          (c['content'] ?? '').toString(),
+                          style: TextStyle(color: Colors.grey[400]),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Add a comment',
+                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          filled: true,
+                          fillColor: Colors.grey[850],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide(color: Colors.grey[700]!),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            borderSide: BorderSide(color: Colors.yellow),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send, color: Colors.yellow),
+                      onPressed: _send,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

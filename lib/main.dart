@@ -1,6 +1,6 @@
-import 'package:escort/screens/advertisers_screens/advertiser_profile.dart';
-import 'package:escort/screens/advertisers_screens/checkout.dart';
-import 'package:escort/screens/advertisers_screens/subscription.dart';
+import 'package:escort/screens/advertisers screens/advertiser_profile.dart';
+import 'package:escort/screens/advertisers screens/checkout.dart';
+import 'package:escort/screens/advertisers screens/subscription.dart';
 import 'package:escort/screens/shared_screens/message.dart';
 import 'package:escort/screens/splash_screen.dart';
 import 'package:escort/theme/app_theme.dart';

@@ -1,6 +1,6 @@
 import 'package:escort/device_utility/device_checker.dart';
 import 'package:escort/screens/shared_screens/signupoptions.dart';
-import 'package:escort/screens/advertisers_screens/advertiser_profile.dart';
+import 'package:escort/screens/advertisers screens/advertiser_profile.dart';
 import 'package:escort/services/auth_service.dart';
 import 'package:escort/screens/home_screen.dart';
 import 'package:flutter/material.dart';

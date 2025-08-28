@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
-from models import Message, Conversation, User, db
+from models import Message, Conversation, ConversationParticipant, User, Advertiser, db
+from flask import current_app
 from .decorators import token_required
 from datetime import datetime
 
@@ -87,8 +88,8 @@ class MessageList(Resource):
             
             db.session.add(message)
             db.session.commit()
-            
-            return {
+
+            payload = {
                 'id': message.id,
                 'conversation_id': message.conversation_id,
                 'sender_id': message.sender_id,
@@ -96,7 +97,16 @@ class MessageList(Resource):
                 'is_read': message.is_read,
                 'created_at': message.created_at.isoformat() if message.created_at else None,
                 'updated_at': message.updated_at.isoformat() if message.updated_at else None
-            }, 201
+            }
+            # Emit websocket event to room for this conversation
+            try:
+                socketio = current_app.extensions.get('socketio')
+                if socketio:
+                    socketio.emit('new_message', payload, room=f"conv_{message.conversation_id}")
+            except Exception:
+                pass
+
+            return payload, 201
             
         except Exception as e:
             api.abort(500, f'Failed to create message: {str(e)}')
@@ -234,8 +244,39 @@ class RecentConversations(Resource):
             for conv in pagination.items:
                 last_msg = Message.query.get(conv.last_message_id) if conv.last_message_id else None
                 sender = User.find_by_id(last_msg.sender_id) if last_msg else None
+
+                # Determine the other participant (user or advertiser)
+                other_part = ConversationParticipant.query.filter_by(conversation_id=conv.id).filter(
+                    ConversationParticipant.participant_type.in_(['user', 'advertiser'])
+                ).all()
+                participant_info = None
+                for p in other_part:
+                    if p.participant_type == 'user' and p.participant_id != current_user.id:
+                        u = User.find_by_id(p.participant_id)
+                        if u:
+                            participant_info = {
+                                'type': 'user',
+                                'id': u.id,
+                                'name': u.name,
+                                'username': u.username,
+                                'profile_image_url': getattr(u, 'profile_image_url', None),
+                            }
+                            break
+                    if p.participant_type == 'advertiser':
+                        a = Advertiser.find_by_id(p.participant_id)
+                        if a:
+                            participant_info = {
+                                'type': 'advertiser',
+                                'id': a.id,
+                                'name': a.name,
+                                'username': a.username,
+                                'profile_image_url': getattr(a, 'profile_image_url', None),
+                            }
+                            break
+
                 items.append({
                     'conversation_id': conv.id,
+                    'participant': participant_info,
                     'last_message': {
                         'id': last_msg.id if last_msg else None,
                         'content': last_msg.content if last_msg else None,

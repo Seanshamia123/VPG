@@ -5,7 +5,7 @@ class ApiConfig {
   // (emulator cannot reach 127.0.0.1 of the host; it uses 10.0.2.2)
   static const bool useAndroidEmulator = false;
 
-  // Backend currently runs on port 5000 (see server/app.py)
+  // Backend currently runs on port 5002 (see server/app.py and README)
   static const int _port = 5000;
 
   static String get _local =>

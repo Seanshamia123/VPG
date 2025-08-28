@@ -5,12 +5,16 @@ class Post {
   final String? caption;
   final DateTime createdAt;
   final Advertiser advertiser;
+  final int likeCount;
+  final bool likedByMe;
 
   Post({
     required this.id,
     required this.imageUrl,
     required this.createdAt,
     required this.advertiser,
+    this.likeCount = 0,
+    this.likedByMe = false,
     this.caption,
   });
 
@@ -23,6 +27,10 @@ class Post {
       advertiser: Advertiser.fromJson(
         json['advertiser'] as Map<String, dynamic>,
       ),
+      likeCount: (json['likes_count'] is int)
+          ? json['likes_count'] as int
+          : int.tryParse('${json['likes_count'] ?? 0}') ?? 0,
+      likedByMe: (json['liked_by_me'] as bool?) ?? false,
     );
   }
 }

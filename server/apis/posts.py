@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
-from models import Post, Advertiser, Comment, db
+from models import Post, Advertiser, Comment, PostLike, db
 from .decorators import token_required, advertiser_required
 
 import time
@@ -111,6 +111,13 @@ class PostList(Resource):
             result = []
             for post in posts.items:
                 advertiser = Advertiser.find_by_id(post.advertiser_id)
+                # Likes info
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                liked_by_me = False
+                try:
+                    liked_by_me = PostLike.query.filter_by(post_id=post.id, user_id=getattr(current_user, 'id', None)).first() is not None
+                except Exception:
+                    liked_by_me = False
                 post_dict = {
                     'id': post.id,
                     'advertiser_id': post.advertiser_id,
@@ -118,6 +125,8 @@ class PostList(Resource):
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
                     'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
+                    'liked_by_me': liked_by_me,
                     'advertiser': {
                         'id': advertiser.id if advertiser else None,
                         'name': advertiser.name if advertiser else 'Unknown Advertiser',
@@ -236,7 +245,7 @@ class PostDetail(Resource):
                 api.abort(404, 'Post not found')
             
             advertiser = Advertiser.find_by_id(post.advertiser_id)
-            
+            likes_count = PostLike.query.filter_by(post_id=post.id).count()
             return {
                 'id': post.id,
                 'advertiser_id': post.advertiser_id,
@@ -244,6 +253,7 @@ class PostDetail(Resource):
                 'caption': post.caption,
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                'likes_count': likes_count,
                 'advertiser': {
                     'id': advertiser.id if advertiser else None,
                     'name': advertiser.name if advertiser else 'Unknown Advertiser',
@@ -253,6 +263,45 @@ class PostDetail(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to retrieve post: {str(e)}')
+
+@api.route('/<int:post_id>/like')
+class PostLikeResource(Resource):
+    @api.doc('like_post')
+    @token_required
+    def post(self, current_user, post_id):
+        """Like a post (idempotent)."""
+        try:
+            post = Post.query.get(post_id)
+            if not post:
+                api.abort(404, 'Post not found')
+            # Idempotent like
+            existing = PostLike.query.filter_by(post_id=post_id, user_id=current_user.id).first()
+            if existing:
+                return {'message': 'Already liked'}, 200
+            like = PostLike(post_id=post_id, user_id=current_user.id)
+            db.session.add(like)
+            db.session.commit()
+            count = PostLike.query.filter_by(post_id=post_id).count()
+            return {'message': 'Liked', 'likes_count': count}
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, f'Failed to like post: {str(e)}')
+
+    @api.doc('unlike_post')
+    @token_required
+    def delete(self, current_user, post_id):
+        """Unlike a post (idempotent)."""
+        try:
+            like = PostLike.query.filter_by(post_id=post_id, user_id=current_user.id).first()
+            if not like:
+                return {'message': 'Not liked'}, 200
+            db.session.delete(like)
+            db.session.commit()
+            count = PostLike.query.filter_by(post_id=post_id).count()
+            return {'message': 'Unliked', 'likes_count': count}
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, f'Failed to unlike post: {str(e)}')
     
     @api.doc('update_post')
     @api.expect(post_update_model)
@@ -461,7 +510,8 @@ class MyPosts(Resource):
                     'image_url': post.image_url,
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
-                    'updated_at': post.updated_at.isoformat() if post.updated_at else None
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': PostLike.query.filter_by(post_id=post.id).count()
                 }
                 result.append(post_dict)
             
@@ -497,6 +547,7 @@ class SearchPosts(Resource):
             result = []
             for post in posts.items:
                 advertiser = Advertiser.find_by_id(post.advertiser_id)
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
                 post_dict = {
                     'id': post.id,
                     'advertiser_id': post.advertiser_id,
@@ -504,6 +555,7 @@ class SearchPosts(Resource):
                     'caption': post.caption,
                     'created_at': post.created_at.isoformat() if post.created_at else None,
                     'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
                     'advertiser': {
                         'id': advertiser.id if advertiser else None,
                         'name': advertiser.name if advertiser else 'Unknown Advertiser',

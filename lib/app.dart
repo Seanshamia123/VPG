@@ -1,4 +1,4 @@
-import 'package:escort/screens/advertisers_screens/checkout.dart';
+import 'package:escort/screens/advertisers screens/checkout.dart';
 import 'package:escort/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
