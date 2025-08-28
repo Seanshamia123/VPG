@@ -3,7 +3,7 @@ import 'package:escort/screens/advertisers%20screens/subscription.dart';
 import 'package:escort/screens/shared_screens/login.dart';
 import 'package:escort/screens/shared_screens/signup.dart'; // Import your signup screen
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+// import 'package:get/get.dart';
 
 class SignOptions extends StatelessWidget {
   const SignOptions({super.key});
@@ -31,11 +31,9 @@ class SignOptions extends StatelessWidget {
           children: [
             // Golden particles/stars background effect
             Positioned.fill(
-              child: CustomPaint(
-                painter: GoldenParticlesPainter(),
-              ),
+              child: CustomPaint(painter: GoldenParticlesPainter()),
             ),
-            
+
             // Main content
             SafeArea(
               child: Center(
@@ -55,13 +53,14 @@ class SignOptions extends StatelessWidget {
                             child: Column(
                               children: [
                                 ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFD700), // Bright gold
-                                      Color(0xFFFFA500), // Orange gold
-                                      Color(0xFFFFD700), // Bright gold
-                                    ],
-                                  ).createShader(bounds),
+                                  shaderCallback: (bounds) =>
+                                      const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFD700), // Bright gold
+                                          Color(0xFFFFA500), // Orange gold
+                                          Color(0xFFFFD700), // Bright gold
+                                        ],
+                                      ).createShader(bounds),
                                   child: Text(
                                     'Welcome to VipGalz',
                                     style: TextStyle(
@@ -90,7 +89,7 @@ class SignOptions extends StatelessWidget {
                               ],
                             ),
                           ),
-                          
+
                           // Sign up cards
                           isMobile
                               ? Column(
@@ -103,11 +102,12 @@ class SignOptions extends StatelessWidget {
                                       onTap: () {
                                         // Navigate to signup page with user type
                                         Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const Signup(userType: 'user'),
-                                        ),
-                                      );
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const Signup(userType: 'user'),
+                                          ),
+                                        );
                                       },
                                     ),
                                     const SizedBox(height: 24),
@@ -123,30 +123,43 @@ class SignOptions extends StatelessWidget {
                                           context: context,
                                           builder: (context) => AlertDialog(
                                             title: const Text('Choose Option'),
-                                            content: const Text('Would you like to see subscription options or proceed directly to signup?'),
+                                            content: const Text(
+                                              'Would you like to see subscription options or proceed directly to signup?',
+                                            ),
                                             actions: [
                                               TextButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   showDialog(
                                                     context: context,
-                                                    builder: (context) => const Dialog(child: SubscriptionDialog()),
+                                                    builder: (context) =>
+                                                        const Dialog(
+                                                          child:
+                                                              SubscriptionDialog(),
+                                                        ),
                                                   );
                                                 },
-                                                child: const Text('View Subscriptions'),
+                                                child: const Text(
+                                                  'View Subscriptions',
+                                                ),
                                               ),
                                               ElevatedButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) => const Signup(userType: 'advertiser'),
-                                                        ),
-                                                      );
-
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const Signup(
+                                                            userType:
+                                                                'advertiser',
+                                                          ),
+                                                    ),
+                                                  );
                                                 },
-                                                child: const Text('Direct Signup'),
+                                                child: const Text(
+                                                  'Direct Signup',
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -170,10 +183,11 @@ class SignOptions extends StatelessWidget {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (context) => const Signup(userType: 'user'),
+                                            builder: (context) =>
+                                                const Signup(userType: 'user'),
                                           ),
                                         );
-                                 },
+                                      },
                                     ),
                                     GlamorousSignUpCard(
                                       type: 'advertiser',
@@ -186,29 +200,43 @@ class SignOptions extends StatelessWidget {
                                           context: context,
                                           builder: (context) => AlertDialog(
                                             title: const Text('Choose Option'),
-                                            content: const Text('Would you like to see subscription options or proceed directly to signup?'),
+                                            content: const Text(
+                                              'Would you like to see subscription options or proceed directly to signup?',
+                                            ),
                                             actions: [
                                               TextButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   showDialog(
                                                     context: context,
-                                                    builder: (context) => const Dialog(child: SubscriptionDialog()),
+                                                    builder: (context) =>
+                                                        const Dialog(
+                                                          child:
+                                                              SubscriptionDialog(),
+                                                        ),
                                                   );
                                                 },
-                                                child: const Text('View Subscriptions'),
+                                                child: const Text(
+                                                  'View Subscriptions',
+                                                ),
                                               ),
                                               ElevatedButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   Navigator.push(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                              builder: (context) => const Signup(userType: 'advertiser'),
-                                                            ),
-                                                          );
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const Signup(
+                                                            userType:
+                                                                'advertiser',
+                                                          ),
+                                                    ),
+                                                  );
                                                 },
-                                                child: const Text('Direct Signup'),
+                                                child: const Text(
+                                                  'Direct Signup',
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -217,18 +245,15 @@ class SignOptions extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Glamorous back to login button
                           Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(30),
                               gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF333333),
-                                  Color(0xFF1A1A1A),
-                                ],
+                                colors: [Color(0xFF333333), Color(0xFF1A1A1A)],
                               ),
                               border: Border.all(
                                 color: const Color(0xFFFFD700),
@@ -236,7 +261,9 @@ class SignOptions extends StatelessWidget {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFFD700).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFFFFD700,
+                                  ).withOpacity(0.3),
                                   blurRadius: 20,
                                   spreadRadius: 2,
                                 ),
@@ -244,10 +271,12 @@ class SignOptions extends StatelessWidget {
                             ),
                             child: ElevatedButton(
                               onPressed: () {
-                                 Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const Login()),
-              (route) => false,
-            );
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                    builder: (context) => const Login(),
+                                  ),
+                                  (route) => false,
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
@@ -318,10 +347,7 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -334,7 +360,7 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    
+
     return MouseRegion(
       onEnter: (_) {
         setState(() => _isHovered = true);
@@ -382,7 +408,9 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFFD700).withOpacity(_isHovered ? 0.4 : 0.2),
+                      color: const Color(
+                        0xFFFFD700,
+                      ).withOpacity(_isHovered ? 0.4 : 0.2),
                       blurRadius: _isHovered ? 25 : 15,
                       spreadRadius: _isHovered ? 5 : 2,
                     ),
@@ -421,16 +449,13 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                           color: const Color(0xFFFFD700),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Title
                       ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
-                          colors: [
-                            Color(0xFFFFD700),
-                            Color(0xFFFFA500),
-                          ],
+                          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
                         ).createShader(bounds),
                         child: Text(
                           widget.title,
@@ -443,9 +468,9 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 8),
-                      
+
                       // Subtitle
                       Text(
                         widget.subtitle,
@@ -456,9 +481,9 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
+
                       // Decorative line
                       Container(
                         height: 1,
@@ -497,7 +522,7 @@ class GoldenParticlesPainter extends CustomPainter {
       final x = (i * 37) % size.width;
       final y = (i * 23) % size.height;
       final radius = (i % 3) + 1.0;
-      
+
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }

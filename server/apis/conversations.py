@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
-from models import Conversation, Message, User, db
+from models import Conversation, ConversationParticipant, Message, User, Advertiser, db
 from .decorators import token_required
 
 api = Namespace('conversations', description='Conversation management operations')
@@ -52,14 +52,16 @@ class ConversationList(Resource):
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 20, type=int)
             
-            conversations = Conversation.query.filter_by(
-                user_id=current_user.id
-            ).order_by(
-                Conversation.last_message_at.desc()
-            ).paginate(
+            conversations = db.session.query(Conversation).join(
+                ConversationParticipant,
+                ConversationParticipant.conversation_id == Conversation.id,
+            ).filter(
+                ConversationParticipant.participant_type == 'user',
+                ConversationParticipant.participant_id == current_user.id,
+            ).order_by(Conversation.last_message_at.desc()).paginate(
                 page=page,
                 per_page=per_page,
-                error_out=False
+                error_out=False,
             )
             
             result = []
@@ -79,9 +81,11 @@ class ConversationList(Resource):
                 # Note: This is a simplified version - you might need to adjust based on your conversation structure
                 participant = None
                 if conversation.type == 'direct':
-                    # This assumes a simple direct conversation structure
-                    # You might need to implement a participants table for more complex scenarios
-                    participant = User.find_by_id(conversation.user_id)
+                    # choose other user participant
+                    other = ConversationParticipant.query.filter_by(
+                        conversation_id=conversation.id, participant_type='user'
+                    ).filter(ConversationParticipant.participant_id != current_user.id).first()
+                    participant = User.find_by_id(other.participant_id) if other else None
                 
                 conversation_dict = {
                     'id': conversation.id,
@@ -132,12 +136,20 @@ class ConversationList(Resource):
             if not participant:
                 api.abort(404, 'Participant not found')
             
-            # Check if conversation already exists between these users
-            existing_conversation = Conversation.query.filter(
-                db.or_(
-                    db.and_(Conversation.user_id == current_user.id, Conversation.type == 'direct'),
-                    db.and_(Conversation.user_id == participant_id, Conversation.type == 'direct')
-                )
+            # Check if conversation already exists between these users (via participants)
+            existing_conversation = db.session.query(Conversation).join(
+                ConversationParticipant,
+                ConversationParticipant.conversation_id == Conversation.id,
+            ).filter(
+                ConversationParticipant.participant_type == 'user',
+                ConversationParticipant.participant_id == current_user.id,
+                Conversation.type == 'direct',
+            ).join(
+                ConversationParticipant,
+                ConversationParticipant.conversation_id == Conversation.id,
+            ).filter(
+                ConversationParticipant.participant_type == 'user',
+                ConversationParticipant.participant_id == participant_id,
             ).first()
             
             if existing_conversation:
@@ -151,12 +163,11 @@ class ConversationList(Resource):
                 }
             
             # Create new conversation
-            conversation = Conversation(
-                type=conversation_type,
-                user_id=current_user.id
-            )
-            
+            conversation = Conversation(type=conversation_type, user_id=current_user.id)
             db.session.add(conversation)
+            db.session.commit()
+            db.session.add(ConversationParticipant(conversation_id=conversation.id, participant_type='user', participant_id=current_user.id))
+            db.session.add(ConversationParticipant(conversation_id=conversation.id, participant_type='user', participant_id=participant_id))
             db.session.commit()
             
             return {
@@ -183,7 +194,12 @@ class ConversationDetail(Resource):
             if not conversation:
                 api.abort(404, 'Conversation not found')
             
-            if conversation.user_id != current_user.id:
+            is_participant = ConversationParticipant.query.filter_by(
+                conversation_id=conversation.id,
+                participant_type='user',
+                participant_id=current_user.id,
+            ).first() is not None
+            if not is_participant:
                 api.abort(403, 'Access denied to this conversation')
             
             # Get last message details
@@ -235,8 +251,13 @@ class ConversationDetail(Resource):
             if not conversation:
                 api.abort(404, 'Conversation not found')
             
-            if conversation.user_id != current_user.id:
-                api.abort(403, 'Can only delete your own conversations')
+            is_participant = ConversationParticipant.query.filter_by(
+                conversation_id=conversation.id,
+                participant_type='user',
+                participant_id=current_user.id,
+            ).first() is not None
+            if not is_participant:
+                api.abort(403, 'Can only delete conversations you participate in')
             
             # Delete all messages in the conversation
             Message.query.filter_by(conversation_id=conversation_id).delete()
@@ -355,3 +376,50 @@ class ConversationStats(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to retrieve conversation stats: {str(e)}')
+
+@api.route('/with-advertiser/<int:advertiser_id>')
+class ConversationWithAdvertiser(Resource):
+    @api.doc('get_conversation_with_advertiser')
+    @token_required
+    def post(self, current_user, advertiser_id):
+        """Create or fetch a direct conversation between current user and an advertiser."""
+        try:
+            adv = Advertiser.find_by_id(advertiser_id)
+            if not adv:
+                api.abort(404, 'Advertiser not found')
+
+            existing = db.session.query(Conversation).join(ConversationParticipant, ConversationParticipant.conversation_id == Conversation.id).filter(
+                ConversationParticipant.participant_type == 'user',
+                ConversationParticipant.participant_id == current_user.id,
+                Conversation.type == 'direct',
+            ).join(ConversationParticipant, ConversationParticipant.conversation_id == Conversation.id).filter(
+                ConversationParticipant.participant_type == 'advertiser',
+                ConversationParticipant.participant_id == advertiser_id,
+            ).first()
+
+            if existing:
+                return {
+                    'id': existing.id,
+                    'type': existing.type,
+                    'user_id': existing.user_id,
+                    'last_message_id': existing.last_message_id,
+                    'last_message_at': existing.last_message_at.isoformat() if existing.last_message_at else None,
+                    'updated_at': existing.updated_at.isoformat() if existing.updated_at else None,
+                }
+
+            conv = Conversation(type='direct', user_id=current_user.id)
+            db.session.add(conv)
+            db.session.commit()
+            db.session.add(ConversationParticipant(conversation_id=conv.id, participant_type='user', participant_id=current_user.id))
+            db.session.add(ConversationParticipant(conversation_id=conv.id, participant_type='advertiser', participant_id=advertiser_id))
+            db.session.commit()
+            return {
+                'id': conv.id,
+                'type': conv.type,
+                'user_id': conv.user_id,
+                'last_message_id': conv.last_message_id,
+                'last_message_at': conv.last_message_at.isoformat() if conv.last_message_at else None,
+                'updated_at': conv.updated_at.isoformat() if conv.updated_at else None,
+            }, 201
+        except Exception as e:
+            api.abort(500, f'Failed to get conversation with advertiser: {str(e)}')

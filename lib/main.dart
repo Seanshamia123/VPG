@@ -9,38 +9,44 @@ import 'package:escort/screens/shared_screens/login.dart';
 import 'package:escort/screens/shared_screens/signup.dart';
 import 'package:escort/screens/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:escort/theme/theme_controller.dart';
 
-
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ThemeController.load();
   runApp(const Escort());
 }
 
 class Escort extends StatelessWidget {
   const Escort({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'VipGalz',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      
-      // Start with SignOptions instead of HomeScreen
-      initialRoute: '/sign-options',
-      routes: {
-        '/vipgalz': (context) => VideoSplashScreen(),
-        '/sign-options': (context) => const SignOptions(),
-        '/login': (context) => const Login(),
-        '/sign-up': (context) => const Signup(userType: 'user'),
-        '/home': (context) => const HomeScreen(),
-        // '/profile': (context) => const ProfileScreen(),
-        '/advertiser': (context) => const AdvertiserProfile(),
-        '/checkout': (context) => const CheckoutPage(),
-        '/subscriptions': (context) => const SubscriptionDialog(),
-        '/messages': (context) => const Message(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'VipGalz',
+          debugShowCheckedModeBanner: false,
+          themeMode: mode,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+
+          // Start with SignOptions instead of HomeScreen
+          initialRoute: '/sign-options',
+          routes: {
+            '/vipgalz': (context) => VideoSplashScreen(),
+            '/sign-options': (context) => const SignOptions(),
+            '/login': (context) => const Login(),
+            '/sign-up': (context) => const Signup(userType: 'user'),
+            '/home': (context) => const HomeScreen(),
+            // '/profile': (context) => const ProfileScreen(),
+            '/advertiser': (context) => const AdvertiserProfile(),
+            '/checkout': (context) => const CheckoutPage(),
+            '/subscriptions': (context) => const SubscriptionDialog(),
+            '/messages': (context) => const Message(),
+          },
+        );
       },
     );
   }

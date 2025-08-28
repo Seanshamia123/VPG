@@ -4,6 +4,27 @@ A new Flutter project.
 
 ## Getting Started
 
+## Frontend–Backend Integration (Dev)
+
+- Backend runs on port 5002 (Flask). Health endpoint: `GET /health` returns `{status: "ok"}`.
+- CORS is enabled for development for all origins in `server/app.py`.
+- Flutter uses centralized config in `lib/config/api_config.dart`:
+  - `ApiConfig.base` → `http://127.0.0.1:5002` or `http://10.0.2.2:5002` (Android emulator)
+  - `ApiConfig.api` → Base + `/api`
+  - `ApiConfig.auth` → Base + `/auth`
+- Shared HTTP client in `lib/services/api_client.dart` attaches bearer token and refreshes on 401.
+
+Key flows wired:
+- Auth: `lib/services/auth_service.dart` → `/auth/login`, `/auth/register/*`, `/auth/refresh`.
+- Posts: `lib/services/post_service.dart` fetches `/api/posts/` for feed; advertiser can create posts from the profile screen.
+- Advertiser Profile: The grid tab fetches `/api/posts/my-posts` and shows real images.
+- Messages: `lib/services/messages_service.dart` hits `/api/messages/recent` (requires user auth) and shows recent conversations.
+- Comments: `lib/services/comments_service.dart` fetches and posts comments under `/api/comments` and `/api/comments/target/post/:id`.
+
+Notes:
+- When running on Android emulator, set `ApiConfig.useAndroidEmulator = true`.
+- Some UI elements still show placeholder imagery when no data is available (stories, empty feeds).
+
 This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
@@ -396,4 +417,3 @@ For production deployment:
 **Happy coding! 🎉**
 
 For questions or issues, please check the troubleshooting section or create an issue in the repository.
-

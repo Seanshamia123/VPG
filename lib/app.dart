@@ -1,6 +1,5 @@
 import 'package:escort/screens/advertisers screens/checkout.dart';
 import 'package:escort/theme/app_theme.dart';
-import 'package:escort/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

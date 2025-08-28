@@ -57,8 +57,6 @@ class _LoginState extends State<Login> {
     );
   }
 
-
-
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -106,10 +104,10 @@ class _LoginState extends State<Login> {
       if (isSuccess) {
         // Handle successful login
         _handleSuccessfulLogin(result);
-        
+
         // Show success message
         _showSuccessSnackBar('Login successful! Welcome back!');
-        
+
         // Wait a bit to show the success message
         await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -117,11 +115,13 @@ class _LoginState extends State<Login> {
         if (mounted) {
           String userType = result['user_type'] ?? _selectedUserType;
           print('Navigating to dashboard for user type: $userType');
-          
+
           // TODO: Replace these with your actual dashboard routes
           if (userType == 'advertiser') {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const AdvertiserProfile()),
+              MaterialPageRoute(
+                builder: (context) => const AdvertiserProfile(),
+              ),
               (route) => false,
             );
             print('Should navigate to Advertiser Dashboard');
@@ -133,7 +133,6 @@ class _LoginState extends State<Login> {
             print('Should navigate to User Dashboard');
           }
         }
-        
       } else {
         // Handle login failure
         String errorMessage = _extractErrorMessage(result);
@@ -146,7 +145,7 @@ class _LoginState extends State<Login> {
       print('Exception type: ${e.runtimeType}');
       print('Stack trace: $stackTrace');
       print('===============================');
-      
+
       _showErrorSnackBar('Something went wrong. Please try again.');
     } finally {
       if (mounted) {
@@ -164,24 +163,24 @@ class _LoginState extends State<Login> {
       if (success is bool) return success;
       if (success is String) return success.toLowerCase() == 'true';
     }
-    
+
     // Check status field
     if (result.containsKey('status')) {
       String status = result['status'].toString().toLowerCase();
       if (status == 'success' || status == 'ok') return true;
     }
-    
+
     // Check HTTP status codes
     if (result.containsKey('statusCode')) {
       int statusCode = result['statusCode'];
       if (statusCode >= 200 && statusCode < 300) return true;
     }
-    
+
     // Check for presence of access token (most reliable indicator)
     if (result.containsKey('access_token') && result['access_token'] != null) {
       return true;
     }
-    
+
     // Check for nested data with tokens
     if (result.containsKey('data') && result['data'] != null) {
       final data = result['data'];
@@ -189,20 +188,20 @@ class _LoginState extends State<Login> {
         return true;
       }
     }
-    
+
     // If no explicit error and we have some meaningful data, assume success
-    if (!result.containsKey('error') && 
-        !result.containsKey('errors') && 
+    if (!result.containsKey('error') &&
+        !result.containsKey('errors') &&
         result.isNotEmpty) {
       return true;
     }
-    
+
     return false;
   }
 
   String _extractErrorMessage(Map<String, dynamic> result) {
     String errorMessage = 'Login failed';
-    
+
     // Check various error fields
     if (result.containsKey('message')) {
       errorMessage = result['message'].toString();
@@ -221,89 +220,99 @@ class _LoginState extends State<Login> {
         errorMessage = errors.first.toString();
       }
     }
-    
+
     // Add status code if available
     if (result.containsKey('statusCode')) {
       errorMessage += ' (Status: ${result['statusCode']})';
     }
-    
+
     return errorMessage;
   }
-Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
-  // Extract user data and tokens
-  String? accessToken = result['access_token'];
-  String? refreshToken = result['refresh_token'];
-  dynamic userId = result['user_id'] ?? result['id'];
-  String? userType = result['user_type'] ?? _selectedUserType;
-  
-  print('=== SUCCESSFUL LOGIN DATA ===');
-  print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
-  print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
-  print('User ID: $userId');
-  print('User Type: $userType');
-  print('Full Response: $result');
-  print('==============================');
-  
-  // Prepare basic user data from login response
-  Map<String, dynamic> userData = {
-    'email': _emailController.text.trim(),
-    'user_type': userType ?? _selectedUserType,
-    'is_online': true, // Assume online after login
-  };
-  
-  // Add any additional data from login response
-  if (userId != null) userData['id'] = userId;
-  if (result.containsKey('username')) userData['username'] = result['username'];
-  if (result.containsKey('name')) userData['name'] = result['name'];
-  
-  try {
-    // First, save basic session data
-    await UserSession.saveUserSession(
-      userData: userData,
-      accessToken: accessToken ?? '',
-      refreshToken: refreshToken,
-      userType: userType ?? _selectedUserType,
+
+  Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
+    // Extract user data and tokens
+    String? accessToken = result['access_token'];
+    String? refreshToken = result['refresh_token'];
+    dynamic userId = result['user_id'] ?? result['id'];
+    String? userType = result['user_type'] ?? _selectedUserType;
+
+    print('=== SUCCESSFUL LOGIN DATA ===');
+    print(
+      'Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}',
     );
-    
-    print('Basic user session saved successfully');
-    
-    // Now fetch complete profile data
-    if (userId != null) {
-      Map<String, dynamic>? completeProfile;
-      
-      if (userType == 'advertiser') {
-        completeProfile = await UserSession.fetchAdvertiserProfile(int.parse(userId.toString()));
+    print(
+      'Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}',
+    );
+    print('User ID: $userId');
+    print('User Type: $userType');
+    print('Full Response: $result');
+    print('==============================');
+
+    // Prepare basic user data from login response
+    Map<String, dynamic> userData = {
+      'email': _emailController.text.trim(),
+      'user_type': userType ?? _selectedUserType,
+      'is_online': true, // Assume online after login
+    };
+
+    // Add any additional data from login response
+    if (userId != null) userData['id'] = userId;
+    if (result.containsKey('username'))
+      userData['username'] = result['username'];
+    if (result.containsKey('name')) userData['name'] = result['name'];
+
+    try {
+      // First, save basic session data
+      await UserSession.saveUserSession(
+        userData: userData,
+        accessToken: accessToken ?? '',
+        refreshToken: refreshToken,
+        userType: userType ?? _selectedUserType,
+      );
+
+      print('Basic user session saved successfully');
+
+      // Now fetch complete profile data
+      if (userId != null) {
+        Map<String, dynamic>? completeProfile;
+
+        if (userType == 'advertiser') {
+          completeProfile = await UserSession.fetchAdvertiserProfile(
+            int.parse(userId.toString()),
+          );
+        } else {
+          completeProfile = await UserSession.fetchUserProfile(
+            int.parse(userId.toString()),
+          );
+        }
+
+        if (completeProfile != null) {
+          // Merge the complete profile with existing session data
+          final mergedData = {...userData, ...completeProfile};
+
+          // Update session with complete profile data
+          await UserSession.saveUserSession(
+            userData: mergedData,
+            accessToken: accessToken ?? '',
+            refreshToken: refreshToken,
+            userType: userType ?? _selectedUserType,
+          );
+
+          print('=== COMPLETE PROFILE SAVED ===');
+          print('Complete Profile Data: $mergedData');
+          print('==============================');
+        } else {
+          print('Failed to fetch complete profile, using basic data');
+        }
       } else {
-        completeProfile = await UserSession.fetchUserProfile(int.parse(userId.toString()));
+        print('No user ID found, cannot fetch complete profile');
       }
-      
-      if (completeProfile != null) {
-        // Merge the complete profile with existing session data
-        final mergedData = {...userData, ...completeProfile};
-        
-        // Update session with complete profile data
-        await UserSession.saveUserSession(
-          userData: mergedData,
-          accessToken: accessToken ?? '',
-          refreshToken: refreshToken,
-          userType: userType ?? _selectedUserType,
-        );
-        
-        print('=== COMPLETE PROFILE SAVED ===');
-        print('Complete Profile Data: $mergedData');
-        print('==============================');
-      } else {
-        print('Failed to fetch complete profile, using basic data');
-      }
-    } else {
-      print('No user ID found, cannot fetch complete profile');
+    } catch (e) {
+      print('Error during profile setup: $e');
+      // Continue with navigation even if profile fetch fails
     }
-    
-  } catch (e) {
-    print('Error during profile setup: $e');
-    // Continue with navigation even if profile fetch fails
   }
-}    
+
   @override
   Widget build(BuildContext context) {
     final insets = context.insets;
@@ -316,10 +325,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              darkCharcoal,
-              pureBlack,
-            ],
+            colors: [darkCharcoal, pureBlack],
           ),
         ),
         child: Center(
@@ -341,7 +347,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Title
-                       Text(
+                      Text(
                         'VPG',
                         style: GoogleFonts.cormorantGaramond(
                           color: primaryGold,
@@ -362,13 +368,17 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: Sizes.lg),
-                      
+
                       // User Type Selection
                       Container(
                         decoration: BoxDecoration(
                           color: darkGray,
-                          borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                          border: Border.all(color: primaryGold.withOpacity(0.5)),
+                          borderRadius: BorderRadius.circular(
+                            Sizes.inputFieldRadius,
+                          ),
+                          border: Border.all(
+                            color: primaryGold.withOpacity(0.5),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -380,19 +390,23 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                                   });
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: _selectedUserType == 'user' 
-                                        ? primaryGold 
+                                    color: _selectedUserType == 'user'
+                                        ? primaryGold
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.inputFieldRadius,
+                                    ),
                                   ),
                                   child: Text(
                                     'User',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: _selectedUserType == 'user' 
-                                          ? pureBlack 
+                                      color: _selectedUserType == 'user'
+                                          ? pureBlack
                                           : white,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -408,19 +422,23 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                                   });
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: _selectedUserType == 'advertiser' 
-                                        ? primaryGold 
+                                    color: _selectedUserType == 'advertiser'
+                                        ? primaryGold
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.inputFieldRadius,
+                                    ),
                                   ),
                                   child: Text(
                                     'Advertiser',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: _selectedUserType == 'advertiser' 
-                                          ? pureBlack 
+                                      color: _selectedUserType == 'advertiser'
+                                          ? pureBlack
                                           : white,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -432,7 +450,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                         ),
                       ),
                       SizedBox(height: Sizes.md),
-                      
+
                       // Email Field
                       TextFormField(
                         controller: _emailController,
@@ -451,13 +469,18 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                             borderRadius: BorderRadius.circular(
                               Sizes.inputFieldRadius,
                             ),
-                            borderSide: BorderSide(color: primaryGold.withOpacity(0.5)),
+                            borderSide: BorderSide(
+                              color: primaryGold.withOpacity(0.5),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(
                               Sizes.inputFieldRadius,
                             ),
-                            borderSide: BorderSide(color: primaryGold, width: 2),
+                            borderSide: BorderSide(
+                              color: primaryGold,
+                              width: 2,
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(
@@ -465,10 +488,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                             ),
                             borderSide: BorderSide(color: Colors.red),
                           ),
-                          prefixIcon: Icon(
-                            Iconsax.sms,
-                            color: primaryGold,
-                          ),
+                          prefixIcon: Icon(Iconsax.sms, color: primaryGold),
                           filled: true,
                           fillColor: darkGray,
                         ),
@@ -483,7 +503,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                         },
                       ),
                       SizedBox(height: Sizes.md),
-                      
+
                       // Password Field
                       TextFormField(
                         controller: _passwordController,
@@ -501,13 +521,18 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                             borderRadius: BorderRadius.circular(
                               Sizes.inputFieldRadius,
                             ),
-                            borderSide: BorderSide(color: primaryGold.withOpacity(0.5)),
+                            borderSide: BorderSide(
+                              color: primaryGold.withOpacity(0.5),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(
                               Sizes.inputFieldRadius,
                             ),
-                            borderSide: BorderSide(color: primaryGold, width: 2),
+                            borderSide: BorderSide(
+                              color: primaryGold,
+                              width: 2,
+                            ),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(
@@ -517,7 +542,9 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Iconsax.eye_slash : Iconsax.eye,
+                              _obscurePassword
+                                  ? Iconsax.eye_slash
+                                  : Iconsax.eye,
                               color: primaryGold,
                             ),
                             onPressed: () {
@@ -542,7 +569,7 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                         },
                       ),
                       SizedBox(height: Sizes.lg),
-                      
+
                       // Remember me & Forgot Password
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -556,14 +583,14 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                                     _rememberMe = value ?? false;
                                   });
                                 },
-                                fillColor: WidgetStateProperty.resolveWith(
-                                  (states) {
-                                    if (states.contains(WidgetState.selected)) {
-                                      return primaryGold;
-                                    }
-                                    return Colors.transparent;
-                                  },
-                                ),
+                                fillColor: WidgetStateProperty.resolveWith((
+                                  states,
+                                ) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return primaryGold;
+                                  }
+                                  return Colors.transparent;
+                                }),
                                 checkColor: pureBlack,
                                 side: BorderSide(color: primaryGold),
                               ),
@@ -576,7 +603,9 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                           TextButton(
                             onPressed: () {
                               // TODO: Implement forgot password functionality
-                              _showErrorSnackBar('Forgot password feature coming soon!');
+                              _showErrorSnackBar(
+                                'Forgot password feature coming soon!',
+                              );
                             },
                             child: Text(
                               "Forgot Password",
@@ -586,42 +615,49 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                         ],
                       ),
                       const SizedBox(height: Sizes.spaceBtwSections),
-                      
+
                       // Login Button
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGold,
-                          foregroundColor: pureBlack,
-                          minimumSize: Size(double.infinity, Sizes.buttonHeight),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                        ).copyWith(
-                          backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                            (Set<WidgetState> states) {
-                              if (states.contains(WidgetState.disabled)) {
-                                return primaryGold.withOpacity(0.6);
-                              }
-                              if (states.contains(WidgetState.pressed)) {
-                                return darkGold;
-                              }
-                              if (states.contains(WidgetState.hovered)) {
-                                return accentGold;
-                              }
-                              return primaryGold;
-                            },
-                          ),
-                        ),
+                        style:
+                            ElevatedButton.styleFrom(
+                              backgroundColor: primaryGold,
+                              foregroundColor: pureBlack,
+                              minimumSize: Size(
+                                double.infinity,
+                                Sizes.buttonHeight,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                            ).copyWith(
+                              backgroundColor:
+                                  WidgetStateProperty.resolveWith<Color>((
+                                    Set<WidgetState> states,
+                                  ) {
+                                    if (states.contains(WidgetState.disabled)) {
+                                      return primaryGold.withOpacity(0.6);
+                                    }
+                                    if (states.contains(WidgetState.pressed)) {
+                                      return darkGold;
+                                    }
+                                    if (states.contains(WidgetState.hovered)) {
+                                      return accentGold;
+                                    }
+                                    return primaryGold;
+                                  }),
+                            ),
                         child: _isLoading
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(pureBlack),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    pureBlack,
+                                  ),
                                 ),
                               )
                             : Text(
@@ -634,42 +670,55 @@ Future<void> _handleSuccessfulLogin(Map<String, dynamic> result) async {
                               ),
                       ),
                       const SizedBox(height: Sizes.spaceBtwSections),
-                      
-                      // Sign up button when clicked takes you to option cards to choose from
+
+                      // Sign up → go to card chooser (SignOptions)
                       ElevatedButton(
-                        onPressed: _isLoading ? null : () => Get.to(SignOptions()),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: primaryGold,
-                          minimumSize: Size(double.infinity, Sizes.buttonHeight),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: primaryGold, width: 2),
-                          ),
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                        ).copyWith(
-                          backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                            (Set<WidgetState> states) {
-                              if (states.contains(WidgetState.disabled)) {
-                                return Colors.transparent;
-                              }
-                              if (states.contains(WidgetState.pressed)) {
-                                return primaryGold.withOpacity(0.1);
-                              }
-                              if (states.contains(WidgetState.hovered)) {
-                                return primaryGold.withOpacity(0.05);
-                              }
-                              return Colors.transparent;
-                            },
-                          ),
-                        ),
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SignOptions(),
+                                ),
+                              ),
+                        style:
+                            ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: primaryGold,
+                              minimumSize: Size(
+                                double.infinity,
+                                Sizes.buttonHeight,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: primaryGold, width: 2),
+                              ),
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                            ).copyWith(
+                              backgroundColor:
+                                  WidgetStateProperty.resolveWith<Color>((
+                                    Set<WidgetState> states,
+                                  ) {
+                                    if (states.contains(WidgetState.disabled)) {
+                                      return Colors.transparent;
+                                    }
+                                    if (states.contains(WidgetState.pressed)) {
+                                      return primaryGold.withOpacity(0.1);
+                                    }
+                                    if (states.contains(WidgetState.hovered)) {
+                                      return primaryGold.withOpacity(0.05);
+                                    }
+                                    return Colors.transparent;
+                                  }),
+                            ),
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: _isLoading ? primaryGold.withOpacity(0.6) : primaryGold,
+                            color: _isLoading
+                                ? primaryGold.withOpacity(0.6)
+                                : primaryGold,
                           ),
                         ),
                       ),

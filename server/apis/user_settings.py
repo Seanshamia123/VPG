@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
-from models import UserSetting, db
+from models import UserSetting, User, db
+from .decorators import token_required
 from datetime import datetime
 
 api = Namespace('user-settings', description='User settings management operations')
@@ -68,10 +69,13 @@ class UserSettingList(Resource):
     @api.doc('create_user_setting')
     @api.expect(user_setting_create_model)
     @api.marshal_with(user_setting_model, code=201)
-    def post(self):
+    @token_required
+    def post(self, current_user):
         """Create new user settings"""
         try:
             data = request.get_json()
+            if not isinstance(current_user, User) or current_user.id != data.get('user_id'):
+                api.abort(403, 'Can only create settings for your own user')
             
             # Check if user settings already exist for this user
             existing_settings = UserSetting.query.filter_by(user_id=data['user_id']).first()
@@ -101,12 +105,15 @@ class UserSettingList(Resource):
 class UserSettingDetail(Resource):
     @api.doc('get_user_setting')
     @api.marshal_with(user_setting_model)
-    def get(self, setting_id):
+    @token_required
+    def get(self, current_user, setting_id):
         """Get user setting by ID"""
         try:
             user_setting = UserSetting.query.get(setting_id)
             if not user_setting:
                 api.abort(404, 'User setting not found')
+            if not isinstance(current_user, User) or current_user.id != user_setting.user_id:
+                api.abort(403, 'Access denied to these settings')
             
             return user_setting.to_dict()
             
@@ -116,12 +123,15 @@ class UserSettingDetail(Resource):
     @api.doc('update_user_setting')
     @api.expect(user_setting_update_model)
     @api.marshal_with(user_setting_model)
-    def put(self, setting_id):
+    @token_required
+    def put(self, current_user, setting_id):
         """Update user settings"""
         try:
             user_setting = UserSetting.query.get(setting_id)
             if not user_setting:
                 api.abort(404, 'User setting not found')
+            if not isinstance(current_user, User) or current_user.id != user_setting.user_id:
+                api.abort(403, 'Can only update your own settings')
             
             data = request.get_json()
             
@@ -149,12 +159,15 @@ class UserSettingDetail(Resource):
             api.abort(500, f'Failed to update user setting: {str(e)}')
     
     @api.doc('delete_user_setting')
-    def delete(self, setting_id):
+    @token_required
+    def delete(self, current_user, setting_id):
         """Delete user settings"""
         try:
             user_setting = UserSetting.query.get(setting_id)
             if not user_setting:
                 api.abort(404, 'User setting not found')
+            if not isinstance(current_user, User) or current_user.id != user_setting.user_id:
+                api.abort(403, 'Can only delete your own settings')
             
             db.session.delete(user_setting)
             db.session.commit()
@@ -169,12 +182,15 @@ class UserSettingDetail(Resource):
 class UserSettingByUser(Resource):
     @api.doc('get_user_settings_by_user_id')
     @api.marshal_with(user_setting_model)
-    def get(self, user_id):
+    @token_required
+    def get(self, current_user, user_id):
         """Get user settings by user ID"""
         try:
             user_setting = UserSetting.query.filter_by(user_id=user_id).first()
             if not user_setting:
                 api.abort(404, f'Settings not found for user {user_id}')
+            if not isinstance(current_user, User) or current_user.id != user_id:
+                api.abort(403, 'Access denied to these settings')
             
             return user_setting.to_dict()
             
@@ -184,12 +200,15 @@ class UserSettingByUser(Resource):
     @api.doc('update_user_settings_by_user_id')
     @api.expect(user_setting_update_model)
     @api.marshal_with(user_setting_model)
-    def put(self, user_id):
+    @token_required
+    def put(self, current_user, user_id):
         """Update user settings by user ID"""
         try:
             user_setting = UserSetting.query.filter_by(user_id=user_id).first()
             if not user_setting:
                 api.abort(404, f'Settings not found for user {user_id}')
+            if not isinstance(current_user, User) or current_user.id != user_id:
+                api.abort(403, 'Can only update your own settings')
             
             data = request.get_json()
             
@@ -221,10 +240,13 @@ class UserSettingCreateOrUpdate(Resource):
     @api.doc('create_or_update_user_settings')
     @api.expect(user_setting_update_model)
     @api.marshal_with(user_setting_model)
-    def post(self, user_id):
+    @token_required
+    def post(self, current_user, user_id):
         """Create or update user settings for a specific user"""
         try:
             data = request.get_json()
+            if not isinstance(current_user, User) or current_user.id != user_id:
+                api.abort(403, 'Can only modify your own settings')
             
             # Try to find existing settings
             user_setting = UserSetting.query.filter_by(user_id=user_id).first()

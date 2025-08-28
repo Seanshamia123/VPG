@@ -11,6 +11,7 @@ class User(db.Model):
     phone_number = db.Column(db.String(20), nullable=False)
     location = db.Column(db.String(255), nullable=False)
     gender = db.Column(db.Enum('Male', 'Female', 'other', name='user_gender_enum'), nullable=False)
+    profile_image_url = db.Column(db.String(500))
     is_active = db.Column(db.Boolean, default=True)  # Added missing field
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -36,6 +37,7 @@ class User(db.Model):
             'phone_number': self.phone_number,  # Fixed field name
             'location': self.location,
             'gender': self.gender,
+            'profile_image_url': self.profile_image_url,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
@@ -49,6 +51,7 @@ class User(db.Model):
             'name': self.name,
             'location': self.location,
             'gender': self.gender,
+            'profile_image_url': self.profile_image_url,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat()
         }

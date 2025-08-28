@@ -4,13 +4,15 @@ import 'package:escort/screens/shared_screens/reviewspage.dart';
 import 'package:escort/screens/terms_and_conditions_screen.dart';
 import 'package:escort/services/user_session.dart';
 import 'package:escort/screens/shared_screens/login.dart';
-import 'package:escort/styles/app_size.dart';
-import 'package:escort/styles/post_cards_styling.dart';
+// import 'package:escort/styles/app_size.dart';
+// import 'package:escort/styles/post_cards_styling.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:http/http.dart' as http;
+import 'package:escort/config/api_config.dart';
+import 'package:escort/services/api_client.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -37,7 +39,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   // User data variables
   String userName = 'Loading...';
   String userEmail = '';
-  String userBio = 'Professional escort services with premium quality and discretion';
+  String userBio =
+      'Professional escort services with premium quality and discretion';
   String? profileImageUrl;
   String userLocation = '';
   bool isVerified = false;
@@ -45,7 +48,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   bool isLoading = true;
 
   // Stats
-  
+
   // int followersCount = 221;
   // int followingCount = 1025;
 
@@ -55,23 +58,51 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     _loadUserData();
   }
 
+  late Future<List<String>> _futureMyPostImages = _fetchMyPosts();
+
+  Future<List<String>> _fetchMyPosts() async {
+    try {
+      final accessToken = await UserSession.getAccessToken();
+      if (accessToken == null) return [];
+      final res = await ApiClient.getJson(
+        '${ApiConfig.api}/posts/my-posts',
+        auth: true,
+      );
+      List items = [];
+      if (res['data'] is List) {
+        items = res['data'];
+      } else if (res.values.any((v) => v is List)) {
+        items = res.values.firstWhere((v) => v is List) as List;
+      }
+      return items
+          .cast<Map<String, dynamic>>()
+          .map((e) => (e['image_url'] ?? '').toString())
+          .where((url) => url.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<void> _loadUserData() async {
     try {
       // Load user data from session
       final userData = await UserSession.getCurrentUserData();
-      
+
       if (userData != null) {
         setState(() {
           userName = userData['name'] ?? userData['username'] ?? 'Unknown User';
           userEmail = userData['email'] ?? '';
-          userBio = userData['bio'] ?? 'Professional escort services with premium quality and discretion';
+          userBio =
+              userData['bio'] ??
+              'Professional escort services with premium quality and discretion';
           profileImageUrl = userData['profile_image_url'];
           userLocation = userData['location'] ?? '';
           isVerified = userData['is_verified'] ?? false;
           isOnline = userData['is_online'] ?? false;
           isLoading = false;
         });
-        
+
         print('=== USER DATA LOADED ===');
         print('Name: $userName');
         print('Email: $userEmail');
@@ -100,7 +131,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   // Method to get profile image widget
   Widget _getProfileImage({required double radius, bool showBorder = true}) {
     Widget imageWidget;
-    
+
     if (profileImageUrl != null && profileImageUrl!.isNotEmpty) {
       // Use network image if available
       imageWidget = CircleAvatar(
@@ -111,34 +142,27 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         },
       );
     } else {
-      // Use placeholder image or initials
+      // Use a default user icon when no profile image
       imageWidget = CircleAvatar(
         radius: radius,
-        backgroundColor: goldColor.withOpacity(0.2),
-        child: Text(
-          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-          style: TextStyle(
-            fontSize: radius * 0.6,
-            fontWeight: FontWeight.bold,
-            color: goldColor,
-          ),
-        ),
+        backgroundColor: goldColor.withOpacity(0.15),
+        child: Icon(Icons.person, color: goldColor, size: radius),
       );
     }
-    
+
     if (showBorder) {
       return Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: isVerified ? brightGold : goldColor, 
+            color: isVerified ? brightGold : goldColor,
             width: isVerified ? 4 : 3,
           ),
         ),
         child: imageWidget,
       );
     }
-    
+
     return imageWidget;
   }
 
@@ -180,7 +204,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               ),
             ),
             SizedBox(height: 20),
-            
+
             // Title
             Row(
               children: [
@@ -199,13 +223,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             SizedBox(height: 8),
             Text(
               'Choose how you want to add media',
-              style: TextStyle(
-                color: greyColor,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: greyColor, fontSize: 16),
             ),
             SizedBox(height: 30),
-            
+
             // Media options
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -269,11 +290,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 color: goldColor.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: blackColor,
-              ),
+              child: Icon(icon, size: 32, color: blackColor),
             ),
             SizedBox(height: 12),
             Text(
@@ -287,10 +304,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             SizedBox(height: 4),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: greyColor,
-              ),
+              style: TextStyle(fontSize: 12, color: greyColor),
               textAlign: TextAlign.center,
             ),
           ],
@@ -417,125 +431,127 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     );
   }
 
-  Future<void> _pickAndProcessMedia(ImageSource source, {required bool isVideo}) async {
-  try {
-    // Show loading
-    _showLoadingDialog('Selecting media...');
+  Future<void> _pickAndProcessMedia(
+    ImageSource source, {
+    required bool isVideo,
+  }) async {
+    try {
+      // Show loading
+      _showLoadingDialog('Selecting media...');
 
-    XFile? pickedFile;
-    
-    if (isVideo) {
-      pickedFile = await _picker.pickVideo(
-        source: source,
-        maxDuration: Duration(minutes: 10),
-      );
-    } else {
-      pickedFile = await _picker.pickImage(
-        source: source,
-        imageQuality: 90,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
-    }
+      XFile? pickedFile;
 
-    Navigator.pop(context); // Close loading dialog
-
-    if (pickedFile != null) {
-      String mediaPath;
-      
-      if (kIsWeb) {
-        // On web, use the path directly (it's already a blob URL)
-        mediaPath = pickedFile.path;
-      } else {
-        // On mobile/desktop, use the file path
-        mediaPath = pickedFile.path;
-      }
-      
       if (isVideo) {
-        // For video, go directly to post creation
-        await _showPostCreationDialog(mediaPath, isVideo: true);
+        pickedFile = await _picker.pickVideo(
+          source: source,
+          maxDuration: Duration(minutes: 10),
+        );
       } else {
-        // For images, show editing options first
-        await _showImageEditingOptions(mediaPath);
+        pickedFile = await _picker.pickImage(
+          source: source,
+          imageQuality: 90,
+          maxWidth: 1920,
+          maxHeight: 1920,
+        );
       }
+
+      Navigator.pop(context); // Close loading dialog
+
+      if (pickedFile != null) {
+        String mediaPath;
+
+        if (kIsWeb) {
+          // On web, use the path directly (it's already a blob URL)
+          mediaPath = pickedFile.path;
+        } else {
+          // On mobile/desktop, use the file path
+          mediaPath = pickedFile.path;
+        }
+
+        if (isVideo) {
+          // For video, go directly to post creation
+          await _showPostCreationDialog(mediaPath, isVideo: true);
+        } else {
+          // For images, show editing options first
+          await _showImageEditingOptions(mediaPath);
+        }
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      print('Error picking media: $e');
+      _showErrorSnackBar('Error selecting media. Please try again.');
     }
-  } catch (e) {
-    Navigator.pop(context); // Close loading dialog
-    print('Error picking media: $e');
-    _showErrorSnackBar('Error selecting media. Please try again.');
   }
-}
+
   Future<void> _showImageEditingOptions(String imagePath) async {
-  await showModalBottomSheet(
-    context: context,
-    backgroundColor: whiteColor,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) => Container(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Edit Image',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: blackColor,
-            ),
-          ),
-          SizedBox(height: 20),
-          
-          // Image preview - FIXED FOR WEB
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: goldColor, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(13),
-              child: kIsWeb 
-                ? Image.network(
-                    imagePath, // On web, imagePath will be a blob URL
-                    fit: BoxFit.cover,
-                  )
-                : Image.file(
-                    File(imagePath),
-                    fit: BoxFit.cover,
-                  ),
-            ),
-          ),
-          SizedBox(height: 20),
-          
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildEditOption(
-                icon: Icons.crop,
-                label: 'Crop Image',
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _cropImage(imagePath);
-                },
-              ),
-              _buildEditOption(
-                icon: Icons.send,
-                label: 'Use As Is',
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _showPostCreationDialog(imagePath, isVideo: false);
-                },
-              ),
-            ],
-          ),
-        ],
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: whiteColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    ),
-  );
-}
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Edit Image',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: blackColor,
+              ),
+            ),
+            SizedBox(height: 20),
+
+            // Image preview - FIXED FOR WEB
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: goldColor, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: kIsWeb
+                    ? Image.network(
+                        imagePath, // On web, imagePath will be a blob URL
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(File(imagePath), fit: BoxFit.cover),
+              ),
+            ),
+            SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildEditOption(
+                  icon: Icons.crop,
+                  label: 'Crop Image',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _cropImage(imagePath);
+                  },
+                ),
+                _buildEditOption(
+                  icon: Icons.send,
+                  label: 'Use As Is',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _showPostCreationDialog(imagePath, isVideo: false);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEditOption({
     required IconData icon,
     required String label,
@@ -556,10 +572,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
-                color: blackColor,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: blackColor, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -570,10 +583,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   Future<void> _cropImage(String imagePath) async {
     try {
       _showLoadingDialog('Opening image editor...');
-      
+
       CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: imagePath,
-        
+
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
@@ -609,96 +622,96 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     }
   }
 
-  Future<void> _showPostCreationDialog(String filePath, {required bool isVideo}) async {
-  final TextEditingController captionController = TextEditingController();
-  bool isPosting = false;
+  Future<void> _showPostCreationDialog(
+    String filePath, {
+    required bool isVideo,
+  }) async {
+    final TextEditingController captionController = TextEditingController();
+    bool isPosting = false;
 
-  await showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext dialogContext) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: whiteColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Row(
-              children: [
-                Icon(
-                  isVideo ? Icons.videocam : Icons.image,
-                  color: goldColor,
-                  size: 24,
-                ),
-                SizedBox(width: 10),
-                Text(
-                  "Create Post",
-                  style: TextStyle(
-                    color: blackColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: whiteColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
                 children: [
-                  // Media preview - FIXED FOR WEB
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: goldColor, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: blackColor.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(13),
-                      child: isVideo
-                          ? Container(
-                              color: blackColor.withOpacity(0.1),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.play_circle_filled,
-                                    size: 60,
-                                    color: goldColor,
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    "Video Ready",
-                                    style: TextStyle(
-                                      color: darkGreyColor,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : kIsWeb
-                              ? Image.network(
-                                  filePath, // On web, filePath will be a blob URL
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                  File(filePath),
-                                  fit: BoxFit.cover,
-                                ),
-                                 ),
+                  Icon(
+                    isVideo ? Icons.videocam : Icons.image,
+                    color: goldColor,
+                    size: 24,
                   ),
+                  SizedBox(width: 10),
+                  Text(
+                    "Create Post",
+                    style: TextStyle(
+                      color: blackColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Media preview - FIXED FOR WEB
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: goldColor, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: blackColor.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: isVideo
+                            ? Container(
+                                color: blackColor.withOpacity(0.1),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.play_circle_filled,
+                                      size: 60,
+                                      color: goldColor,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      "Video Ready",
+                                      style: TextStyle(
+                                        color: darkGreyColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : kIsWeb
+                            ? Image.network(
+                                filePath, // On web, filePath will be a blob URL
+                                fit: BoxFit.cover,
+                              )
+                            : Image.file(File(filePath), fit: BoxFit.cover),
+                      ),
+                    ),
                     SizedBox(height: 25),
-                    
+
                     // Caption input
                     Text(
                       "Caption",
@@ -718,7 +731,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                         hintStyle: TextStyle(color: greyColor),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: greyColor.withOpacity(0.3)),
+                          borderSide: BorderSide(
+                            color: greyColor.withOpacity(0.3),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -728,22 +743,21 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                       ),
                       style: TextStyle(color: blackColor),
                     ),
-                    
+
                     if (isPosting) ...[
                       SizedBox(height: 20),
                       Center(
                         child: Column(
                           children: [
                             CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(goldColor),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                goldColor,
+                              ),
                             ),
                             SizedBox(height: 10),
                             Text(
                               'Creating your post...',
-                              style: TextStyle(
-                                color: greyColor,
-                                fontSize: 14,
-                              ),
+                              style: TextStyle(color: greyColor, fontSize: 14),
                             ),
                           ],
                         ),
@@ -782,35 +796,40 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                               _showErrorSnackBar('Please add a caption');
                               return;
                             }
-                            
+
                             setState(() {
                               isPosting = true;
                             });
-                            
+
                             try {
                               await _createPostAPI(
                                 filePath: filePath,
                                 caption: captionController.text.trim(),
                                 isVideo: isVideo,
                               );
-                              
+
                               Navigator.pop(dialogContext);
-                              _showSuccessSnackBar('Post created successfully!');
-                              
+                              _showSuccessSnackBar(
+                                'Post created successfully!',
+                              );
+
                               // Refresh posts count
-                              
-                              
                             } catch (e) {
                               setState(() {
                                 isPosting = false;
                               });
-                              _showErrorSnackBar('Failed to create post. Please try again.');
+                              _showErrorSnackBar(
+                                'Failed to create post. Please try again.',
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: goldColor,
                             foregroundColor: blackColor,
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -835,101 +854,94 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
   // FIXED: Updated API call to match your backend expectations
   Future<void> _createPostAPI({
-  required String filePath,
-  required String caption,
-  required bool isVideo,
-}) async {
-  try {
-    print('=== CREATING POST API CALL ===');
-    print('File Path: $filePath');
-    print('Caption: $caption');
-    print('Is Video: $isVideo');
-    
-    // Get access token
-    final accessToken = await UserSession.getAccessToken();
-    if (accessToken == null) {
-      throw Exception('No access token available');
-    }
+    required String filePath,
+    required String caption,
+    required bool isVideo,
+  }) async {
+    try {
+      print('=== CREATING POST API CALL ===');
+      print('File Path: $filePath');
+      print('Caption: $caption');
+      print('Is Video: $isVideo');
 
-    String base64String;
-    
-    if (kIsWeb) {
-      // On web, we need to fetch the blob URL and convert to base64
-      final response = await http.get(Uri.parse(filePath));
-      if (response.statusCode == 200) {
-        base64String = base64Encode(response.bodyBytes);
+      // Get access token
+      final accessToken = await UserSession.getAccessToken();
+      if (accessToken == null) {
+        throw Exception('No access token available');
+      }
+
+      String base64String;
+
+      if (kIsWeb) {
+        // On web, we need to fetch the blob URL and convert to base64
+        final response = await http.get(Uri.parse(filePath));
+        if (response.statusCode == 200) {
+          base64String = base64Encode(response.bodyBytes);
+        } else {
+          throw Exception('Failed to read file on web');
+        }
       } else {
-        throw Exception('Failed to read file on web');
+        // On mobile/desktop, read file normally
+        final bytes = await File(filePath).readAsBytes();
+        base64String = base64Encode(bytes);
       }
-    } else {
-      // On mobile/desktop, read file normally
-      final bytes = await File(filePath).readAsBytes();
-      base64String = base64Encode(bytes);
-    }
-    
-    print('File converted to base64, size: ${base64String.length} characters');
-    
-    // Prepare the request body matching your backend expectations
-    final requestBody = {
-      'image': base64String,  // Your backend expects 'image' field
-      'caption': caption,
-    };
 
-    print('Making API call to posts endpoint...');
+      print(
+        'File converted to base64, size: ${base64String.length} characters',
+      );
 
-    // Make API request to your correct endpoint
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:5000/api/posts/'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: json.encode(requestBody),
-    );
+      // Prepare the request body matching your backend expectations
+      final requestBody = {
+        'image': base64String, // Your backend expects 'image' field
+        'caption': caption,
+      };
 
-    print('=== POST CREATION RESPONSE ===');
-    print('Status Code: ${response.statusCode}');
-    print('Response Headers: ${response.headers}');
-    print('Response Body: ${response.body}');
-    print('==============================');
+      print('Making API call to posts endpoint...');
 
-    if (response.statusCode == 201) {
-      // Success - post created
-      final responseData = json.decode(response.body);
-      print('Post created successfully with ID: ${responseData['id']}');
-      print('Image uploaded to Cloudinary: ${responseData['image_url']}');
-    } else if (response.statusCode == 400) {
-      // Bad request - parse error message
-      try {
-        final errorData = json.decode(response.body);
-        final errorMessage = errorData['message'] ?? 'Bad request';
+      // Make API request to your correct endpoint
+      final response = await ApiClient.postJson(
+        '${ApiConfig.api}/posts/',
+        requestBody,
+        auth: true,
+      );
+
+      print('=== POST CREATION RESPONSE ===');
+      print('Status Code: ${response['statusCode']}');
+      print('Response Body: $response');
+      print('==============================');
+
+      if ((response['statusCode'] ?? 0) == 201) {
+        // Success - post created
+        final responseData = response;
+        final id = responseData['id'] ?? responseData['data']?['id'];
+        final imageUrl =
+            responseData['image_url'] ?? responseData['data']?['image_url'];
+        print('Post created successfully with ID: $id');
+        print('Image uploaded to Cloudinary: $imageUrl');
+      } else if ((response['statusCode'] ?? 0) == 400) {
+        // Bad request - parse error message
+        final errorMessage =
+            response['message'] ?? response['error'] ?? 'Bad request';
         throw Exception(errorMessage);
-      } catch (e) {
-        throw Exception('Invalid request data');
-      }
-    } else if (response.statusCode == 401) {
-      // Unauthorized
-      throw Exception('Authentication failed. Please login again.');
-    } else if (response.statusCode == 500) {
-      // Server error
-      try {
-        final errorData = json.decode(response.body);
-        final errorMessage = errorData['message'] ?? 'Server error';
+      } else if ((response['statusCode'] ?? 0) == 401) {
+        // Unauthorized
+        throw Exception('Authentication failed. Please login again.');
+      } else if ((response['statusCode'] ?? 0) == 500) {
+        // Server error
+        final errorMessage =
+            response['message'] ?? response['error'] ?? 'Server error';
         throw Exception(errorMessage);
-      } catch (e) {
-        throw Exception('Server error occurred');
+      } else {
+        // Other errors
+        throw Exception(
+          'Failed to create post (HTTP ${response['statusCode']})',
+        );
       }
-    } else {
-      // Other errors
-      throw Exception('Failed to create post (HTTP ${response.statusCode})');
+    } catch (e) {
+      print('Error creating post: $e');
+      rethrow;
     }
-  } catch (e) {
-    print('Error creating post: $e');
-    rethrow;
   }
-}
-  
 
   void _showLoadingDialog(String message) {
     showDialog(
@@ -937,9 +949,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: whiteColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -947,13 +957,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               valueColor: AlwaysStoppedAnimation<Color>(goldColor),
             ),
             SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(
-                color: blackColor,
-                fontSize: 16,
-              ),
-            ),
+            Text(message, style: TextStyle(color: blackColor, fontSize: 16)),
           ],
         ),
       ),
@@ -969,18 +973,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             SizedBox(width: 12),
             Text(
               message,
-              style: TextStyle(
-                color: blackColor,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: blackColor, fontWeight: FontWeight.w600),
             ),
           ],
         ),
         backgroundColor: goldColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: Duration(seconds: 3),
       ),
     );
@@ -1006,9 +1005,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: Duration(seconds: 4),
       ),
     );
@@ -1050,7 +1047,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         child: Container(
           decoration: BoxDecoration(
             color: whiteColor,
-            border: Border(bottom: BorderSide(color: greyColor.withOpacity(0.3))),
+            border: Border(
+              bottom: BorderSide(color: greyColor.withOpacity(0.3)),
+            ),
           ),
           child: AppBar(
             elevation: 0,
@@ -1073,11 +1072,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 ),
                 if (isVerified) ...[
                   SizedBox(width: 4),
-                  Icon(
-                    Icons.verified,
-                    color: brightGold,
-                    size: 16,
-                  ),
+                  Icon(Icons.verified, color: brightGold, size: 16),
                 ],
               ],
             ),
@@ -1094,7 +1089,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                     context: context,
                     backgroundColor: whiteColor,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
                     ),
                     builder: (context) => _buildOptionsMenu(),
                   );
@@ -1105,93 +1102,163 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         ),
       ),
       drawer: _buildSidebar(),
-      body: isLoading 
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(goldColor),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Loading profile...',
-                  style: TextStyle(color: greyColor),
-                ),
-              ],
-            ),
-          )
-        : SingleChildScrollView(
-            child: Column(
-              children: [
-                // Profile Header Section
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Profile image, stats, and buttons row
-                      Row(
-                        children: [
-                          // Profile Image
-                          _getProfileImage(radius: 45),
-                          SizedBox(width: 20),
-                          // Stats
-                         
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Bio section
-                      Container(
-                        width: double.infinity,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      body: isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(goldColor),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading profile...',
+                    style: TextStyle(color: greyColor),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Profile Header Section
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        // Profile image, stats, and buttons row
+                        Row(
                           children: [
-                            if (userLocation.isNotEmpty)
+                            // Profile Image
+                            _getProfileImage(radius: 45),
+                            SizedBox(width: 20),
+
+                            // Stats
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildStatColumn('120', 'Followers'),
+                                _buildStatColumn('45', 'Posts'),
+                                _buildStatColumn('30', 'Likes'),
+                              ],
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+
+                        // Bio section
+                        Container(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (userLocation.isNotEmpty)
+                                Text(
+                                  userLocation,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: blackColor,
+                                  ),
+                                ),
+                              SizedBox(height: 4),
                               Text(
-                                userLocation,
+                                userBio,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                   color: blackColor,
                                 ),
                               ),
-                            SizedBox(height: 4),
-                            Text(
-                              userBio,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: blackColor,
-                              ),
-                            ),
-                            if (userEmail.isNotEmpty) ...[
-                              SizedBox(height: 4),
-                              Text(
-                                userEmail,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: greyColor,
+                              if (userEmail.isNotEmpty) ...[
+                                SizedBox(height: 4),
+                                Text(
+                                  userEmail,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: greyColor,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+
+                        // Action buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 32,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    // Edit profile functionality
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Opening Edit Profile...',
+                                        ),
+                                        backgroundColor: goldColor,
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: greyColor.withOpacity(0.2),
+                                    foregroundColor: blackColor,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Edit profile',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                height: 32,
+                                child: ElevatedButton(
+                                  onPressed: () => Get.to(
+                                    () => CommentSection(),
+                                    transition: Transition.upToDown,
+                                    duration: const Duration(milliseconds: 500),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: goldColor,
+                                    foregroundColor: blackColor,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'View archive',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Container(
                               height: 32,
+                              width: 32,
                               child: ElevatedButton(
                                 onPressed: () {
-                                  // Edit profile functionality
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Opening Edit Profile...'),
-                                      backgroundColor: goldColor,
+                                  // Settings functionality
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SettingsScreen(),
                                     ),
                                   );
                                 },
@@ -1199,222 +1266,180 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                   backgroundColor: greyColor.withOpacity(0.2),
                                   foregroundColor: blackColor,
                                   elevation: 0,
+                                  padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
-                                child: Text(
-                                  'Edit profile',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                child: Icon(
+                                  Icons.person_add_outlined,
+                                  size: 16,
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Container(
-                              height: 32,
-                              child: ElevatedButton(
-                                onPressed: () => Get.to(
-                                  () => CommentSection(),
-                                  transition: Transition.upToDown,
-                                  duration: const Duration(milliseconds: 500),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: goldColor,
-                                  foregroundColor: blackColor,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                child: Text(
-                                  'View archive',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Container(
-                            height: 32,
-                            width: 32,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                // Settings functionality
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => SettingsScreen()),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: greyColor.withOpacity(0.2),
-                                foregroundColor: blackColor,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.person_add_outlined,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 20),
-                      
-                      // Story highlights with enhanced "New" button
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildStoryHighlight(
-                              isNew: true,
-                              title: 'New',
-                              onTap: _handleNewStoryTap, // Fixed: Use the correct handler
-                            ),
-                            // Add more story highlights here if needed
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Tab bar and posts grid
-                DefaultTabController(
-                  length: 4,
-                  child: Column(
-                    children: [
-                      TabBar(
-                        tabs: [
-                          Tab(icon: Icon(Icons.grid_on)),
-                          Tab(icon: Icon(Icons.play_arrow)),
-                          Tab(icon: Icon(Icons.bookmark_border)),
-                          Tab(icon: Icon(Icons.person_outline)),
-                        ],
-                        labelColor: blackColor,
-                        unselectedLabelColor: greyColor,
-                        indicatorColor: blackColor,
-                        indicatorWeight: 1,
-                      ),
-                      Container(
-                        height: 400, // Fixed height for the tab view
-                        child: TabBarView(
-                          children: [
-                            // Posts tab
-                            GridView.builder(
-                              padding: EdgeInsets.all(1),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 1,
-                                mainAxisSpacing: 1,
-                                childAspectRatio: 1.0,
+                        SizedBox(height: 20),
+
+                        // Story highlights with enhanced "New" button
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildStoryHighlight(
+                                isNew: true,
+                                title: 'New',
+                                onTap:
+                                    _handleNewStoryTap, // Fixed: Use the correct handler
                               ),
-                             
-                              itemBuilder: (context, index) {
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    color: greyColor.withOpacity(0.1),
-                                  ),
-                                  child: Image.network(
-                                    "https://picsum.photos/200/300?random=$index",
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
+                              // Add more story highlights here if needed
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Tab bar and posts grid
+                  DefaultTabController(
+                    length: 4,
+                    child: Column(
+                      children: [
+                        TabBar(
+                          tabs: [
+                            Tab(icon: Icon(Icons.grid_on)),
+                            Tab(icon: Icon(Icons.play_arrow)),
+                            Tab(icon: Icon(Icons.bookmark_border)),
+                            Tab(icon: Icon(Icons.person_outline)),
+                          ],
+                          labelColor: blackColor,
+                          unselectedLabelColor: greyColor,
+                          indicatorColor: blackColor,
+                          indicatorWeight: 1,
+                        ),
+                        Container(
+                          height: 400, // Fixed height for the tab view
+                          child: TabBarView(
+                            children: [
+                              // Posts tab
+                              FutureBuilder<List<String>>(
+                                future: _futureMyPostImages,
+                                builder: (context, snapshot) {
+                                  final images = snapshot.data ?? [];
+                                  return GridView.builder(
+                                    padding: EdgeInsets.all(1),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 3,
+                                          crossAxisSpacing: 1,
+                                          mainAxisSpacing: 1,
+                                          childAspectRatio: 1.0,
+                                        ),
+                                    itemCount: images.isEmpty
+                                        ? 6
+                                        : images.length,
+                                    itemBuilder: (context, index) {
+                                      final imageUrl = images.isEmpty
+                                          ? "https://picsum.photos/200/300?random=$index"
+                                          : images[index];
                                       return Container(
-                                        color: greyColor.withOpacity(0.2),
-                                        child: Icon(
-                                          Icons.image,
-                                          color: greyColor,
-                                          size: 40,
+                                        decoration: BoxDecoration(
+                                          color: greyColor.withOpacity(0.1),
+                                        ),
+                                        child: Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Container(
+                                                  color: greyColor.withOpacity(
+                                                    0.2,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.image,
+                                                    color: greyColor,
+                                                    size: 40,
+                                                  ),
+                                                );
+                                              },
                                         ),
                                       );
                                     },
-                                  ),
-                                );
-                              },
-                            ),
-                            // Reels tab
-                            Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.play_circle_outline,
-                                    size: 60,
-                                    color: greyColor,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No reels yet',
-                                    style: TextStyle(
-                                      color: greyColor,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
-                            ),
-                            // Saved tab
-                            Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.bookmark_outline,
-                                    size: 60,
-                                    color: greyColor,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No saved posts',
-                                    style: TextStyle(
+                              // Reels tab
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.play_circle_outline,
+                                      size: 60,
                                       color: greyColor,
-                                      fontSize: 16,
                                     ),
-                                  ),
-                                ],
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No reels yet',
+                                      style: TextStyle(
+                                        color: greyColor,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            // Tagged tab
-                            Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.person_outline,
-                                    size: 60,
-                                    color: greyColor,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No tagged posts',
-                                    style: TextStyle(
+                              // Saved tab
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.bookmark_outline,
+                                      size: 60,
                                       color: greyColor,
-                                      fontSize: 16,
                                     ),
-                                  ),
-                                ],
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No saved posts',
+                                      style: TextStyle(
+                                        color: greyColor,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              // Tagged tab
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.person_outline,
+                                      size: 60,
+                                      color: greyColor,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'No tagged posts',
+                                      style: TextStyle(
+                                        color: greyColor,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
     );
   }
 
@@ -1430,19 +1455,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             color: blackColor,
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: blackColor,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: blackColor)),
       ],
     );
   }
 
   Widget _buildStoryHighlight({
-    bool isNew = false, 
+    bool isNew = false,
     required String title,
     VoidCallback? onTap,
   }) {
@@ -1467,20 +1486,21 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [goldColor.withOpacity(0.1), goldColor.withOpacity(0.3)],
+                          colors: [
+                            goldColor.withOpacity(0.1),
+                            goldColor.withOpacity(0.3),
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: Icon(
-                        Icons.add,
-                        size: 30,
-                        color: goldColor,
-                      ),
+                      child: Icon(Icons.add, size: 30, color: goldColor),
                     )
                   : CircleAvatar(
                       radius: 30,
-                      backgroundImage: NetworkImage("https://picsum.photos/100/100"),
+                      backgroundImage: NetworkImage(
+                        "https://picsum.photos/100/100",
+                      ),
                     ),
             ),
             SizedBox(height: 4),
@@ -1505,6 +1525,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
+            leading: Icon(Icons.my_location, color: blackColor),
+            title: Text('Set Coordinates'),
+            onTap: () async {
+              Navigator.pop(context);
+              await _showSetCoordsDialog();
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.settings, color: blackColor),
             title: Text('Settings'),
             onTap: () {
@@ -1522,7 +1550,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => TermsAndConditionsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => TermsAndConditionsScreen(),
+                ),
               );
             },
           ),
@@ -1536,6 +1566,94 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showSetCoordsDialog() async {
+    final latCtrl = TextEditingController();
+    final lonCtrl = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Set Coordinates'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: latCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Latitude'),
+              ),
+              TextField(
+                controller: lonCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Longitude'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final id = await UserSession.getUserId();
+                  if (id == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Not logged in')),
+                    );
+                    return;
+                  }
+                  final lat = double.tryParse(latCtrl.text.trim());
+                  final lon = double.tryParse(lonCtrl.text.trim());
+                  if (lat == null || lon == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invalid coordinates')),
+                    );
+                    return;
+                  }
+                  final res = await ApiClient.postJson(
+                    '${ApiConfig.api}/advertisers/$id/coords',
+                    {'latitude': lat, 'longitude': lon},
+                    auth: true,
+                  );
+                  if ((res['statusCode'] ?? 500) >= 200 &&
+                      (res['statusCode'] ?? 500) < 300) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Coordinates updated')),
+                    );
+                    setState(() {});
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed: ${res['message'] ?? res['error'] ?? ''}',
+                        ),
+                      ),
+                    );
+                  }
+                } catch (_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to update coordinates'),
+                    ),
+                  );
+                } finally {
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1580,11 +1698,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                     ),
                     if (isVerified) ...[
                       SizedBox(width: 8),
-                      Icon(
-                        Icons.verified,
-                        color: blackColor,
-                        size: 20,
-                      ),
+                      Icon(Icons.verified, color: blackColor, size: 20),
                     ],
                   ],
                 ),
@@ -1663,7 +1777,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => TermsAndConditionsScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => TermsAndConditionsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -1722,9 +1838,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           ),
         ),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         hoverColor: goldColor.withOpacity(0.1),
       ),
     );
@@ -1741,11 +1855,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           ),
           title: Row(
             children: [
-              Icon(
-                Icons.logout,
-                color: Colors.red,
-                size: 24,
-              ),
+              Icon(Icons.logout, color: Colors.red, size: 24),
               SizedBox(width: 10),
               Text(
                 "Logout",
@@ -1759,20 +1869,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           ),
           content: Text(
             "Are you sure you want to logout from your account?",
-            style: TextStyle(
-              color: darkGreyColor,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: darkGreyColor, fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 "Cancel",
-                style: TextStyle(
-                  color: greyColor,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: greyColor, fontWeight: FontWeight.w600),
               ),
             ),
             Container(
@@ -1789,16 +1893,16 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               child: ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  
+
                   // Clear user session
                   await UserSession.clearSession();
-                  
+
                   // Navigate back to login screen
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => Login()),
                     (route) => false,
                   );
-                  
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Row(
@@ -1833,10 +1937,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 ),
                 child: Text(
                   "Logout",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
             ),

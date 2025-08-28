@@ -15,6 +15,8 @@ class Advertiser(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     is_online = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True)  # Added missing field
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_active = db.Column(db.TIMESTAMP)
@@ -43,6 +45,8 @@ class Advertiser(db.Model):
             'location': self.location,
             'gender': self.gender,
             'profile_image_url': self.profile_image_url,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
             'is_verified': self.is_verified,
             'is_active': self.is_active,  # Fixed field reference
             'is_online': self.is_online,
@@ -60,6 +64,8 @@ class Advertiser(db.Model):
             'location': self.location,
             'gender': self.gender,
             'profile_image_url': self.profile_image_url,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
             'is_verified': self.is_verified,
             'bio': self.bio,
             'created_at': self.created_at.isoformat()

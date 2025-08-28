@@ -2,6 +2,8 @@ from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import User, Post, UserBlock, db
 from .decorators import token_required
+from server.cloudinary_service import get_service as get_cloudinary_service
+from flask_restx import fields
 
 api = Namespace('users', description='User management operations')
 
@@ -23,6 +25,10 @@ user_update_model = api.model('UserUpdate', {
     'name': fields.String(description='Full name'),
     'phone_number': fields.String(description='Phone number'),
     'location': fields.String(description='Location')
+})
+
+user_avatar_model = api.model('UserAvatar', {
+    'image': fields.String(required=True, description='Base64 encoded image data')
 })
 
 user_block_model = api.model('UserBlock', {
@@ -264,3 +270,33 @@ class SearchUsers(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to search users: {str(e)}')
+@api.route('/<int:user_id>/avatar')
+class UserAvatar(Resource):
+    @api.doc('upload_user_avatar')
+    @api.expect(user_avatar_model)
+    @token_required
+    def post(self, current_user, user_id):
+        """Upload user profile avatar to Cloudinary and update profile_image_url."""
+        try:
+            if current_user.id != user_id:
+                api.abort(403, 'Can only update your own profile')
+            data = request.get_json()
+            if not data or not data.get('image'):
+                api.abort(400, 'image is required')
+            cloudinary_service = get_cloudinary_service()
+            result = cloudinary_service.upload_base64_image(
+                data['image'],
+                folder='vpg/users',
+                public_id=f'user_{user_id}'
+            )
+            if not result['success']:
+                api.abort(400, f"Image upload failed: {result['error']}")
+            current_user.profile_image_url = result['secure_url']
+            db.session.commit()
+            return {
+                'message': 'Avatar updated',
+                'profile_image_url': current_user.profile_image_url
+            }, 201
+        except Exception as e:
+            db.session.rollback()
+            api.abort(500, f'Failed to upload avatar: {str(e)}')

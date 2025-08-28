@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_restful import Api
 from flasgger import Swagger
 import os
@@ -6,13 +6,15 @@ from flask_restx import Api as RestxApi
 from database import db, migrate
 from dotenv import load_dotenv
 from flask_cors import CORS
+from flask_socketio import SocketIO, join_room, leave_room, emit
 
 load_dotenv()
 
 def create_app(config_name=None):
     app = Flask(__name__)
 
-    CORS(app, origins=["http://localhost:*"])
+    # Development CORS: allow local and emulator/web origins
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     
     # Configuration
@@ -70,6 +72,10 @@ def create_app(config_name=None):
     swagger = Swagger(app, config=swagger_config, template=swagger_template)
     
     api = RestxApi(app)
+    # Initialize Socket.IO and store on app extensions
+    socketio = SocketIO(cors_allowed_origins='*')
+    socketio.init_app(app, cors_allowed_origins='*')
+    app.extensions['socketio'] = socketio
 
     # Import models inside app context
     with app.app_context():
@@ -93,6 +99,7 @@ def create_app(config_name=None):
     from apis.posts import api as posts_ns
     from apis.comments import api as comments_ns
     from apis.auth import api as auth_ns
+    from apis.subscriptions import api as subs_ns
     # from apis.user_block_api import api as user
 
     # Register routes
@@ -103,7 +110,33 @@ def create_app(config_name=None):
     api.add_namespace(user_settings_ns, path='/api/user-settings')
     api.add_namespace(comments_ns, path='/api/comments')
     api.add_namespace(auth_ns, path='/auth')
+    api.add_namespace(subs_ns, path='/api/subscriptions')
     
+
+    # Simple health endpoint for frontend connectivity checks
+    @app.route('/health')
+    def health():
+        return jsonify({"status": "ok"}), 200
+
+    # Basic Socket.IO events
+    @socketio.on('join_conversation')
+    def on_join(data):
+        try:
+            conv_id = data.get('conversation_id')
+            if conv_id:
+                join_room(f"conv_{conv_id}")
+                emit('joined', {'room': f"conv_{conv_id}"})
+        except Exception:
+            pass
+
+    @socketio.on('leave_conversation')
+    def on_leave(data):
+        try:
+            conv_id = data.get('conversation_id')
+            if conv_id:
+                leave_room(f"conv_{conv_id}")
+        except Exception:
+            pass
 
     return app
 
@@ -114,4 +147,5 @@ if __name__ == '__main__':
         from server.cloudinary_service import cloudinary_service
         cloudinary_service.init_app(app)
         db.create_all()
-    app.run(debug=True, port=5002)
+    # Run through SocketIO to enable websockets
+    app.extensions['socketio'].run(app, debug=True, port=5002)
