@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import Post, Advertiser, Comment, db
-from .decorators import token_required_simple as token_required
+from .decorators import token_required, advertiser_required
 
 import time
 import base64
@@ -92,11 +92,10 @@ class ImageUpload(Resource):
 @api.route('/')
 class PostList(Resource):
     @api.doc('list_posts')
-    @api.marshal_list_with(post_with_advertiser_model)
     @token_required
-    def get(self, current_advertiser):
+    def get(self, current_user):
         """Get all posts (feed)"""
-        print(f"DEBUG: GET posts - current_advertiser: {current_advertiser}, type: {type(current_advertiser)}")
+        print(f"DEBUG: GET posts - current_user: {current_user}")
         try:
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
@@ -126,8 +125,13 @@ class PostList(Resource):
                     }
                 }
                 result.append(post_dict)
-            
-            return result
+            return {
+                'items': result,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'per_page': posts.per_page,
+            }
             
         except Exception as e:
             api.abort(500, f'Failed to retrieve posts: {str(e)}')
@@ -135,7 +139,7 @@ class PostList(Resource):
     @api.doc('create_post')
     @api.expect(post_create_model)
     @api.marshal_with(post_model)
-    @token_required
+    @advertiser_required
     def post(self, current_advertiser):
         """Create a new post with image upload to Cloudinary"""
         print("=== POST CREATION DEBUG START ===")
@@ -253,7 +257,7 @@ class PostDetail(Resource):
     @api.doc('update_post')
     @api.expect(post_update_model)
     @api.marshal_with(post_model)
-    @token_required
+    @advertiser_required
     def put(self, current_advertiser, post_id):
         """Update post (only by owner) - can update caption and/or image"""
         print("=== POST UPDATE DEBUG START ===")
@@ -352,7 +356,7 @@ class PostDetail(Resource):
             api.abort(500, f'Failed to update post: {str(e)}')
     
     @api.doc('delete_post')
-    @token_required
+    @advertiser_required
     def delete(self, current_advertiser, post_id):
         """Delete post (only by owner)"""
         try:

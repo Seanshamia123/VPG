@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_restful import Api
 from flasgger import Swagger
 import os
@@ -12,7 +12,8 @@ load_dotenv()
 def create_app(config_name=None):
     app = Flask(__name__)
 
-    CORS(app, origins=["http://localhost:*"])
+    # Development CORS: allow local and emulator/web origins
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     
     # Configuration
@@ -93,6 +94,7 @@ def create_app(config_name=None):
     from apis.posts import api as posts_ns
     from apis.comments import api as comments_ns
     from apis.auth import api as auth_ns
+    from apis.subscriptions import api as subs_ns
     # from apis.user_block_api import api as user
 
     # Register routes
@@ -103,7 +105,13 @@ def create_app(config_name=None):
     api.add_namespace(user_settings_ns, path='/api/user-settings')
     api.add_namespace(comments_ns, path='/api/comments')
     api.add_namespace(auth_ns, path='/auth')
+    api.add_namespace(subs_ns, path='/api/subscriptions')
     
+
+    # Simple health endpoint for frontend connectivity checks
+    @app.route('/health')
+    def health():
+        return jsonify({"status": "ok"}), 200
 
     return app
 

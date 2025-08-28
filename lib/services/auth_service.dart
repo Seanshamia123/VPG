@@ -1,9 +1,10 @@
 // services/auth_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:escort/config/api_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://127.0.0.1:5000/auth';
+  static String get baseUrl => ApiConfig.auth;
   
   // Register User
   static Future<Map<String, dynamic>> registerUser({
@@ -237,7 +238,7 @@ static Future<Map<String, dynamic>> login({
   static Future<bool> testConnection() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/health'), // Assuming you have a health endpoint
+        Uri.parse('${ApiConfig.base}/health'), // Backend health endpoint
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
       

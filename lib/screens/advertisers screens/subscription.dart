@@ -1,5 +1,5 @@
 import 'package:escort/screens/advertisers%20screens/checkout.dart';
-import 'package:escort/styles/subscription_cards.dart';
+// import 'package:escort/styles/subscription_cards.dart';
 import 'package:flutter/material.dart';
 
 class SubscriptionDialog extends StatelessWidget {
@@ -21,16 +21,13 @@ class SubscriptionDialog extends StatelessWidget {
     fontWeight: FontWeight.bold,
     color: primaryGold,
   );
-  
+
   static const TextStyle subtitleStyle = TextStyle(
     fontSize: 16,
     color: lightGray,
   );
-  
-  static const TextStyle bodyStyle = TextStyle(
-    fontSize: 14,
-    color: white,
-  );
+
+  static const TextStyle bodyStyle = TextStyle(fontSize: 14, color: white);
 
   @override
   Widget build(BuildContext context) {
@@ -43,15 +40,9 @@ class SubscriptionDialog extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              darkCharcoal,
-              pureBlack,
-            ],
+            colors: [darkCharcoal, pureBlack],
           ),
-          border: Border.all(
-            color: primaryGold.withOpacity(0.3),
-            width: 1,
-          ),
+          border: Border.all(color: primaryGold.withOpacity(0.3), width: 1),
           boxShadow: [
             BoxShadow(
               color: primaryGold.withOpacity(0.2),
@@ -68,10 +59,7 @@ class SubscriptionDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Choose Your Plan',
-                      style: titleStyle,
-                    ),
+                    Text('Choose Your Plan', style: titleStyle),
                     SizedBox(height: 16),
                     Text(
                       'Select the perfect subscription for your needs',
@@ -117,10 +105,7 @@ class SubscriptionDialog extends StatelessWidget {
                                   size: 20,
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                  'Secure payments',
-                                  style: bodyStyle,
-                                ),
+                                Text('Secure payments', style: bodyStyle),
                               ],
                             ),
                             Row(
@@ -132,10 +117,7 @@ class SubscriptionDialog extends StatelessWidget {
                                   size: 20,
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                  '24/7 support',
-                                  style: bodyStyle,
-                                ),
+                                Text('24/7 support', style: bodyStyle),
                               ],
                             ),
                           ],
@@ -156,10 +138,7 @@ class SubscriptionDialog extends StatelessWidget {
                 ),
                 child: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(
-                    Icons.close, 
-                    color: primaryGold,
-                  ),
+                  icon: Icon(Icons.close, color: primaryGold),
                   tooltip: 'Close',
                 ),
               ),
@@ -175,10 +154,7 @@ class SubscriptionDialog extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: darkGray,
-        border: Border.all(
-          color: primaryGold,
-          width: 2,
-        ),
+        border: Border.all(color: primaryGold, width: 2),
         boxShadow: [
           BoxShadow(
             color: primaryGold.withOpacity(0.3),
@@ -215,20 +191,14 @@ class SubscriptionDialog extends StatelessWidget {
                 ),
                 Text(
                   '/month',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: lightGray,
-                  ),
+                  style: TextStyle(fontSize: 14, color: lightGray),
                 ),
               ],
             ),
             SizedBox(height: 12),
             Text(
               'Perfect for individuals getting started',
-              style: TextStyle(
-                fontSize: 14,
-                color: lightGray,
-              ),
+              style: TextStyle(fontSize: 14, color: lightGray),
             ),
             SizedBox(height: 24),
             ..._buildFeatures([
@@ -245,30 +215,31 @@ class SubscriptionDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => CheckoutPage())
+                    MaterialPageRoute(builder: (context) => CheckoutPage()),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGold,
-                  foregroundColor: pureBlack,
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ).copyWith(
-                  backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                    (Set<MaterialState> states) {
-                      if (states.contains(MaterialState.pressed)) {
-                        return darkGold;
-                      }
-                      if (states.contains(MaterialState.hovered)) {
-                        return accentGold;
-                      }
-                      return primaryGold;
-                    },
-                  ),
-                ),
+                style:
+                    ElevatedButton.styleFrom(
+                      backgroundColor: primaryGold,
+                      foregroundColor: pureBlack,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ).copyWith(
+                      backgroundColor: MaterialStateProperty.resolveWith<Color>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.pressed)) {
+                            return darkGold;
+                          }
+                          if (states.contains(MaterialState.hovered)) {
+                            return accentGold;
+                          }
+                          return primaryGold;
+                        },
+                      ),
+                    ),
                 child: Text(
                   'Get Started',
                   style: TextStyle(
@@ -290,10 +261,7 @@ class SubscriptionDialog extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: darkCharcoal,
-        border: Border.all(
-          color: accentGold,
-          width: 2,
-        ),
+        border: Border.all(color: accentGold, width: 2),
         boxShadow: [
           BoxShadow(
             color: accentGold.withOpacity(0.3),
@@ -348,20 +316,14 @@ class SubscriptionDialog extends StatelessWidget {
                     ),
                     Text(
                       '/month',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: lightGray,
-                      ),
+                      style: TextStyle(fontSize: 14, color: lightGray),
                     ),
                   ],
                 ),
                 SizedBox(height: 12),
                 Text(
                   'Ideal for growing businesses and teams',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: lightGray,
-                  ),
+                  style: TextStyle(fontSize: 14, color: lightGray),
                 ),
                 SizedBox(height: 24),
                 ..._buildFeatures([
@@ -380,30 +342,32 @@ class SubscriptionDialog extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => CheckoutPage())
+                        MaterialPageRoute(builder: (context) => CheckoutPage()),
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryGold,
-                      foregroundColor: pureBlack,
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ).copyWith(
-                      backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                        (Set<MaterialState> states) {
-                          if (states.contains(MaterialState.pressed)) {
-                            return darkGold;
-                          }
-                          if (states.contains(MaterialState.hovered)) {
-                            return accentGold;
-                          }
-                          return primaryGold;
-                        },
-                      ),
-                    ),
+                    style:
+                        ElevatedButton.styleFrom(
+                          backgroundColor: primaryGold,
+                          foregroundColor: pureBlack,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ).copyWith(
+                          backgroundColor:
+                              MaterialStateProperty.resolveWith<Color>((
+                                Set<MaterialState> states,
+                              ) {
+                                if (states.contains(MaterialState.pressed)) {
+                                  return darkGold;
+                                }
+                                if (states.contains(MaterialState.hovered)) {
+                                  return accentGold;
+                                }
+                                return primaryGold;
+                              }),
+                        ),
                     child: Text(
                       'Get Started',
                       style: TextStyle(
@@ -423,28 +387,25 @@ class SubscriptionDialog extends StatelessWidget {
   }
 
   List<Widget> _buildFeatures(List<String> features) {
-    return features.map((feature) => Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.check_circle,
-            color: primaryGold,
-            size: 20,
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              feature,
-              style: TextStyle(
-                fontSize: 14,
-                color: white,
-              ),
+    return features
+        .map(
+          (feature) => Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.check_circle, color: primaryGold, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    feature,
+                    style: TextStyle(fontSize: 14, color: white),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    )).toList();
+        )
+        .toList();
   }
 }

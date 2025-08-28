@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -16,10 +16,10 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
 
   // List of video formats to try (in order of preference)
   final List<String> _videoFormats = [
-    'assets/splash_web.mp4',      // Web-optimized MP4
-    'assets/splash_mobile.mp4',   // Mobile MP4
-    'assets/splash_web.webm',     // WebM fallback
-    'assets/VPG.mp4',             // Your original video
+    'assets/splash_web.mp4', // Web-optimized MP4
+    'assets/splash_mobile.mp4', // Mobile MP4
+    'assets/splash_web.webm', // WebM fallback
+    'assets/VPG.mp4', // Your original video
   ];
 
   @override
@@ -43,17 +43,19 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
     }
 
     try {
-      _controller = VideoPlayerController.asset(_videoFormats[_currentVideoIndex]);
+      _controller = VideoPlayerController.asset(
+        _videoFormats[_currentVideoIndex],
+      );
       await _controller!.initialize();
-      
+
       setState(() {
         _isLoading = false;
         _hasError = false;
       });
-      
+
       _controller!.play();
       _controller!.addListener(_videoListener);
-      
+
       print('Successfully loaded video: ${_videoFormats[_currentVideoIndex]}');
     } catch (e) {
       print('Failed to load video ${_videoFormats[_currentVideoIndex]}: $e');
@@ -142,7 +144,7 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
                 child: VideoPlayer(_controller!),
               ),
             ),
-          
+
           // Skip button (optional)
           if (!_isLoading)
             Positioned(
@@ -178,9 +180,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Home')),
-      body: Center(
-        child: Text('Welcome to your app!'),
-      ),
+      body: Center(child: Text('Welcome to your app!')),
     );
   }
 }

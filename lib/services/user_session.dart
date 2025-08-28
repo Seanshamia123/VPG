@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:escort/config/api_config.dart';
 
 class UserSession {
   static const String _userDataKey = 'user_data';
@@ -23,22 +24,22 @@ class UserSession {
     required String userType,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Store in SharedPreferences
     await prefs.setString(_userDataKey, json.encode(userData));
     await prefs.setString(_accessTokenKey, accessToken);
     await prefs.setString(_userTypeKey, userType);
     await prefs.setBool(_isLoggedInKey, true);
-    
+
     if (refreshToken != null) {
       await prefs.setString(_refreshTokenKey, refreshToken);
     }
-    
+
     // Update in-memory cache
     _currentUserData = userData;
     _currentAccessToken = accessToken;
     _currentUserType = userType;
-    
+
     print('=== USER SESSION SAVED ===');
     print('User Data: $userData');
     print('User Type: $userType');
@@ -50,10 +51,10 @@ class UserSession {
     if (_currentUserData != null) {
       return _currentUserData;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     final userDataString = prefs.getString(_userDataKey);
-    
+
     if (userDataString != null) {
       try {
         _currentUserData = json.decode(userDataString);
@@ -63,7 +64,7 @@ class UserSession {
         return null;
       }
     }
-    
+
     return null;
   }
 
@@ -72,7 +73,7 @@ class UserSession {
     if (_currentAccessToken != null) {
       return _currentAccessToken;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     _currentAccessToken = prefs.getString(_accessTokenKey);
     return _currentAccessToken;
@@ -83,7 +84,7 @@ class UserSession {
     if (_currentUserType != null) {
       return _currentUserType;
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     _currentUserType = prefs.getString(_userTypeKey);
     return _currentUserType;
@@ -98,18 +99,18 @@ class UserSession {
   // Clear user session (logout)
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     await prefs.remove(_userDataKey);
     await prefs.remove(_accessTokenKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userTypeKey);
     await prefs.setBool(_isLoggedInKey, false);
-    
+
     // Clear in-memory cache
     _currentUserData = null;
     _currentAccessToken = null;
     _currentUserType = null;
-    
+
     print('=== USER SESSION CLEARED ===');
   }
 
@@ -178,13 +179,13 @@ class UserSession {
     final currentData = await getCurrentUserData();
     if (currentData != null) {
       final updatedData = {...currentData, ...newData};
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_userDataKey, json.encode(updatedData));
-      
+
       // Update in-memory cache
       _currentUserData = updatedData;
-      
+
       print('=== USER DATA UPDATED ===');
       print('Updated Data: $updatedData');
       print('=========================');
@@ -192,7 +193,9 @@ class UserSession {
   }
 
   // Fetch advertiser profile from API
-  static Future<Map<String, dynamic>?> fetchAdvertiserProfile(int advertiserId) async {
+  static Future<Map<String, dynamic>?> fetchAdvertiserProfile(
+    int advertiserId,
+  ) async {
     try {
       print('=== FETCHING ADVERTISER PROFILE ===');
       print('Advertiser ID: $advertiserId');
@@ -200,7 +203,7 @@ class UserSession {
 
       final accessToken = await getAccessToken();
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/advertisers/$advertiserId'),
+        Uri.parse('${ApiConfig.api}/advertisers/$advertiserId'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -215,7 +218,7 @@ class UserSession {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        
+
         // Handle different response structures
         Map<String, dynamic> advertiserData;
         if (responseData is Map<String, dynamic>) {
@@ -256,7 +259,7 @@ class UserSession {
 
       final accessToken = await getAccessToken();
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/users/$userId'),
+        Uri.parse('${ApiConfig.api}/users/$userId'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -271,7 +274,7 @@ class UserSession {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        
+
         // Handle different response structures
         Map<String, dynamic> userData;
         if (responseData is Map<String, dynamic>) {

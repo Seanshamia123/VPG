@@ -29,16 +29,31 @@ class ProfileHeader extends StatelessWidget {
         break;
     }
 
+    ImageProvider? provider;
+    if (avatarImage.isNotEmpty) {
+      if (avatarImage.startsWith('http')) {
+        provider = NetworkImage(avatarImage);
+      } else {
+        provider = AssetImage(avatarImage);
+      }
+    }
+
     return Column(
       children: [
         SizedBox(height: Sizes.spaceBtwSections),
         Stack(
           alignment: Alignment.bottomRight,
           children: [
-            CircleAvatar(
-              radius: avatarRadius,
-              backgroundImage: AssetImage(avatarImage),
-            ),
+            provider != null
+                ? CircleAvatar(
+                    radius: avatarRadius,
+                    backgroundImage: provider,
+                  )
+                : CircleAvatar(
+                    radius: avatarRadius,
+                    backgroundColor: Colors.grey.shade300,
+                    child: Icon(Icons.person, color: Colors.grey.shade700, size: avatarRadius),
+                  ),
             Positioned(
               right: 0,
               bottom: 0,

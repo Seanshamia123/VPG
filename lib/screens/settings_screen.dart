@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:escort/services/user_session.dart';
+import 'package:escort/services/settings_service.dart';
+import 'package:escort/theme/theme_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,15 +13,63 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = true;
-  bool _darkModeEnabled = true;
+  // bool _darkModeEnabled = true;
   bool _autoPlayVideos = false;
   bool _showOnlineStatus = true;
   bool _readReceipts = true;
   String _selectedLanguage = 'English';
   String _selectedTheme = 'Dark';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final id = await UserSession.getUserId();
+    if (id != null) {
+      final data = await SettingsService.getByUserId(int.parse(id.toString()));
+      if (data != null) {
+        setState(() {
+          _notificationsEnabled = data['notification_enabled'] ?? _notificationsEnabled;
+          _showOnlineStatus = data['show_online_status'] ?? _showOnlineStatus;
+          _readReceipts = data['read_receipts'] ?? _readReceipts;
+          _selectedLanguage = data['selected_language']?.toString() ?? _selectedLanguage;
+          final theme = data['selected_theme']?.toString() ?? _selectedTheme.toLowerCase();
+          _selectedTheme = theme.substring(0,1).toUpperCase() + theme.substring(1);
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } else {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _persist() async {
+    final id = await UserSession.getUserId();
+    if (id == null) return;
+    final payload = {
+      'notification_enabled': _notificationsEnabled,
+      'show_online_status': _showOnlineStatus,
+      'read_receipts': _readReceipts,
+      'selected_language': _selectedLanguage.toLowerCase(),
+      'selected_theme': _selectedTheme.toLowerCase(),
+    };
+    await SettingsService.createOrUpdate(int.parse(id.toString()), payload);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -74,10 +125,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Push Notifications',
               subtitle: 'Receive notifications on your device',
               value: _notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
+              onChanged: (value) async {
+                setState(() => _notificationsEnabled = value);
+                await _persist();
               },
             ),
             _buildSettingItem(
@@ -97,9 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: 'Allow location access',
               value: _locationEnabled,
               onChanged: (value) {
-                setState(() {
-                  _locationEnabled = value;
-                });
+                setState(() => _locationEnabled = value);
               },
             ),
             _buildSwitchItem(
@@ -107,10 +155,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Show Online Status',
               subtitle: 'Let others see when you\'re online',
               value: _showOnlineStatus,
-              onChanged: (value) {
-                setState(() {
-                  _showOnlineStatus = value;
-                });
+              onChanged: (value) async {
+                setState(() => _showOnlineStatus = value);
+                await _persist();
               },
             ),
             _buildSwitchItem(
@@ -118,10 +165,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Read Receipts',
               subtitle: 'Show when you\'ve read messages',
               value: _readReceipts,
-              onChanged: (value) {
-                setState(() {
-                  _readReceipts = value;
-                });
+              onChanged: (value) async {
+                setState(() => _readReceipts = value);
+                await _persist();
               },
             ),
 
@@ -133,10 +179,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: _selectedLanguage,
               items: ['English', 'Spanish', 'French', 'German', 'Italian'],
               selectedValue: _selectedLanguage,
-              onChanged: (value) {
-                setState(() {
-                  _selectedLanguage = value!;
-                });
+              onChanged: (value) async {
+                setState(() => _selectedLanguage = value!);
+                await _persist();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Language preference saved')));
               },
             ),
             _buildDropdownItem(
@@ -145,10 +191,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: _selectedTheme,
               items: ['Dark', 'Light', 'Auto'],
               selectedValue: _selectedTheme,
-              onChanged: (value) {
-                setState(() {
-                  _selectedTheme = value!;
-                });
+              onChanged: (value) async {
+                setState(() => _selectedTheme = value!);
+                await _persist();
+                if (_selectedTheme == 'Dark') {
+                  await ThemeController.set(ThemeMode.dark);
+                } else if (_selectedTheme == 'Light') {
+                  await ThemeController.set(ThemeMode.light);
+                } else {
+                  await ThemeController.set(ThemeMode.system);
+                }
               },
             ),
             _buildSwitchItem(
@@ -280,10 +332,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(
-              color: Colors.grey[800]!,
-              width: 0.5,
-            ),
+            bottom: BorderSide(color: Colors.grey[800]!, width: 0.5),
           ),
         ),
         child: Row(
@@ -294,11 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Colors.grey[800],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: Icon(icon, color: Colors.white, size: 20),
             ),
             SizedBox(width: 16),
             Expanded(
@@ -316,19 +361,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
                   ),
                 ],
               ),
             ),
-            trailing ?? Icon(
-              Icons.chevron_right,
-              color: Colors.grey[400],
-              size: 20,
-            ),
+            trailing ??
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
           ],
         ),
       ),
@@ -377,7 +416,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showDropdownMenu(String title, List<String> items, String selectedValue, ValueChanged<String?> onChanged) {
+  void _showDropdownMenu(
+    String title,
+    List<String> items,
+    String selectedValue,
+    ValueChanged<String?> onChanged,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900],
@@ -399,19 +443,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               SizedBox(height: 16),
-              ...items.map((item) => ListTile(
-                title: Text(
-                  item,
-                  style: TextStyle(color: Colors.white),
+              ...items.map(
+                (item) => ListTile(
+                  title: Text(item, style: TextStyle(color: Colors.white)),
+                  trailing: selectedValue == item
+                      ? Icon(Icons.check, color: Colors.yellow)
+                      : null,
+                  onTap: () {
+                    onChanged(item);
+                    Navigator.pop(context);
+                  },
                 ),
-                trailing: selectedValue == item
-                    ? Icon(Icons.check, color: Colors.yellow)
-                    : null,
-                onTap: () {
-                  onChanged(item);
-                  Navigator.pop(context);
-                },
-              )),
+              ),
               SizedBox(height: 16),
             ],
           ),
@@ -445,10 +488,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: Text(
-          'Storage Usage',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: Text('Storage Usage', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -461,10 +501,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: Text('Close', style: TextStyle(color: Colors.yellow)),
           ),
         ],
       ),
@@ -478,10 +515,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Expanded(
             flex: 2,
-            child: Text(
-              type,
-              style: TextStyle(color: Colors.white),
-            ),
+            child: Text(type, style: TextStyle(color: Colors.white)),
           ),
           Expanded(
             flex: 3,
@@ -492,10 +526,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           SizedBox(width: 8),
-          Text(
-            size,
-            style: TextStyle(color: Colors.grey[400], fontSize: 12),
-          ),
+          Text(size, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
         ],
       ),
     );
@@ -516,10 +547,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: Text(
-          'Clear Cache',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: Text('Clear Cache', style: TextStyle(color: Colors.white)),
         content: Text(
           'This will clear all cached data and free up storage space. Continue?',
           style: TextStyle(color: Colors.grey[300]),
@@ -527,10 +555,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[400]),
-            ),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
           ),
           TextButton(
             onPressed: () {
@@ -542,10 +567,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
             },
-            child: Text(
-              'Clear',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: Text('Clear', style: TextStyle(color: Colors.yellow)),
           ),
         ],
       ),
@@ -554,15 +576,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showFeedbackDialog() {
     final TextEditingController feedbackController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: Text(
-          'Send Feedback',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: Text('Send Feedback', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: feedbackController,
           style: TextStyle(color: Colors.white),
@@ -581,10 +600,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[400]),
-            ),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
           ),
           TextButton(
             onPressed: () {
@@ -596,10 +612,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
             },
-            child: Text(
-              'Send',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: Text('Send', style: TextStyle(color: Colors.yellow)),
           ),
         ],
       ),
@@ -615,25 +628,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(Icons.info, color: Colors.yellow),
             SizedBox(width: 8),
-            Text(
-              'About Escort',
-              style: TextStyle(color: Colors.white),
-            ),
+            Text('About Escort', style: TextStyle(color: Colors.white)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Version: 1.0.0',
-              style: TextStyle(color: Colors.grey[300]),
-            ),
+            Text('Version: 1.0.0', style: TextStyle(color: Colors.grey[300])),
             SizedBox(height: 8),
-            Text(
-              'Build: 100',
-              style: TextStyle(color: Colors.grey[300]),
-            ),
+            Text('Build: 100', style: TextStyle(color: Colors.grey[300])),
             SizedBox(height: 16),
             Text(
               'Connect with people around you and discover new experiences.',
@@ -644,10 +648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: Text('Close', style: TextStyle(color: Colors.yellow)),
           ),
         ],
       ),

@@ -4,8 +4,16 @@ import 'package:escort/widgets/comments/comment-input.dart';
 import 'package:escort/widgets/comments/comment-list.dart';
 import 'package:flutter/material.dart';
 
-class CommentSection extends StatelessWidget {
-  const CommentSection({super.key});
+class CommentSection extends StatefulWidget {
+  final int? postId;
+  const CommentSection({super.key, this.postId});
+
+  @override
+  State<CommentSection> createState() => _CommentSectionState();
+}
+
+class _CommentSectionState extends State<CommentSection> {
+  int _refreshTick = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +31,11 @@ class CommentSection extends StatelessWidget {
                 children: [
                   SizedBox(height: verticalPadding),
                   const CommentHeader(),
-                  const CommentList(),
-                  const CommentInput(),
+                  CommentList(postId: widget.postId, key: ValueKey(_refreshTick)),
+                  CommentInput(
+                    postId: widget.postId,
+                    onSubmitted: () => setState(() => _refreshTick++),
+                  ),
                 ],
               ),
             ),

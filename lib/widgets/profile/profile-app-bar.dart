@@ -57,10 +57,18 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              backgroundImage: AssetImage(avatarImage),
-              radius: avatarRadius,
-            ),
+            (avatarImage.isNotEmpty)
+                ? CircleAvatar(
+                    backgroundImage: avatarImage.startsWith('http')
+                        ? NetworkImage(avatarImage)
+                        : AssetImage(avatarImage) as ImageProvider,
+                    radius: avatarRadius,
+                  )
+                : CircleAvatar(
+                    radius: avatarRadius,
+                    backgroundColor: Colors.grey.shade300,
+                    child: Icon(Icons.person, color: Colors.grey.shade700, size: avatarRadius),
+                  ),
             SizedBox(width: spacing),
             Text(
               username,

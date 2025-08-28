@@ -59,7 +59,9 @@ class SignUpCard extends StatelessWidget {
               );
             } else {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => Signup(type: 'user')),
+                MaterialPageRoute(
+                  builder: (context) => Signup(userType: 'user'),
+                ),
               );
             }
           },

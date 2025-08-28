@@ -25,11 +25,21 @@ class _SignupState extends State<Signup> {
   final _phoneController = TextEditingController();
   final _locationController = TextEditingController();
   final _bioController = TextEditingController();
-  
+
   String _selectedGender = 'Male';
   bool _isPasswordVisible = false;
   bool _agreeToTerms = false;
   bool _isLoading = false;
+
+  // Match login page aesthetic
+  static const Color primaryGold = Color(0xFFFFD700);
+  static const Color accentGold = Color(0xFFFFA500);
+  static const Color darkGold = Color(0xFFB8860B);
+  static const Color pureBlack = Color(0xFF000000);
+  static const Color darkCharcoal = Color(0xFF1A1A1A);
+  static const Color darkGray = Color(0xFF2A2A2A);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color lightGray = Color(0xFFCCCCCC);
 
   @override
   void dispose() {
@@ -95,7 +105,7 @@ class _SignupState extends State<Signup> {
 
     try {
       Map<String, dynamic> result;
-      
+
       if (widget.userType == 'user') {
         result = await AuthService.registerUser(
           username: _usernameController.text.trim(),
@@ -115,7 +125,9 @@ class _SignupState extends State<Signup> {
           phoneNumber: _phoneController.text.trim(),
           location: _locationController.text.trim(),
           gender: _selectedGender,
-          bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+          bio: _bioController.text.trim().isEmpty
+              ? null
+              : _bioController.text.trim(),
         );
       }
 
@@ -138,10 +150,12 @@ class _SignupState extends State<Signup> {
       if (isSuccess) {
         // Store tokens and user info if available
         _handleSuccessfulRegistration(result);
-        
+
         // Show success message using ScaffoldMessenger
-        _showSuccessSnackBar('Account created successfully! Welcome to VipGalz!');
-        
+        _showSuccessSnackBar(
+          'Account created successfully! Welcome to VipGalz!',
+        );
+
         // Wait a bit to show the success message
         await Future.delayed(const Duration(milliseconds: 1000));
 
@@ -153,7 +167,6 @@ class _SignupState extends State<Signup> {
             (route) => false, // Remove all previous routes
           );
         }
-        
       } else {
         // Handle registration failure
         String errorMessage = _extractErrorMessage(result);
@@ -166,7 +179,7 @@ class _SignupState extends State<Signup> {
       print('Exception type: ${e.runtimeType}');
       print('Stack trace: $stackTrace');
       print('===============================');
-      
+
       _showErrorSnackBar('Something went wrong. Please try again.');
     } finally {
       if (mounted) {
@@ -184,55 +197,55 @@ class _SignupState extends State<Signup> {
       if (success is bool) return success;
       if (success is String) return success.toLowerCase() == 'true';
     }
-    
+
     // Check status field
     if (result.containsKey('status')) {
       String status = result['status'].toString().toLowerCase();
       if (status == 'success' || status == 'ok') return true;
     }
-    
+
     // Check HTTP status codes
     if (result.containsKey('statusCode')) {
       int statusCode = result['statusCode'];
       if (statusCode >= 200 && statusCode < 300) return true;
     }
-    
+
     // Check for presence of tokens or user data
     if (result.containsKey('data') && result['data'] != null) {
       final data = result['data'];
       if (data is Map) {
-        if (data.containsKey('access_token') || 
-            data.containsKey('user_id') || 
+        if (data.containsKey('access_token') ||
+            data.containsKey('user_id') ||
             data.containsKey('token')) {
           return true;
         }
       }
     }
-    
+
     // Check message for success indicators
     if (result.containsKey('message')) {
       String message = result['message'].toString().toLowerCase();
-      if (message.contains('success') || 
-          message.contains('created') || 
+      if (message.contains('success') ||
+          message.contains('created') ||
           message.contains('registered') ||
           message.contains('welcome')) {
         return true;
       }
     }
-    
+
     // If no explicit error and we have some data, assume success
-    if (!result.containsKey('error') && 
-        !result.containsKey('errors') && 
+    if (!result.containsKey('error') &&
+        !result.containsKey('errors') &&
         result.isNotEmpty) {
       return true;
     }
-    
+
     return false;
   }
 
   String _extractErrorMessage(Map<String, dynamic> result) {
     String errorMessage = 'Registration failed';
-    
+
     // Check various error fields
     if (result.containsKey('message')) {
       errorMessage = result['message'].toString();
@@ -264,32 +277,36 @@ class _SignupState extends State<Signup> {
         }
       }
     }
-    
+
     // Add status code if available
     if (result.containsKey('statusCode')) {
       errorMessage += ' (Status: ${result['statusCode']})';
     }
-    
+
     return errorMessage;
   }
 
   void _handleSuccessfulRegistration(Map<String, dynamic> result) {
     if (result.containsKey('data') && result['data'] != null) {
       final data = result['data'];
-      
+
       // Safely extract data with null checks
       String? accessToken = data['access_token'];
       String? refreshToken = data['refresh_token'];
       dynamic userId = data['user_id'];
       String? userType = data['user_type'];
-      
+
       print('=== TOKEN EXTRACTION ===');
-      print('Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}');
-      print('Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}');
+      print(
+        'Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}',
+      );
+      print(
+        'Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}',
+      );
       print('User ID: $userId');
       print('User Type: $userType');
       print('========================');
-      
+
       // TODO: Store tokens securely using SharedPreferences or FlutterSecureStorage
       // await _storeTokens(accessToken, refreshToken, userId, userType);
     }
@@ -303,384 +320,410 @@ class _SignupState extends State<Signup> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Sign Up as ${widget.userType.capitalize}'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+      backgroundColor: pureBlack,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [darkCharcoal, pureBlack],
+          ),
         ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(insets.padding),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: context.isDesktop
-                    ? 400
-                    : StyleContext(context).isTablet
-                    ? 600
-                    : context.screenWidth * 0.9,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Title
-                  Text(
-                    "Create ${widget.userType.capitalize} Account",
-                    style: textStyle.titleLgBold,
-                  ),
-                  const SizedBox(height: Sizes.spaceBtwItems),
-                  
-                  // Form
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // Username
-                        TextFormField(
-                          controller: _usernameController,
-                          decoration: InputDecoration(
-                            labelText: "Username",
-                            prefixIcon: const Icon(Iconsax.user_edit),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(insets.padding),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: context.isDesktop
+                      ? 400
+                      : StyleContext(context).isTablet
+                      ? 600
+                      : context.screenWidth * 0.9,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Title
+                    Text(
+                      "Create ${widget.userType.capitalize} Account",
+                      style: const TextStyle(
+                        color: primaryGold,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: Sizes.spaceBtwItems),
+
+                    // Form
+                    Container(
+                      decoration: BoxDecoration(
+                        color: darkGray,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: primaryGold.withOpacity(0.3)),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          inputDecorationTheme: InputDecorationTheme(
+                            filled: true,
+                            fillColor: darkGray,
+                            hintStyle: const TextStyle(color: Colors.white70),
+                            labelStyle: TextStyle(
+                              color: lightGray.withOpacity(0.9),
                             ),
+                            floatingLabelStyle: const TextStyle(
+                              color: primaryGold,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            prefixIconColor: primaryGold,
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Username is required';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Full Name
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: InputDecoration(
-                            labelText: "Full Name",
-                            prefixIcon: const Icon(Iconsax.user),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Full name is required';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Email
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            prefixIcon: const Icon(Iconsax.sms),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!GetUtils.isEmail(value.trim())) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Phone Number
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: "Phone Number",
-                            prefixIcon: const Icon(Iconsax.call),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Phone number is required';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Location
-                        TextFormField(
-                          controller: _locationController,
-                          decoration: InputDecoration(
-                            labelText: "Location",
-                            prefixIcon: const Icon(Iconsax.location),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Location is required';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Gender Dropdown
-                        DropdownButtonFormField<String>(
-                          value: _selectedGender,
-                          decoration: InputDecoration(
-                            labelText: "Gender",
-                            prefixIcon: const Icon(Iconsax.user_tag),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
-                            ),
-                          ),
-                          items: ['Male', 'Female', 'other'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              _selectedGender = newValue!;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a gender';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwinputFields),
-                        
-                        // Bio field (only for advertisers)
-                        if (widget.userType == 'advertiser') ...[
-                          TextFormField(
-                            controller: _bioController,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              labelText: "Bio (Optional)",
-                              prefixIcon: const Icon(Iconsax.note_text),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                                borderSide: BorderSide(color: colorScheme.outline),
+                              borderRadius: BorderRadius.circular(
+                                Sizes.inputFieldRadius,
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                                borderSide: BorderSide(color: colorScheme.outline),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                                borderSide: BorderSide(color: colorScheme.primary),
+                              borderSide: BorderSide(
+                                color: primaryGold.withOpacity(0.5),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: Sizes.spaceBtwinputFields),
-                        ],
-                        
-                        // Password
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: !_isPasswordVisible,
-                          decoration: InputDecoration(
-                            labelText: "Password",
-                            prefixIcon: const Icon(Iconsax.password_check),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible ? Iconsax.eye : Iconsax.eye_slash,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _isPasswordVisible = !_isPasswordVisible;
-                                });
-                              },
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.outline),
-                            ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
-                              borderSide: BorderSide(color: colorScheme.primary),
+                              borderRadius: BorderRadius.circular(
+                                Sizes.inputFieldRadius,
+                              ),
+                              borderSide: const BorderSide(
+                                color: primaryGold,
+                                width: 2,
+                              ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                Sizes.inputFieldRadius,
+                              ),
+                              borderSide: const BorderSide(color: Colors.red),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
                         ),
-                        const SizedBox(height: Sizes.spaceBtwSections),
-                        
-                        // Terms & Conditions checkbox
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _agreeToTerms,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _agreeToTerms = value ?? false;
-                                  });
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              // Username
+                              TextFormField(
+                                controller: _usernameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Username',
+                                  hintText: 'Enter username',
+                                  prefixIcon: Icon(Iconsax.user_edit),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Username is required';
+                                  }
+                                  return null;
                                 },
                               ),
-                            ),
-                            const SizedBox(width: Sizes.spaceBtwItems),
-                            Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: "I Agree To ",
-                                      style: Theme.of(context).textTheme.bodySmall,
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Full Name
+                              TextFormField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Full Name',
+                                  hintText: 'Enter your full name',
+                                  prefixIcon: Icon(Iconsax.user),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Full name is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Email
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  hintText: 'you@example.com',
+                                  prefixIcon: Icon(Iconsax.sms),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Email is required';
+                                  }
+                                  if (!GetUtils.isEmail(value.trim())) {
+                                    return 'Please enter a valid email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Phone Number
+                              TextFormField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  labelText: 'Phone Number',
+                                  hintText: 'Enter phone number',
+                                  prefixIcon: Icon(Iconsax.call),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Phone number is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Location
+                              TextFormField(
+                                controller: _locationController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Location',
+                                  hintText: 'City, Country',
+                                  prefixIcon: Icon(Iconsax.location),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Location is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Gender Dropdown
+                              DropdownButtonFormField<String>(
+                                value: _selectedGender,
+                                decoration: InputDecoration(
+                                  labelText: "Gender",
+                                  prefixIcon: const Icon(Iconsax.user_tag),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.inputFieldRadius,
                                     ),
-                                    TextSpan(
-                                      text: "Privacy Policy ",
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.primary,
-                                        decoration: TextDecoration.underline,
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.inputFieldRadius,
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Sizes.inputFieldRadius,
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                items: ['Male', 'Female', 'other'].map((
+                                  String value,
+                                ) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _selectedGender = newValue!;
+                                  });
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please select a gender';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwinputFields),
+
+                              // Bio field (only for advertisers)
+                              if (widget.userType == 'advertiser') ...[
+                                TextFormField(
+                                  controller: _bioController,
+                                  maxLines: 3,
+                                  style: const TextStyle(color: white),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Bio (Optional)',
+                                    hintText: 'Tell us about yourself',
+                                    prefixIcon: Icon(Iconsax.note_text),
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: Sizes.spaceBtwinputFields,
+                                ),
+                              ],
+
+                              // Password
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: !_isPasswordVisible,
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  hintText: 'Create password',
+                                  prefixIcon: const Icon(
+                                    Iconsax.password_check,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _isPasswordVisible
+                                          ? Iconsax.eye
+                                          : Iconsax.eye_slash,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isPasswordVisible =
+                                            !_isPasswordVisible;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Password is required';
+                                  }
+                                  if (value.length < 6) {
+                                    return 'Password must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwSections),
+
+                              // Terms & Conditions checkbox
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: _agreeToTerms,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _agreeToTerms = value ?? false;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: Sizes.spaceBtwItems),
+                                  Expanded(
+                                    child: Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: "I Agree To ",
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                          TextSpan(
+                                            text: "Privacy Policy ",
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: colorScheme.primary,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                          ),
+                                          TextSpan(
+                                            text: "and",
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                          TextSpan(
+                                            text: " Terms of Use",
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: colorScheme.primary,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    TextSpan(
-                                      text: "and",
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: Sizes.spaceBtwItems),
+
+                              // Sign up Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _handleSignup,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
+                                    minimumSize: const Size(
+                                      double.infinity,
+                                      Sizes.buttonHeight,
                                     ),
-                                    TextSpan(
-                                      text: " Terms of Use",
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.primary,
-                                        decoration: TextDecoration.underline,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        Sizes.inputFieldRadius,
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                      : const Text("Sign Up"),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: Sizes.spaceBtwItems),
-                        
-                        // Sign up Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleSignup,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: colorScheme.onPrimary,
-                              minimumSize: const Size(double.infinity, Sizes.buttonHeight),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(Sizes.inputFieldRadius),
+
+                              const SizedBox(height: Sizes.spaceBtwItems),
+
+                              // Already have account link
+                              TextButton(
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => const Login(),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "Already have an account? Sign In",
+                                  style: TextStyle(color: primaryGold),
+                                ),
                               ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  )
-                                : const Text("Sign Up"),
+                            ],
                           ),
                         ),
-                        
-                        const SizedBox(height: Sizes.spaceBtwItems),
-                        
-                        // Already have account link
-                        TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const Login()),
-                          ),
-                          child: Text(
-                            "Already have an account? Sign In",
-                            style: TextStyle(color: colorScheme.primary),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
