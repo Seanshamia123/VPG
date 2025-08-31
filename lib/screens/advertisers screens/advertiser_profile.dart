@@ -16,6 +16,7 @@ import 'package:escort/services/api_client.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:escort/screens/advertisers screens/post_detail.dart'; 
 
 class AdvertiserProfile extends StatefulWidget {
   const AdvertiserProfile({super.key});
@@ -58,31 +59,134 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     _loadUserData();
   }
 
-  late Future<List<String>> _futureMyPostImages = _fetchMyPosts();
+  late Future<List<Map<String, dynamic>>> _futureMyPosts = _fetchMyPostsWithFullData();
 
-  Future<List<String>> _fetchMyPosts() async {
-    try {
-      final accessToken = await UserSession.getAccessToken();
-      if (accessToken == null) return [];
-      final res = await ApiClient.getJson(
-        '${ApiConfig.api}/posts/my-posts',
-        auth: true,
-      );
-      List items = [];
-      if (res['data'] is List) {
-        items = res['data'];
-      } else if (res.values.any((v) => v is List)) {
-        items = res.values.firstWhere((v) => v is List) as List;
-      }
-      return items
-          .cast<Map<String, dynamic>>()
-          .map((e) => (e['image_url'] ?? '').toString())
-          .where((url) => url.isNotEmpty)
-          .toList();
-    } catch (_) {
+  // Updated method to fetch posts by advertiser ID using the new endpoint
+Future<List<Map<String, dynamic>>> _fetchPostsByAdvertiserId(int advertiserId) async {
+  try {
+    final accessToken = await UserSession.getAccessToken();
+    if (accessToken == null) return [];
+    
+    print('=== FETCHING POSTS BY ADVERTISER ID ===');
+    print('Advertiser ID: $advertiserId');
+    
+    final res = await ApiClient.getJson(
+      '${ApiConfig.api}/posts/advertiser/$advertiserId',
+      auth: true,
+    );
+    
+    print('API Response: $res');
+    
+    List<Map<String, dynamic>> posts = [];
+    
+    // Handle the response structure from the new endpoint
+    if (res['posts'] is List) {
+      posts = (res['posts'] as List).cast<Map<String, dynamic>>();
+    } else if (res['data'] is List) {
+      posts = (res['data'] as List).cast<Map<String, dynamic>>();
+    } else if (res is List) {
+      posts = (res as List).cast<Map<String, dynamic>>();
+    }
+    
+    print('Extracted ${posts.length} posts');
+    if (posts.isNotEmpty) {
+      print('First post: ${posts[0]}');
+    }
+    
+    return posts;
+  } catch (e) {
+    print('Error fetching posts by advertiser ID: $e');
+    return [];
+  }
+}
+
+// Method to fetch current user's posts using their advertiser ID
+Future<List<Map<String, dynamic>>> _fetchMyPostsFullData() async {
+  try {
+    // Get current user's advertiser ID
+    final userData = await UserSession.getCurrentUserData();
+    final advertiserId = userData?['id'];
+    
+    if (advertiserId == null) {
+      print('No advertiser ID found in user data');
       return [];
     }
+    
+    print('Fetching posts for current user (advertiser ID: $advertiserId)');
+    return await _fetchPostsByAdvertiserId(advertiserId);
+  } catch (e) {
+    print('Error in _fetchMyPostsFullData: $e');
+    return [];
   }
+}
+
+// Alternative: If you only have individual post endpoints and need to fetch multiple posts
+Future<List<Map<String, dynamic>>> _fetchPostsByIds(List<int> postIds) async {
+  try {
+    final accessToken = await UserSession.getAccessToken();
+    if (accessToken == null) return [];
+    
+    List<Map<String, dynamic>> posts = [];
+    
+    // Fetch each post individually
+    for (int postId in postIds) {
+      try {
+        final res = await ApiClient.getJson(
+          '${ApiConfig.api}/posts/$postId',
+          auth: true,
+        );
+        
+        if (res['data'] != null) {
+          posts.add(res['data']);
+        } else if (res['id'] != null) {
+          // If the response is the post object directly
+          posts.add(res);
+        }
+      } catch (e) {
+        print('Error fetching post $postId: $e');
+        // Continue with other posts even if one fails
+      }
+    }
+    
+    return posts;
+  } catch (e) {
+    print('Error fetching posts by IDs: $e');
+    return [];
+  }
+}
+
+// Updated method that returns full post objects instead of just image URLs
+Future<List<Map<String, dynamic>>> _fetchMyPostsWithFullData() async {
+  try {
+    // Get current user's advertiser ID
+    final userData = await UserSession.getCurrentUserData();
+    final advertiserId = userData?['id'];
+    
+    if (advertiserId == null) {
+      print('No advertiser ID found');
+      return [];
+    }
+    
+    return await _fetchPostsByAdvertiserId(advertiserId);
+  } catch (e) {
+    print('Error in _fetchMyPostsWithFullData: $e');
+    return [];
+  }
+}
+
+// For displaying in the grid (extracting image URLs from full post data)
+Future<List<String>> _fetchMyPostImages() async {
+  try {
+    final posts = await _fetchMyPostsWithFullData();
+    return posts
+        .map((post) => (post['image_url'] ?? '').toString())
+        .where((url) => url.isNotEmpty)
+        .toList();
+  } catch (e) {
+    print('Error extracting image URLs: $e');
+    return [];
+  }
+}
 
   Future<void> _loadUserData() async {
     try {
@@ -1322,52 +1426,115 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                           child: TabBarView(
                             children: [
                               // Posts tab
-                              FutureBuilder<List<String>>(
-                                future: _futureMyPostImages,
-                                builder: (context, snapshot) {
-                                  final images = snapshot.data ?? [];
-                                  return GridView.builder(
-                                    padding: EdgeInsets.all(1),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 3,
-                                          crossAxisSpacing: 1,
-                                          mainAxisSpacing: 1,
-                                          childAspectRatio: 1.0,
-                                        ),
-                                    itemCount: images.isEmpty
-                                        ? 6
-                                        : images.length,
-                                    itemBuilder: (context, index) {
-                                      final imageUrl = images.isEmpty
-                                          ? "https://picsum.photos/200/300?random=$index"
-                                          : images[index];
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          color: greyColor.withOpacity(0.1),
-                                        ),
-                                        child: Image.network(
-                                          imageUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Container(
-                                                  color: greyColor.withOpacity(
-                                                    0.2,
-                                                  ),
-                                                  child: Icon(
-                                                    Icons.image,
-                                                    color: greyColor,
-                                                    size: 40,
-                                                  ),
-                                                );
-                                              },
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                              // In your TabBarView, update the Posts tab:
+FutureBuilder<List<Map<String, dynamic>>>(
+  future: _futureMyPosts,
+  builder: (context, snapshot) {
+    final posts = snapshot.data ?? [];
+    return GridView.builder(
+      padding: EdgeInsets.all(1),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 1,
+        mainAxisSpacing: 1,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: posts.isEmpty ? 6 : posts.length,
+      itemBuilder: (context, index) {
+        final post = posts.isEmpty 
+            ? null 
+            : posts[index];
+        final imageUrl = post != null 
+            ? post['image_url'] ?? "https://picsum.photos/200/300?random=$index"
+            : "https://picsum.photos/200/300?random=$index";
+            
+        return GestureDetector(
+          onTap: () {
+            if (post != null) {
+              // Navigate to PostDetailScreen with the full post data
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PostDetailScreen(post: post),
+                ),
+              ).then((_) {
+                // Refresh posts when coming back from detail screen
+                setState(() {
+                  _futureMyPosts = _fetchMyPostsWithFullData();
+                });
+              });
+            } else {
+              // Handle placeholder posts - maybe show a message
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('This is a placeholder post'),
+                  backgroundColor: greyColor,
+                ),
+              );
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: greyColor.withOpacity(0.1),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: greyColor.withOpacity(0.2),
+                      child: Icon(
+                        Icons.image,
+                        color: greyColor,
+                        size: 40,
+                      ),
+                    );
+                  },
+                ),
+                // Add a subtle overlay to indicate it's tappable
+                if (post != null)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: blackColor.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.favorite,
+                            color: whiteColor,
+                            size: 12,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '${post['likes_count'] ?? 0}',
+                            style: TextStyle(
+                              color: whiteColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  },
+),
+                              
                               // Reels tab
                               Center(
                                 child: Column(

@@ -232,6 +232,370 @@ class PostList(Resource):
             db.session.rollback()
             api.abort(500, f'Failed to create post: {str(e)}')
 
+
+# Updated AdvertiserPosts endpoint with correct table references
+@api.route('/advertiser/<int:advertiser_id>')
+class AdvertiserPosts(Resource):
+    @api.doc('get_advertiser_posts')
+    @token_required
+    def get(self, current_advertiser, advertiser_id):
+        """Get all posts by a specific advertiser ID"""
+        try:
+            # Verify the advertiser exists
+            advertiser = Advertiser.find_by_id(advertiser_id)
+            if not advertiser:
+                api.abort(404, f'Advertiser with ID {advertiser_id} not found')
+            
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 20, type=int)
+            
+            posts = Post.query.filter_by(
+                advertiser_id=advertiser_id
+            ).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                
+                # Check if current user liked this post
+                liked_by_me = False
+                try:
+                    if hasattr(current_advertiser, 'id') and current_advertiser.id:
+                        liked_by_me = PostLike.query.filter_by(
+                            post_id=post.id, 
+                            user_id=current_advertiser.id
+                        ).first() is not None
+                except Exception as e:
+                    print(f"Error checking if post {post.id} is liked: {e}")
+                    liked_by_me = False
+                
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
+                    'liked_by_me': liked_by_me,
+                    'advertiser': {
+                        'id': advertiser.id,
+                        'name': advertiser.name,
+                        'username': advertiser.username
+                    }
+                }
+                result.append(post_dict)
+            
+            return {
+                'posts': result,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'per_page': posts.per_page,
+                'advertiser_info': {
+                    'id': advertiser.id,
+                    'name': advertiser.name,
+                    'username': advertiser.username
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error fetching posts for advertiser {advertiser_id}: {str(e)}")
+            api.abort(500, f'Failed to retrieve posts for advertiser: {str(e)}')
+
+# Also update your existing PostList endpoint's GET method
+@api.route('/')
+class PostList(Resource):
+    @api.doc('list_posts')
+    @token_required
+    def get(self, current_user):
+        """Get all posts (feed)"""
+        print(f"DEBUG: GET posts - current_user: {current_user}")
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            posts = db.session.query(Post).join(Advertiser).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                advertiser = Advertiser.find_by_id(post.advertiser_id)
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                liked_by_me = False
+                try:
+                    liked_by_me = PostLike.query.filter_by(
+                        post_id=post.id, 
+                        user_id=getattr(current_user, 'id', None)
+                    ).first() is not None
+                except Exception as e:
+                    print(f"Error checking if post {post.id} is liked: {e}")
+                    liked_by_me = False
+                    
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
+                    'liked_by_me': liked_by_me,
+                    'advertiser': {
+                        'id': advertiser.id if advertiser else None,
+                        'name': advertiser.name if advertiser else 'Unknown Advertiser',
+                        'username': advertiser.username if advertiser else 'unknown'
+                    }
+                }
+                result.append(post_dict)
+            return {
+                'items': result,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'per_page': posts.per_page,
+            }
+            
+        except Exception as e:
+            print(f"Error in PostList GET: {e}")
+            api.abort(500, f'Failed to retrieve posts: {str(e)}')
+
+# Update MyPosts endpoint as well
+@api.route('/my-posts')
+class MyPosts(Resource):
+    @api.doc('get_my_posts')
+    @token_required
+    def get(self, current_advertiser):
+        """Get current advertiser's posts"""
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            posts = Post.query.filter_by(
+                advertiser_id=current_advertiser.id
+            ).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count
+                }
+                result.append(post_dict)
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error in MyPosts GET: {e}")
+            api.abort(500, f'Failed to retrieve your posts: {str(e)}')
+# Updated AdvertiserPosts endpoint with correct table references
+@api.route('/advertiser/<int:advertiser_id>')
+class AdvertiserPosts(Resource):
+    @api.doc('get_advertiser_posts')
+    @token_required
+    def get(self, current_advertiser, advertiser_id):
+        """Get all posts by a specific advertiser ID"""
+        try:
+            # Verify the advertiser exists
+            advertiser = Advertiser.find_by_id(advertiser_id)
+            if not advertiser:
+                api.abort(404, f'Advertiser with ID {advertiser_id} not found')
+            
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 20, type=int)
+            
+            posts = Post.query.filter_by(
+                advertiser_id=advertiser_id
+            ).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                
+                # Check if current user liked this post
+                liked_by_me = False
+                try:
+                    if hasattr(current_advertiser, 'id') and current_advertiser.id:
+                        liked_by_me = PostLike.query.filter_by(
+                            post_id=post.id, 
+                            user_id=current_advertiser.id
+                        ).first() is not None
+                except Exception as e:
+                    print(f"Error checking if post {post.id} is liked: {e}")
+                    liked_by_me = False
+                
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
+                    'liked_by_me': liked_by_me,
+                    'advertiser': {
+                        'id': advertiser.id,
+                        'name': advertiser.name,
+                        'username': advertiser.username
+                    }
+                }
+                result.append(post_dict)
+            
+            return {
+                'posts': result,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'per_page': posts.per_page,
+                'advertiser_info': {
+                    'id': advertiser.id,
+                    'name': advertiser.name,
+                    'username': advertiser.username
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error fetching posts for advertiser {advertiser_id}: {str(e)}")
+            api.abort(500, f'Failed to retrieve posts for advertiser: {str(e)}')
+
+# Also update your existing PostList endpoint's GET method
+@api.route('/')
+class PostList(Resource):
+    @api.doc('list_posts')
+    @token_required
+    def get(self, current_user):
+        """Get all posts (feed)"""
+        print(f"DEBUG: GET posts - current_user: {current_user}")
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            posts = db.session.query(Post).join(Advertiser).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                advertiser = Advertiser.find_by_id(post.advertiser_id)
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                liked_by_me = False
+                try:
+                    liked_by_me = PostLike.query.filter_by(
+                        post_id=post.id, 
+                        user_id=getattr(current_user, 'id', None)
+                    ).first() is not None
+                except Exception as e:
+                    print(f"Error checking if post {post.id} is liked: {e}")
+                    liked_by_me = False
+                    
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count,
+                    'liked_by_me': liked_by_me,
+                    'advertiser': {
+                        'id': advertiser.id if advertiser else None,
+                        'name': advertiser.name if advertiser else 'Unknown Advertiser',
+                        'username': advertiser.username if advertiser else 'unknown'
+                    }
+                }
+                result.append(post_dict)
+            return {
+                'items': result,
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'per_page': posts.per_page,
+            }
+            
+        except Exception as e:
+            print(f"Error in PostList GET: {e}")
+            api.abort(500, f'Failed to retrieve posts: {str(e)}')
+
+# Update MyPosts endpoint as well
+@api.route('/my-posts')
+class MyPosts(Resource):
+    @api.doc('get_my_posts')
+    @token_required
+    def get(self, current_advertiser):
+        """Get current advertiser's posts"""
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            posts = Post.query.filter_by(
+                advertiser_id=current_advertiser.id
+            ).order_by(
+                Post.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for post in posts.items:
+                # Fix: Use correct table name 'post_like' instead of 'post_likes'
+                likes_count = PostLike.query.filter_by(post_id=post.id).count()
+                post_dict = {
+                    'id': post.id,
+                    'advertiser_id': post.advertiser_id,
+                    'image_url': post.image_url,
+                    'caption': post.caption,
+                    'created_at': post.created_at.isoformat() if post.created_at else None,
+                    'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                    'likes_count': likes_count
+                }
+                result.append(post_dict)
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error in MyPosts GET: {e}")
+            api.abort(500, f'Failed to retrieve your posts: {str(e)}')
+                    
 @api.route('/<int:post_id>')
 class PostDetail(Resource):
     @api.doc('get_post')
@@ -519,6 +883,67 @@ class MyPosts(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to retrieve your posts: {str(e)}')
+# Add this new endpoint to your posts.py file
+
+@api.route('/<int:post_id>/likes')
+class PostLikesResource(Resource):
+    @api.doc('get_post_likes')
+    @token_required
+    def get(self, current_advertiser, post_id):
+        """Get list of users who liked a post"""
+        try:
+            post = Post.query.get(post_id)
+            if not post:
+                api.abort(404, 'Post not found')
+            
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 20, type=int)
+            
+            # Get likes with advertiser information
+            likes = db.session.query(PostLike).join(
+                Advertiser, PostLike.user_id == Advertiser.id
+            ).filter(
+                PostLike.post_id == post_id
+            ).order_by(
+                PostLike.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
+            )
+            
+            result = []
+            for like in likes.items:
+                advertiser = Advertiser.find_by_id(like.user_id)
+                if advertiser:
+                    like_dict = {
+                        'id': like.id,
+                        'user_id': like.user_id,
+                        'created_at': like.created_at.isoformat() if hasattr(like, 'created_at') and like.created_at else None,
+                        'advertiser': {
+                            'id': advertiser.id,
+                            'name': advertiser.name,
+                            'username': advertiser.username,
+                            'profile_image_url': getattr(advertiser, 'profile_image_url', None)
+                        }
+                    }
+                    result.append(like_dict)
+            
+            return {
+                'likes': result,
+                'total': likes.total,
+                'pages': likes.pages,
+                'current_page': likes.page,
+                'per_page': likes.per_page,
+            }
+            
+        except Exception as e:
+            print(f"Error fetching likes for post {post_id}: {str(e)}")
+            
+            
+        except Exception as e:
+            print(f"Error fetching likes for post {post_id}: {str(e)}")
+            api.abort(500, f'Failed to retrieve post likes: {str(e)}')
 
 @api.route('/search')
 class SearchPosts(Resource):
@@ -573,3 +998,4 @@ class SearchPosts(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to search posts: {str(e)}')
+

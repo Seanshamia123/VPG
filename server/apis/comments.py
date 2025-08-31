@@ -60,7 +60,6 @@ comment_with_user_model = api.model('CommentWithUser', {
 class CommentList(Resource):
     @api.doc('create_comment')
     @api.expect(comment_create_model)
-    @api.marshal_with(comment_model)
     @token_required
     def post(self, current_user):
         """Create a new comment"""
@@ -73,58 +72,67 @@ class CommentList(Resource):
             parent_comment_id = data.get('parent_comment_id')
             
             if not all([target_type, target_id, content]):
-                api.abort(400, 'target_type, target_id, and content are required')
+                return {'error': 'target_type, target_id, and content are required'}, 400
             
             # Validate target exists
             if target_type == 'post':
                 target = Post.query.get(target_id)
                 if not target:
-                    api.abort(404, 'Post not found')
+                    return {'error': 'Post not found'}, 404
             elif target_type == 'profile':
                 target = User.find_by_id(target_id)
                 if not target:
-                    api.abort(404, 'User profile not found')
+                    return {'error': 'User profile not found'}, 404
             else:
-                api.abort(400, 'Invalid target_type')
+                return {'error': 'Invalid target_type'}, 400
             
-            # Fix: Handle parent_comment_id properly
-            # If parent_comment_id is 0, None, or empty string, set it to None
+            # Handle parent_comment_id properly
             if parent_comment_id in [0, None, '', '0']:
                 parent_comment_id = None
             else:
-                # Validate parent comment if provided and not null
                 parent_comment = Comment.query.get(parent_comment_id)
                 if not parent_comment:
-                    api.abort(404, 'Parent comment not found')
+                    return {'error': 'Parent comment not found'}, 404
                 if parent_comment.target_type != target_type or parent_comment.target_id != target_id:
-                    api.abort(400, 'Parent comment must be on the same target')
+                    return {'error': 'Parent comment must be on the same target'}, 400
             
             comment = Comment(
                 user_id=current_user.id,
                 target_type=target_type,
                 target_id=target_id,
-                parent_comment_id=parent_comment_id,  # This will now be None for top-level comments
+                parent_comment_id=parent_comment_id,
                 content=content
             )
             
             db.session.add(comment)
             db.session.commit()
             
+            # Return complete comment data with user information
             return {
-                'id': comment.id,
-                'user_id': comment.user_id,
-                'target_type': comment.target_type,
-                'target_id': comment.target_id,
-                'parent_comment_id': comment.parent_comment_id,
-                'content': comment.content,
-                'likes_count': comment.likes_count,
-                'is_deleted': comment.is_deleted,
-                'created_at': comment.created_at.isoformat() if comment.created_at else None,
-                'updated_at': comment.updated_at.isoformat() if comment.updated_at else None
-            }
+                'success': True,
+                'comment': {
+                    'id': comment.id,
+                    'user_id': comment.user_id,
+                    'target_type': comment.target_type,
+                    'target_id': comment.target_id,
+                    'parent_comment_id': comment.parent_comment_id,
+                    'content': comment.content,
+                    'likes_count': comment.likes_count,
+                    'is_deleted': comment.is_deleted,
+                    'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                    'updated_at': comment.updated_at.isoformat() if comment.updated_at else None,
+                    'advertiser': {  # Match frontend expectation
+                        'id': current_user.id,
+                        'name': current_user.name,
+                        'username': current_user.username
+                    }
+                }
+            }, 201
             
         except Exception as e:
-            api.abort(500, f'Failed to create comment: {str(e)}')
+            print(f"Comment creation error: {str(e)}")
+            return {'error': f'Failed to create comment: {str(e)}'}, 500
+
 @api.route('/<int:comment_id>')
 class CommentDetail(Resource):
     @api.doc('get_comment')
