@@ -94,7 +94,7 @@ class _CommentListState extends State<CommentList> {
               for (final c in comments)
                 _buildComment(
                   context,
-                  avatar: 'https://via.placeholder.com/64x64.png?text=U',
+                  avatar: '',
                   username: (c['user']?['username'] ?? c['user']?['name'] ?? 'user').toString(),
                   time: '',
                   content: (c['content'] ?? '').toString(),
@@ -139,7 +139,11 @@ class _CommentListState extends State<CommentList> {
               children: [
                 CircleAvatar(
                   radius: avatarRadius,
-                  backgroundImage: NetworkImage(avatar),
+                  backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                  backgroundColor: AppColors.darkBackgroundColor,
+                  child: avatar.isEmpty
+                      ? const Icon(Icons.person, color: Colors.white70)
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -254,7 +258,11 @@ class _CommentListState extends State<CommentList> {
         children: [
           CircleAvatar(
             radius: avatarRadius,
-            backgroundImage: NetworkImage(avatar),
+            backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+            backgroundColor: AppColors.darkBackgroundColor,
+            child: avatar.isEmpty
+                ? const Icon(Icons.person, color: Colors.white70, size: 14)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(

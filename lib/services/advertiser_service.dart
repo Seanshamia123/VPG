@@ -37,4 +37,44 @@ class AdvertiserService {
     if (data['statusCode'] != null && data['statusCode'] >= 400) return null;
     return data;
   }
+
+  static Future<Map<String, dynamic>> updateProfile(
+    int advertiserId, {
+    String? name,
+    String? phoneNumber,
+    String? location,
+    String? bio,
+    String? profileImageUrl,
+    bool? isOnline,
+  }) async {
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (location != null) 'location': location,
+      if (bio != null) 'bio': bio,
+      if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
+      if (isOnline != null) 'is_online': isOnline,
+    };
+    return ApiClient.putJson(
+      '${ApiConfig.api}/advertisers/$advertiserId',
+      body,
+      auth: true,
+    );
+  }
+
+  static Future<String?> uploadAvatarBase64(String base64Image, {String folder = 'vpg/advertisers'}) async {
+    final data = await ApiClient.postJson(
+      '${ApiConfig.api}/posts/upload-image',
+      {
+        'image': base64Image,
+        'folder': folder,
+      },
+      auth: true,
+    );
+    if ((data['statusCode'] ?? 0) >= 200 && (data['statusCode'] ?? 0) < 300) {
+      final url = (data['image_url'] ?? data['data']?['image_url'])?.toString();
+      return (url != null && url.isNotEmpty) ? url : null;
+    }
+    return null;
+  }
 }
