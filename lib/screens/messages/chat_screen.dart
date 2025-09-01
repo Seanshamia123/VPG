@@ -23,6 +23,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, dynamic>> messages = [];
   bool loading = true;
   Timer? _poller;
+  bool _sending = false;
 
   @override
   void initState() {
@@ -76,18 +77,23 @@ class _ChatScreenState extends State<ChatScreen> {
     final uidDyn = await UserSession.getUserId();
     final uid = int.tryParse(uidDyn.toString());
     if (uid == null) return;
+    setState(() => _sending = true);
     _controller.clear();
-    await ConversationsService.sendMessage(
-      conversationId: widget.conversationId,
-      senderId: uid,
-      content: text,
-    );
-    await _load();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      }
-    });
+    try {
+      await ConversationsService.sendMessage(
+        conversationId: widget.conversationId,
+        senderId: uid,
+        content: text,
+      );
+      await _load();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) {
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -187,8 +193,17 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.send, color: Colors.yellow),
-                        onPressed: _send,
+                        icon: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+                                ),
+                              )
+                            : const Icon(Icons.send, color: Colors.yellow),
+                        onPressed: _sending ? null : _send,
                       ),
                     ],
                   ),

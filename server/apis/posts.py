@@ -161,7 +161,16 @@ class PostList(Resource):
             api.abort(500, 'Internal authentication error - decorator parameter mismatch')
         
         try:
-            data = request.get_json()
+            # Be lenient with JSON parsing to avoid BadRequest from Werkzeug on large payloads
+            data = request.get_json(silent=True)
+            if not data:
+                try:
+                    import json as _json
+                    raw = request.get_data(cache=False, as_text=True)
+                    data = _json.loads(raw) if raw else {}
+                except Exception as _e:
+                    print(f"DEBUG: Fallback JSON parse failed: {_e}")
+                    data = None
             print(f"DEBUG: Received JSON data: {data}")
             
             if not data:
@@ -998,4 +1007,3 @@ class SearchPosts(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to search posts: {str(e)}')
-

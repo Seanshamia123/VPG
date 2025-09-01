@@ -1,9 +1,35 @@
 import 'package:escort/screens/advertisers%20screens/checkout.dart';
-// import 'package:escort/styles/subscription_cards.dart';
+import 'package:escort/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 
-class SubscriptionDialog extends StatelessWidget {
+class SubscriptionDialog extends StatefulWidget {
   const SubscriptionDialog({super.key});
+
+  @override
+  State<SubscriptionDialog> createState() => _SubscriptionDialogState();
+}
+
+class _SubscriptionDialogState extends State<SubscriptionDialog> {
+  Map<String, dynamic>? _active;
+  bool _loading = true;
+  bool _working = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final sub = await SubscriptionService.activeSubscription();
+      if (!mounted) return;
+      setState(() => _active = sub);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   // Color palette - Black & Bright Gold
   static const Color primaryGold = Color(0xFFFFD700);
@@ -59,71 +85,69 @@ class SubscriptionDialog extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Choose Your Plan', style: titleStyle),
-                    SizedBox(height: 16),
-                    Text(
-                      'Select the perfect subscription for your needs',
-                      style: subtitleStyle,
-                    ),
-                    SizedBox(height: 32),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        if (constraints.maxWidth > 600) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: _buildStarterCard(context)),
-                              SizedBox(width: 32),
-                              Expanded(child: _buildProfessionalCard(context)),
-                            ],
-                          );
-                        } else {
-                          return Column(
-                            children: [
-                              _buildStarterCard(context),
-                              SizedBox(height: 32),
-                              _buildProfessionalCard(context),
-                            ],
-                          );
-                        }
-                      },
-                    ),
-                    SizedBox(height: 32),
-                    Column(
-                      children: [
-                        Wrap(
-                          spacing: 32,
-                          runSpacing: 16,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                    if (_loading) ...[
+                      const SizedBox(height: 80),
+                      const Center(child: CircularProgressIndicator(color: primaryGold)),
+                      const SizedBox(height: 24),
+                      Text('Loading subscription...', style: subtitleStyle),
+                    ] else if (_active != null) ...[
+                      Text('Your Subscription', style: titleStyle),
+                      SizedBox(height: 16),
+                      Text('You are on the Starter plan', style: subtitleStyle),
+                      SizedBox(height: 24),
+                      _buildActiveCard(context),
+                    ] else ...[
+                      Text('Choose Your Plan', style: titleStyle),
+                      SizedBox(height: 16),
+                      Text('Select the perfect subscription for your needs', style: subtitleStyle),
+                      SizedBox(height: 32),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth > 600) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.security,
-                                  color: primaryGold,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text('Secure payments', style: bodyStyle),
+                                Expanded(child: _buildStarterCard(context)),
+                                SizedBox(width: 32),
+                                Expanded(child: _buildProfessionalCard(context)),
                               ],
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            );
+                          } else {
+                            return Column(
                               children: [
-                                Icon(
-                                  Icons.support_agent,
-                                  color: primaryGold,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text('24/7 support', style: bodyStyle),
+                                _buildStarterCard(context),
+                                SizedBox(height: 32),
+                                _buildProfessionalCard(context),
                               ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            );
+                          }
+                        },
+                      ),
+                      SizedBox(height: 24),
+                      Wrap(
+                        spacing: 32,
+                        runSpacing: 16,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.security, color: primaryGold, size: 20),
+                              SizedBox(width: 8),
+                              Text('Secure payments', style: bodyStyle),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.support_agent, color: primaryGold, size: 20),
+                              SizedBox(width: 8),
+                              Text('24/7 support', style: bodyStyle),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -213,11 +237,22 @@ class SubscriptionDialog extends StatelessWidget {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => CheckoutPage()),
-                  );
-                },
+                onPressed: _working
+                    ? null
+                    : () async {
+                        setState(() => _working = true);
+                        try {
+                          final res = await SubscriptionService.subscribeBasic(amount: 20.0, method: 'card');
+                          if (!mounted) return;
+                          setState(() => _active = res);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subscription activated')));
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to subscribe: $e')));
+                        } finally {
+                          if (mounted) setState(() => _working = false);
+                        }
+                      },
                 style:
                     ElevatedButton.styleFrom(
                       backgroundColor: primaryGold,
@@ -240,14 +275,109 @@ class SubscriptionDialog extends StatelessWidget {
                         },
                       ),
                     ),
-                child: Text(
-                  'Get Started',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: pureBlack,
+                child: _working
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: pureBlack),
+                          ),
+                          SizedBox(width: 10),
+                          Text('Processing...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: pureBlack)),
+                        ],
+                      )
+                    : Text(
+                        'Get Started',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: pureBlack,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveCard(BuildContext context) {
+    final start = (_active?['start_date'] ?? '').toString();
+    final end = (_active?['end_date'] ?? '').toString();
+    final method = (_active?['payment_method'] ?? 'card').toString();
+    final status = (_active?['status'] ?? 'active').toString();
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: darkGray,
+        border: Border.all(color: primaryGold, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.verified, color: primaryGold),
+                const SizedBox(width: 8),
+                const Text('Starter • \$20/month', style: TextStyle(color: primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: primaryGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Text(status.toUpperCase(), style: const TextStyle(color: primaryGold)),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('Payment: $method', style: bodyStyle),
+            const SizedBox(height: 6),
+            Text('Start: $start', style: bodyStyle),
+            const SizedBox(height: 6),
+            Text('Renews: $end', style: bodyStyle),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _working
+                    ? null
+                    : () async {
+                        final id = int.tryParse((_active?['id'] ?? '').toString());
+                        if (id == null) return;
+                        setState(() => _working = true);
+                        try {
+                          await SubscriptionService.cancel(id);
+                          if (!mounted) return;
+                          setState(() => _active = null);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subscription cancelled')));
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to cancel: $e')));
+                        } finally {
+                          if (mounted) setState(() => _working = false);
+                        }
+                      },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryGold,
+                  side: const BorderSide(color: primaryGold),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: _working
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: primaryGold),
+                      )
+                    : const Icon(Icons.cancel),
+                label: Text(_working ? 'Cancelling...' : 'Cancel Subscription'),
               ),
             ),
           ],
