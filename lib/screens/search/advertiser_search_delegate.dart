@@ -53,11 +53,18 @@ class AdvertiserSearchDelegate extends SearchDelegate {
             final location = (a['location'] ?? '').toString();
             final avatar = (a['profile_image_url'] ?? '').toString();
             final id = int.tryParse(a['id']?.toString() ?? '') ?? 0;
+            final validAvatar = (avatar.isNotEmpty &&
+                    !avatar.contains('via.placeholder.com') &&
+                    !avatar.contains('placeholder.com') &&
+                    !avatar.contains('picsum.photos'))
+                ? avatar
+                : '';
             return ListTile(
               leading: CircleAvatar(
-                backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                backgroundImage:
+                    validAvatar.isNotEmpty ? NetworkImage(validAvatar) : null,
                 backgroundColor: Colors.grey[800],
-                child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white70) : null,
+                child: validAvatar.isEmpty ? const Icon(Icons.person, color: Colors.white70) : null,
               ),
               title: Text(name, style: const TextStyle(color: Colors.white)),
               subtitle: Text('${username.isNotEmpty ? '@$username • ' : ''}$location', style: TextStyle(color: Colors.grey[400])),
@@ -81,4 +88,3 @@ class AdvertiserSearchDelegate extends SearchDelegate {
     return const SizedBox.shrink();
   }
 }
-

@@ -2,6 +2,7 @@ import 'package:escort/models/messages/converstaion.dart';
 import 'package:escort/widgets/messages/chat_list.dart';
 import 'package:escort/screens/messages/chat_screen.dart';
 import 'package:escort/services/messages_service.dart';
+import 'package:escort/services/user_session.dart';
 import 'package:escort/styles/app_size.dart';
 import 'package:escort/device_utility/device_checker.dart';
 import 'package:flutter/material.dart';
@@ -88,26 +89,24 @@ class _MessageState extends State<Message> {
         backgroundColor: colorScheme.surface,
         elevation: 1,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
-            tooltip: 'Search',
-          ),
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () {},
-            tooltip: 'Home',
-          ),
-          Padding(
-            padding: EdgeInsets.all(Insets.sm),
-            child: CircleAvatar(
-              radius: context.isMobile
-                  ? Sizes.avatarRadiusSm
-                  : context.isTablet
-                  ? Sizes.avatarRadiusMd
-                  : Sizes.avatarRadiusLg,
-              backgroundImage: AssetImage("assets/images/profile.png"),
-            ),
+          FutureBuilder<String?>(
+            future: UserSession.getProfileImageUrl(),
+            builder: (context, snap) {
+              final avatar = (snap.data ?? '').toString();
+              return Padding(
+                padding: EdgeInsets.all(Insets.sm),
+                child: CircleAvatar(
+                  radius: context.isMobile
+                      ? Sizes.avatarRadiusSm
+                      : context.isTablet
+                          ? Sizes.avatarRadiusMd
+                          : Sizes.avatarRadiusLg,
+                  backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+                  backgroundColor: Colors.grey[800],
+                  child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white70) : null,
+                ),
+              );
+            },
           ),
         ],
       ),

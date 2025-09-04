@@ -1,5 +1,6 @@
 // import 'package:flutter/foundation.dart' show kIsWeb;
 // import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
+import 'package:escort/services/token_storage.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
@@ -10,7 +11,7 @@ import 'package:escort/models/post.dart' as ModelPost;
 
 import 'settings_screen.dart';
 import 'terms_and_conditions_screen.dart';
-import 'package:escort/services/advertiser_service.dart';
+import 'package:escort/services/advertiser_service.dart' hide ConversationsService;
 // import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
 import 'package:escort/services/messages_service.dart';
 import 'package:escort/services/user_session.dart';
@@ -462,9 +463,11 @@ class _LocationScreenState extends State<LocationScreen> {
                             itemBuilder: (context, index) {
                               final adv = _advertisers[index];
                               final name = adv.name;
-                              final image = adv.imageUrl.isNotEmpty
-                                  ? adv.imageUrl
-                                  : 'https://via.placeholder.com/100x100.png?text=A';
+                              final image = adv.imageUrl;
+                              final hasImage = image.isNotEmpty &&
+                                  !image.contains('via.placeholder.com') &&
+                                  !image.contains('placeholder.com') &&
+                                  !image.contains('picsum.photos');
                               final location = adv.distance;
                               return Container(
                                 margin: const EdgeInsets.symmetric(
@@ -480,7 +483,11 @@ class _LocationScreenState extends State<LocationScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 25,
-                                      backgroundImage: NetworkImage(image),
+                                      backgroundImage: hasImage ? NetworkImage(image) : null,
+                                      backgroundColor: Colors.grey[700],
+                                      child: hasImage
+                                          ? null
+                                          : const Icon(Icons.person, color: Colors.white70),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -613,14 +620,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
               final name =
                   sender?['name'] ?? sender?['username'] ?? 'Conversation';
               final message = last?['content'] ?? '';
-              final image = 'https://via.placeholder.com/100x100.png?text=U';
               return Container(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 25,
-                      backgroundImage: NetworkImage(image),
+                      backgroundColor: Colors.grey[700],
+                      child: const Icon(Icons.person, color: Colors.white70),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1536,6 +1543,11 @@ onTap: () async {
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            tooltip: 'Messages',
+            onPressed: () => Navigator.of(context).pushNamed('/messages'),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: InkWell(
@@ -1623,10 +1635,13 @@ onTap: () async {
                             final a = items[index];
                             final name = (a['name'] ?? a['username'] ?? 'Adv')
                                 .toString();
-                            final image =
-                                (a['profile_image_url'] ??
-                                        'https://via.placeholder.com/100x100.png?text=A')
-                                    .toString();
+                            final raw = (a['profile_image_url'] ?? '').toString();
+                            final image = (raw.isNotEmpty &&
+                                    !raw.contains('via.placeholder.com') &&
+                                    !raw.contains('placeholder.com') &&
+                                    !raw.contains('picsum.photos'))
+                                ? raw
+                                : '';
                             return _buildStoryItem(name, image);
                           },
                         );
@@ -1693,9 +1708,7 @@ onTap: () async {
                         name: p.advertiser.name,
                         username: '@${p.advertiser.username}',
                         location: p.location ?? '—',
-                        profileImage:
-                            p.advertiser.profileImage ??
-                            'https://via.placeholder.com/100x100.png?text=AD',
+                        profileImage: p.advertiser.profileImage ?? '',
                         image: p.imageUrl,
                         caption: p.caption ?? '',
                         advertiserId: p.advertiser.id,
@@ -1720,12 +1733,21 @@ onTap: () async {
   // get _hasActiveFilters => null;
 
   void _startChatWithAdvertiser(int advertiserId) async {
-    // You may want to fetch or create a conversation with the advertiser here
-    // For now, just navigate to the ChatScreen with the advertiserId
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ChatScreen(conversationId: 0)),
-    );
+    try {
+      final res = await ConversationsService.getOrCreateWithAdvertiser(advertiserId);
+      final cid = int.tryParse('${res['id'] ?? res['conversation_id'] ?? 0}') ?? 0;
+      if (cid > 0 && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ChatScreen(conversationId: cid)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open chat: $e')),
+      );
+    }
   }
 
   // Add this helper method to your _HomeScreenState class:
@@ -1941,8 +1963,11 @@ Padding(
             ),
             child: CircleAvatar(
               radius: 28,
-              backgroundImage: NetworkImage(imageUrl),
+              backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
               backgroundColor: Colors.grey[700],
+              child: imageUrl.isEmpty
+                  ? const Icon(Icons.person, color: Colors.white70)
+                  : null,
             ),
           ),
           const SizedBox(height: 4),
@@ -2081,7 +2106,7 @@ Padding(
                 _buildSidePanelItem(
                   Icons.logout,
                   'Logout',
-                  () {},
+                  _confirmAndLogout,
                   isLogout: true,
                 ),
               ],
@@ -2114,6 +2139,53 @@ Padding(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
+  }
+
+  Future<void> _confirmAndLogout() async {
+    // Confirm
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Logout', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      // Clear session and tokens
+      await UserSession.clearSession();
+      try {
+        await TokenStorage.clearTokens();
+      } catch (_) {}
+
+      if (!mounted) return;
+      // Go to login screen
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      // Feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged out successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to logout: $e')),
+      );
+    }
   }
 }
 

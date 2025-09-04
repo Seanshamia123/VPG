@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:escort/screens/advertisers screens/post_detail.dart'; 
+import 'package:escort/screens/advertisers screens/advertiser_edit_profile.dart';
 
 class AdvertiserProfile extends StatefulWidget {
   const AdvertiserProfile({super.key});
@@ -549,9 +550,9 @@ Future<List<String>> _fetchMyPostImages() async {
       } else {
         pickedFile = await _picker.pickImage(
           source: source,
-          imageQuality: 90,
-          maxWidth: 1920,
-          maxHeight: 1920,
+          imageQuality: 80,
+          maxWidth: 1280,
+          maxHeight: 1280,
         );
       }
 
@@ -1178,23 +1179,10 @@ Future<List<String>> _fetchMyPostImages() async {
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.add_box_outlined, color: blackColor),
-                onPressed: _handleNewStoryTap, // Fixed: Use the correct handler
-              ),
-              IconButton(
-                icon: Icon(Icons.menu, color: blackColor),
+                icon: Icon(Icons.message_outlined, color: blackColor),
+                tooltip: 'Messages',
                 onPressed: () {
-                  // Show options menu
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: whiteColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                    ),
-                    builder: (context) => _buildOptionsMenu(),
-                  );
+                  Navigator.of(context).pushNamed('/messages');
                 },
               ),
             ],
@@ -1235,64 +1223,155 @@ Padding(
           _getProfileImage(radius: 45),
           SizedBox(height: 16),
 
-          // Username with verification badge - centered
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                isLoading ? 'Loading...' : userName,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: blackColor,
-                ),
-              ),
-              if (isVerified) ...[
-                SizedBox(width: 4),
-                Icon(Icons.verified, color: brightGold, size: 16),
-              ],
-            ],
-          ),
-          SizedBox(height: 8),
+                            // Stats
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildStatColumn('120', 'Followers'),
+                                _buildStatColumn('45', 'Posts'),
+                                _buildStatColumn('30', 'Likes'),
+                              ],
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
 
-          // Location - centered
-          if (userLocation.isNotEmpty)
-            Text(
-              userLocation,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: greyColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          if (userLocation.isNotEmpty) SizedBox(height: 8),
+                        // Bio section
+                        Container(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (userLocation.isNotEmpty)
+                                Text(
+                                  userLocation,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: blackColor,
+                                  ),
+                                ),
+                              SizedBox(height: 4),
+                              Text(
+                                userBio,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: blackColor,
+                                ),
+                              ),
+                              if (userEmail.isNotEmpty) ...[
+                                SizedBox(height: 4),
+                                Text(
+                                  userEmail,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: greyColor,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
 
-          // Bio - centered
-          Text(
-            userBio,
-            style: TextStyle(
-              fontSize: 14,
-              color: blackColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
-          // Email - centered (if you want to keep it)
-          if (userEmail.isNotEmpty) ...[
-            SizedBox(height: 8),
-            Text(
-              userEmail,
-              style: TextStyle(
-                fontSize: 14,
-                color: greyColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-      SizedBox(height: 20),
+                        // Action buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 32,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    // Navigate to advertiser edit profile
+                                    final result = await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AdvertiserEditProfileScreen(),
+                                      ),
+                                    );
+                                    if (result != null && mounted) {
+                                      // Refresh local UI from session or returned data
+                                      await _loadUserData();
+                                      setState(() {});
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: greyColor.withOpacity(0.2),
+                                    foregroundColor: blackColor,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Edit profile',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                height: 32,
+                                child: ElevatedButton(
+                                  onPressed: () => Get.to(
+                                    () => CommentSection(),
+                                    transition: Transition.upToDown,
+                                    duration: const Duration(milliseconds: 500),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: goldColor,
+                                    foregroundColor: blackColor,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'View archive',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Container(
+                              height: 32,
+                              width: 32,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  // Settings functionality
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SettingsScreen(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: greyColor.withOpacity(0.2),
+                                  foregroundColor: blackColor,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.person_add_outlined,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
 
       // Story highlights with enhanced "New" button
       SingleChildScrollView(
@@ -1337,6 +1416,23 @@ Padding(
 FutureBuilder<List<Map<String, dynamic>>>(
   future: _futureMyPosts,
   builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: CircularProgressIndicator(),
+      ));
+    }
+    if (snapshot.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'Failed to load posts',
+            style: TextStyle(color: greyColor),
+          ),
+        ),
+      );
+    }
     final posts = snapshot.data ?? [];
     return GridView.builder(
       padding: EdgeInsets.all(1),
@@ -1346,39 +1442,25 @@ FutureBuilder<List<Map<String, dynamic>>>(
         mainAxisSpacing: 1,
         childAspectRatio: 1.0,
       ),
-      itemCount: posts.isEmpty ? 6 : posts.length,
+      itemCount: posts.length,
       itemBuilder: (context, index) {
-        final post = posts.isEmpty 
-            ? null 
-            : posts[index];
-        final imageUrl = post != null 
-            ? post['image_url'] ?? "https://picsum.photos/200/300?random=$index"
-            : "https://picsum.photos/200/300?random=$index";
-            
+        final post = posts[index];
+        final imageUrl = (post['image_url'] ?? '').toString();
+        
         return GestureDetector(
           onTap: () {
-            if (post != null) {
-              // Navigate to PostDetailScreen with the full post data
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PostDetailScreen(post: post),
-                ),
-              ).then((_) {
-                // Refresh posts when coming back from detail screen
-                setState(() {
-                  _futureMyPosts = _fetchMyPostsWithFullData();
-                });
+            // Navigate to PostDetailScreen with the full post data
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PostDetailScreen(post: post),
+              ),
+            ).then((_) {
+              // Refresh posts when coming back from detail screen
+              setState(() {
+                _futureMyPosts = _fetchMyPostsWithFullData();
               });
-            } else {
-              // Handle placeholder posts - maybe show a message
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('This is a placeholder post'),
-                  backgroundColor: greyColor,
-                ),
-              );
-            }
+            });
           },
           child: Container(
             decoration: BoxDecoration(
@@ -1387,23 +1469,32 @@ FutureBuilder<List<Map<String, dynamic>>>(
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: greyColor.withOpacity(0.2),
-                      child: Icon(
-                        Icons.image,
-                        color: greyColor,
-                        size: 40,
-                      ),
-                    );
-                  },
-                ),
+                if (imageUrl.isNotEmpty)
+                  Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: greyColor.withOpacity(0.2),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: greyColor,
+                          size: 40,
+                        ),
+                      );
+                    },
+                  )
+                else
+                  Container(
+                    color: greyColor.withOpacity(0.2),
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: greyColor,
+                      size: 40,
+                    ),
+                  ),
                 // Add a subtle overlay to indicate it's tappable
-                if (post != null)
-                  Positioned(
+                Positioned(
                     top: 4,
                     right: 4,
                     child: Container(
@@ -1812,14 +1903,17 @@ FutureBuilder<List<Map<String, dynamic>>>(
                 _buildDrawerItem(
                   icon: Icons.edit,
                   title: "Edit Profile",
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Opening Edit Profile...'),
-                        backgroundColor: goldColor,
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AdvertiserEditProfileScreen(),
                       ),
                     );
+                    if (result != null && mounted) {
+                      await _loadUserData();
+                      setState(() {});
+                    }
                   },
                 ),
                 _buildDrawerItem(
@@ -1827,12 +1921,7 @@ FutureBuilder<List<Map<String, dynamic>>>(
                   title: "Subscriptions",
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Opening Subscriptions...'),
-                        backgroundColor: goldColor,
-                      ),
-                    );
+                    Navigator.of(context).pushNamed('/subscriptions');
                   },
                 ),
                 _buildDrawerItem(
