@@ -1,4 +1,5 @@
 // import 'package:flutter/foundation.dart' show kIsWeb;
+// import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
@@ -10,13 +11,22 @@ import 'package:escort/models/post.dart' as ModelPost;
 import 'settings_screen.dart';
 import 'terms_and_conditions_screen.dart';
 import 'package:escort/services/advertiser_service.dart';
-import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
+// import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
 import 'package:escort/services/messages_service.dart';
 import 'package:escort/services/user_session.dart';
 import 'package:escort/services/conversations_service.dart';
-import 'package:escort/services/comments_service.dart';
+import 'package:escort/services/comments_service.dart' hide CommentsService;
 import 'package:escort/screens/messages/chat_screen.dart';
-import 'package:escort/services/post_likes_service.dart';
+import 'package:escort/services/post_likes_service.dart' hide PostLikesService;
+import 'package:escort/screens/advertiser_public.dart' hide AdvertiserService; 
+// import 'package:escort/screens/advertiser_public.dart' 
+// Helper extension for string capitalization
+extension StringCapitalization on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return this[0].toUpperCase() + substring(1);
+  }
+}
 
 // ---------- Models ----------
 class UserProfile {
@@ -741,6 +751,11 @@ class _HomeScreenState extends State<HomeScreen>
   bool _showAdvSuggestions = false;
   List<Map<String, dynamic>> _advSuggestions = [];
 
+  // Filter state variables
+  String? _selectedGender;
+  String? _selectedLocation;
+  bool _showFilters = false;
+
   // User profile data (loaded from session after init)
   UserProfile userProfile = UserProfile(
     name: 'User',
@@ -762,7 +777,7 @@ class _HomeScreenState extends State<HomeScreen>
           'https://images.unsplash.com/photo-1481214110143-ed630356e1bb?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0',
       'profileImage':
           'https://images.unsplash.com/photo-1481214110143-ed630356e1bb?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0',
-      'caption': 'Beautiful sunset today! 🌅',
+      'caption': 'Beautiful sunset today!',
     },
     {
       'name': 'Smith Johnson',
@@ -772,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen>
           'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
       'profileImage':
           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-      'caption': 'New adventures await! ✈️',
+      'caption': 'New adventures await!',
     },
     {
       'name': 'Emma Wilson',
@@ -782,7 +797,7 @@ class _HomeScreenState extends State<HomeScreen>
           'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop',
       'profileImage':
           'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-      'caption': 'Beach vibes 🏖️',
+      'caption': 'Beach vibes',
     },
     {
       'name': 'Alex Chen',
@@ -792,7 +807,8 @@ class _HomeScreenState extends State<HomeScreen>
           'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop',
       'profileImage':
           'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-      'caption': 'City lights never get old 🌃',
+         
+      'caption': 'City lights never get old',
     },
     {
       'name': 'Sarah Davis',
@@ -802,7 +818,7 @@ class _HomeScreenState extends State<HomeScreen>
           'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop',
       'profileImage':
           'https://images.unsplash.com/photo-1494790108755-2616b612b789?w=150&h=150&fit=crop&crop=face',
-      'caption': 'Nature therapy 🌲',
+      'caption': 'Nature therapy',
     },
   ];
 
@@ -874,6 +890,36 @@ class _HomeScreenState extends State<HomeScreen>
     _searchFocus.dispose();
     super.dispose();
   }
+
+  Future<void> _navigateToAdvertiserProfile(int advertiserId) async {
+  if (advertiserId <= 0) {
+    print('Invalid advertiser ID: $advertiserId');
+    return;
+  }
+  
+  try {
+    // Use Navigator.pushNamed if you have routes set up
+    // Or use the direct approach:
+      Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => AdvertiserPublicProfileScreen(advertiserId: advertiserId),
+  ),
+);
+  } catch (e, stackTrace) {
+    print('Navigation failed: $e');
+    print('StackTrace: $stackTrace');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open profile: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
 
   Future<void> _loadCurrentUserFromSession() async {
     try {
@@ -982,28 +1028,281 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _futureFeed = _fetchFeed());
   }
 
-  void _onSearchChanged(String q) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
-      final query = q.trim();
-      if (query.isEmpty) {
+  // Updated search method with filters
+  // Improved search method for your home_screen.dart
+
+void _onSearchChanged(String q) {
+  _searchDebounce?.cancel();
+  _searchDebounce = Timer(const Duration(milliseconds: 500), () async {
+    final query = q.trim();
+    
+    try {
+      List<Map<String, dynamic>> results = [];
+      
+      // Determine search strategy based on input and filters
+      if (query.isEmpty && _selectedGender == null && _selectedLocation == null) {
+        // No query and no filters - hide suggestions
         setState(() {
           _advSuggestions = [];
           _showAdvSuggestions = false;
         });
         return;
       }
-      final results = await AdvertiserService.search(
-        query,
-        page: 1,
-        perPage: 8,
-      );
+      
+      // Use filtered search if filters are applied
+      if (_selectedGender != null || _selectedLocation != null) {
+        results = await AdvertiserService.searchWithFilters(
+          query: query.isEmpty ? null : query,
+          gender: _selectedGender,
+          location: _selectedLocation,
+          page: 1,
+          perPage: 8,
+        );
+      } else if (query.isNotEmpty) {
+        // Use regular search for query-only searches
+        results = await AdvertiserService.search(
+          query,
+          page: 1,
+          perPage: 8,
+        );
+      }
+      
       if (!mounted) return;
+      
       setState(() {
         _advSuggestions = results;
-        _showAdvSuggestions = true;
+        _showAdvSuggestions = results.isNotEmpty;
       });
-    });
+      
+    } catch (e) {
+      print('Search error: $e');
+      if (!mounted) return;
+      
+      setState(() {
+        _advSuggestions = [];
+        _showAdvSuggestions = false;
+      });
+      
+      // Show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Search failed: ${e.toString()}'),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    }
+  });
+}
+
+// Add this getter to check if filters are active
+bool get _hasActiveFilters => 
+    _selectedGender != null || 
+    (_selectedLocation != null && _selectedLocation!.isNotEmpty);
+    
+  // Enhanced search widget with filters
+  Widget _buildSearchWithFilters() {
+    return Column(
+      children: [
+        // Main search bar
+        Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            children: [
+              _buildUserAvatar(radius: 16),
+              const SizedBox(width: 12),
+              const Icon(Icons.search, color: Colors.white70, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  cursorColor: Colors.yellow,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: "Search people...",
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 16,
+                    ),
+                  ),
+                  onChanged: _onSearchChanged,
+                  onTap: () {
+                    if (_searchController.text.isNotEmpty &&
+                        _advSuggestions.isNotEmpty) {
+                      setState(() => _showAdvSuggestions = true);
+                    }
+                  },
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _showFilters ? Icons.filter_list : Icons.tune,
+                  color: _showFilters ? Colors.yellow : Colors.white70,
+                ),
+                onPressed: () {
+                  setState(() => _showFilters = !_showFilters);
+                },
+              ),
+            ],
+          ),
+        ),
+        
+        // Filter options (expandable)
+        if (_showFilters)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[850],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filters',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Gender filter
+                Row(
+                  children: [
+                    const Icon(Icons.person, color: Colors.white70, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Gender:',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        value: _selectedGender,
+                        hint: const Text(
+                          'Any',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        dropdownColor: Colors.grey[800],
+                        style: const TextStyle(color: Colors.white),
+                        underline: Container(),
+                        items: const [
+                          DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Any'),
+                          ),
+                          DropdownMenuItem<String>(
+                            value: 'male',
+                            child: Text('Male'),
+                          ),
+                          DropdownMenuItem<String>(
+                            value: 'female',
+                            child: Text('Female'),
+                          ),
+                          DropdownMenuItem<String>(
+                            value: 'other',
+                            child: Text('Other'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedGender = value);
+                          _onSearchChanged(_searchController.text);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Location filter
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.white70, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Location:',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        cursorColor: Colors.yellow,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey[600]!),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.yellow),
+                          ),
+                          hintText: 'Enter location',
+                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() => _selectedLocation = value.trim().isEmpty ? null : value.trim());
+                          _onSearchChanged(_searchController.text);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                
+                // Clear filters button
+                if (_selectedGender != null || _selectedLocation != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedGender = null;
+                            _selectedLocation = null;
+                          });
+                          _onSearchChanged(_searchController.text);
+                        },
+                        icon: const Icon(Icons.clear, color: Colors.yellow, size: 16),
+                        label: const Text(
+                          'Clear Filters',
+                          style: TextStyle(color: Colors.yellow, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _buildFilterSummary() {
+    final List<String> activeFilters = [];
+    
+    if (_selectedGender != null) {
+      activeFilters.add(_selectedGender!.capitalize());
+    }
+    
+    if (_selectedLocation != null) {
+      activeFilters.add(_selectedLocation!);
+    }
+    
+    return activeFilters.join(', ');
   }
 
   Widget _buildAdvertiserSuggestionsPanel() {
@@ -1021,62 +1320,172 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-      constraints: const BoxConstraints(maxHeight: 280),
+      constraints: const BoxConstraints(maxHeight: 320),
       child: _advSuggestions.isEmpty
           ? const SizedBox(height: 0)
-          : ListView.separated(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: _advSuggestions.length,
-              separatorBuilder: (_, __) =>
-                  Divider(color: Colors.grey[800], height: 1),
-              itemBuilder: (context, i) {
-                final a = _advSuggestions[i];
-                final id = int.tryParse(a['id']?.toString() ?? '') ?? 0;
-                final name = (a['name'] ?? a['username'] ?? 'Advertiser')
-                    .toString();
-                final username = (a['username'] ?? '').toString();
-                final location = (a['location'] ?? '').toString();
-                final avatar = (a['profile_image_url'] ?? '').toString();
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: avatar.isNotEmpty
-                        ? NetworkImage(avatar)
-                        : null,
-                    backgroundColor: Colors.grey[800],
-                    child: avatar.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white70)
-                        : null,
-                  ),
-                  title: Text(
-                    name,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  subtitle: Text(
-                    '${username.isNotEmpty ? '@$username • ' : ''}$location',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                  onTap: () async {
-                    setState(() {
-                      _showAdvSuggestions = false;
-                      _searchController.clear();
-                      _searchFocus.unfocus();
-                    });
-                    if (id > 0) {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AdvertiserPublicProfileScreen(advertiserId: id),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with results count and filter indicator
+                if (_advSuggestions.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${_advSuggestions.length} result${_advSuggestions.length == 1 ? '' : 's'}',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
+                        if (_hasActiveFilters) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.yellow.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.filter_alt, color: Colors.yellow, size: 10),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Filtered',
+                                  style: const TextStyle(color: Colors.yellow, fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        if (_hasActiveFilters)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedGender = null;
+                                _selectedLocation = null;
+                              });
+                              _onSearchChanged(_searchController.text);
+                            },
+                            child: Text(
+                              'Clear filters',
+                              style: const TextStyle(color: Colors.yellow, fontSize: 11),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: _advSuggestions.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(color: Colors.grey[800], height: 1),
+                    itemBuilder: (context, i) {
+                      final a = _advSuggestions[i];
+                      final id = int.tryParse(a['id']?.toString() ?? '') ?? 0;
+                      final name = (a['name'] ?? a['username'] ?? 'Advertiser')
+                          .toString();
+                      final username = (a['username'] ?? '').toString();
+                      final location = (a['location'] ?? '').toString();
+                      final avatar = (a['profile_image_url'] ?? '').toString();
+                      final gender = (a['gender'] ?? '').toString();
+                      return ListTile(
+                        leading: Stack(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: avatar.isNotEmpty
+                                  ? NetworkImage(avatar)
+                                  : null,
+                              backgroundColor: Colors.grey[800],
+                              child: avatar.isEmpty
+                                  ? const Icon(Icons.person, color: Colors.white70)
+                                  : null,
+                            ),
+                            // Online indicator
+                            if (a['is_online'] == true)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.grey[900]!, width: 2),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            if (a['is_verified'] == true)
+                              const Icon(
+                                Icons.verified,
+                                color: Colors.blue,
+                                size: 16,
+                              ),
+                            if (a['is_online'] == true)
+                              Container(
+                                margin: const EdgeInsets.only(left: 4),
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${username.isNotEmpty ? '@$username' : ''}${location.isNotEmpty && username.isNotEmpty ? ' • $location' : location}',
+                              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            ),
+                            if (gender.isNotEmpty || a['distance']?.toString().isNotEmpty == true)
+                              Text(
+                                '${gender.isNotEmpty ? gender.capitalize() : ''}${gender.isNotEmpty && a['distance']?.toString().isNotEmpty == true ? ' • ' : ''}${a['distance']?.toString() ?? ''}',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                              ),
+                          ],
+                        ),
+                        // Replace your ListTile onTap in _buildAdvertiserSuggestionsPanel with this:
+// Replace the onTap handler in your _buildAdvertiserSuggestionsPanel method
+// with this corrected version:
+
+onTap: () async {
+  setState(() {
+    _showAdvSuggestions = false;
+  });
+  _searchController.clear();
+  _searchFocus.unfocus();
+  
+  await _navigateToAdvertiserProfile(id);
+},            
                       );
-                    }
-                  },
-                );
-              },
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1139,47 +1548,41 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       body: Column(
         children: [
-          // Inline advertiser search with suggestions
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Row(
-              children: [
-                _buildUserAvatar(radius: 16),
-                const SizedBox(width: 12),
-                const Icon(Icons.search, color: Colors.white70, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    cursorColor: Colors.yellow,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: "What's on your mind ?",
-                      hintStyle: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 16,
-                      ),
-                    ),
-                    onChanged: _onSearchChanged,
-                    onTap: () {
-                      if (_searchController.text.isNotEmpty &&
-                          _advSuggestions.isNotEmpty) {
-                        setState(() => _showAdvSuggestions = true);
-                      }
-                    },
+          // Enhanced search with filters
+          _buildSearchWithFilters(),
+
+          // Active filters indicator
+          if (_selectedGender != null || _selectedLocation != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.yellow.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.filter_alt, color: Colors.yellow, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filters: ${_buildFilterSummary()}',
+                    style: const TextStyle(color: Colors.yellow, fontSize: 12),
                   ),
-                ),
-              ],
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = null;
+                        _selectedLocation = null;
+                      });
+                      _onSearchChanged(_searchController.text);
+                    },
+                    child: const Icon(Icons.close, color: Colors.yellow, size: 16),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           if (_showAdvSuggestions) _buildAdvertiserSuggestionsPanel(),
 
@@ -1310,11 +1713,11 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // (Legacy search delegate methods removed; inline search now used.)
-
   // Local UI state for likes per post
   final Set<int> _likedPostIds = <int>{};
   final Map<int, int> _postLikeCounts = <int, int>{};
+  
+  // get _hasActiveFilters => null;
 
   void _startChatWithAdvertiser(int advertiserId) async {
     // You may want to fetch or create a conversation with the advertiser here
@@ -1324,6 +1727,9 @@ class _HomeScreenState extends State<HomeScreen>
       MaterialPageRoute(builder: (context) => ChatScreen(conversationId: 0)),
     );
   }
+
+  // Add this helper method to your _HomeScreenState class:
+
 
   void _openCommentsForPost(int postId) {
     showModalBottomSheet(
@@ -1364,55 +1770,70 @@ class _HomeScreenState extends State<HomeScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+          // Replace your existing header section in _buildPostCard with this:
+// Header with clickable profile
+Padding(
+  padding: const EdgeInsets.all(16),
+  child: Row(
+    children: [
+      GestureDetector(
+        onTap: () async {
+          // Navigate to advertiser public profile
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AdvertiserPublicProfileScreen(advertiserId: advertiserId),
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: NetworkImage(profileImage),
+              backgroundColor: Colors.grey[700],
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: NetworkImage(profileImage),
-                  backgroundColor: Colors.grey[700],
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Icon(
+                      Icons.location_on,
+                      color: Colors.grey[400],
+                      size: 14,
                     ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: Colors.grey[400],
-                          size: 14,
-                        ),
-                        Text(
-                          location,
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      location,
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Message',
-                  icon: const Icon(Icons.send, color: Colors.white70),
-                  onPressed: () => _startChatWithAdvertiser(advertiserId),
-                ),
               ],
             ),
-          ),
-
+          ],
+        ),
+      ),
+      const Spacer(),
+      IconButton(
+        tooltip: 'Message',
+        icon: const Icon(Icons.send, color: Colors.white70),
+        onPressed: () => _startChatWithAdvertiser(advertiserId),
+      ),
+    ],
+  ),
+),
           // Image
           Container(
             height: 300,
@@ -1964,6 +2385,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     await _load();
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return SafeArea(

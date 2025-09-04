@@ -48,11 +48,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   bool isOnline = false;
   bool isLoading = true;
 
-  // Stats
-
-  // int followersCount = 221;
-  // int followingCount = 1025;
-
+  
   @override
   void initState() {
     super.initState();
@@ -1225,185 +1221,96 @@ Future<List<String>> _fetchMyPostImages() async {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Profile Header Section
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Profile image, stats, and buttons row
-                        Row(
-                          children: [
-                            // Profile Image
-                            _getProfileImage(radius: 45),
-                            SizedBox(width: 20),
+                 // Replace the existing Profile Header Section in your build method with this:
 
-                            // Stats
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildStatColumn('120', 'Followers'),
-                                _buildStatColumn('45', 'Posts'),
-                                _buildStatColumn('30', 'Likes'),
-                              ],
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
+// Profile Header Section
+Padding(
+  padding: EdgeInsets.all(16),
+  child: Column(
+    children: [
+      // Centered profile section
+      Column(
+        children: [
+          // Profile Image - centered
+          _getProfileImage(radius: 45),
+          SizedBox(height: 16),
 
-                        // Bio section
-                        Container(
-                          width: double.infinity,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (userLocation.isNotEmpty)
-                                Text(
-                                  userLocation,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: blackColor,
-                                  ),
-                                ),
-                              SizedBox(height: 4),
-                              Text(
-                                userBio,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: blackColor,
-                                ),
-                              ),
-                              if (userEmail.isNotEmpty) ...[
-                                SizedBox(height: 4),
-                                Text(
-                                  userEmail,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: greyColor,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 16),
+          // Username with verification badge - centered
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isLoading ? 'Loading...' : userName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: blackColor,
+                ),
+              ),
+              if (isVerified) ...[
+                SizedBox(width: 4),
+                Icon(Icons.verified, color: brightGold, size: 16),
+              ],
+            ],
+          ),
+          SizedBox(height: 8),
 
-                        // Action buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    // Edit profile functionality
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Opening Edit Profile...',
-                                        ),
-                                        backgroundColor: goldColor,
-                                      ),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: greyColor.withOpacity(0.2),
-                                    foregroundColor: blackColor,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Edit profile',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                child: ElevatedButton(
-                                  onPressed: () => Get.to(
-                                    () => CommentSection(),
-                                    transition: Transition.upToDown,
-                                    duration: const Duration(milliseconds: 500),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: goldColor,
-                                    foregroundColor: blackColor,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'View archive',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Container(
-                              height: 32,
-                              width: 32,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // Settings functionality
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SettingsScreen(),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: greyColor.withOpacity(0.2),
-                                  foregroundColor: blackColor,
-                                  elevation: 0,
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.person_add_outlined,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
+          // Location - centered
+          if (userLocation.isNotEmpty)
+            Text(
+              userLocation,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: greyColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          if (userLocation.isNotEmpty) SizedBox(height: 8),
 
-                        // Story highlights with enhanced "New" button
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildStoryHighlight(
-                                isNew: true,
-                                title: 'New',
-                                onTap:
-                                    _handleNewStoryTap, // Fixed: Use the correct handler
-                              ),
-                              // Add more story highlights here if needed
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          // Bio - centered
+          Text(
+            userBio,
+            style: TextStyle(
+              fontSize: 14,
+              color: blackColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
 
+          // Email - centered (if you want to keep it)
+          if (userEmail.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Text(
+              userEmail,
+              style: TextStyle(
+                fontSize: 14,
+                color: greyColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+      SizedBox(height: 20),
+
+      // Story highlights with enhanced "New" button
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildStoryHighlight(
+              isNew: true,
+              title: 'New',
+              onTap: _handleNewStoryTap,
+            ),
+            // Add more story highlights here if needed
+          ],
+        ),
+      ),
+    ],
+  ),
+),
                   // Tab bar and posts grid
                   DefaultTabController(
                     length: 4,
