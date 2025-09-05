@@ -49,11 +49,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   bool isOnline = false;
   bool isLoading = true;
 
-  // Stats
-
-  // int followersCount = 221;
-  // int followingCount = 1025;
-
+  
   @override
   void initState() {
     super.initState();
@@ -1213,17 +1209,19 @@ Future<List<String>> _fetchMyPostImages() async {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Profile Header Section
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Profile image, stats, and buttons row
-                        Row(
-                          children: [
-                            // Profile Image
-                            _getProfileImage(radius: 45),
-                            SizedBox(width: 20),
+                 // Replace the existing Profile Header Section in your build method with this:
+
+// Profile Header Section
+Padding(
+  padding: EdgeInsets.all(16),
+  child: Column(
+    children: [
+      // Centered profile section
+      Column(
+        children: [
+          // Profile Image - centered
+          _getProfileImage(radius: 45),
+          SizedBox(height: 16),
 
                             // Stats
                             Row(
@@ -1375,25 +1373,23 @@ Future<List<String>> _fetchMyPostImages() async {
                         ),
                         SizedBox(height: 20),
 
-                        // Story highlights with enhanced "New" button
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildStoryHighlight(
-                                isNew: true,
-                                title: 'New',
-                                onTap:
-                                    _handleNewStoryTap, // Fixed: Use the correct handler
-                              ),
-                              // Add more story highlights here if needed
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+      // Story highlights with enhanced "New" button
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildStoryHighlight(
+              isNew: true,
+              title: 'New',
+              onTap: _handleNewStoryTap,
+            ),
+            // Add more story highlights here if needed
+          ],
+        ),
+      ),
+    ],
+  ),
+),
                   // Tab bar and posts grid
                   DefaultTabController(
                     length: 4,

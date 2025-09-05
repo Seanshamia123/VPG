@@ -259,6 +259,8 @@ class AdvertisersByLocation(Resource):
         except Exception as e:
             api.abort(500, f'Failed to retrieve advertisers by location: {str(e)}')
 
+# Fixed version of the search endpoint in advertiser_api.py
+
 @api.route('/search')
 class SearchAdvertisers(Resource):
     @api.doc('search_advertisers')
@@ -266,11 +268,24 @@ class SearchAdvertisers(Resource):
         """Search advertisers by name or username."""
         try:
             q = (request.args.get('q') or '').strip()
-            if not q:
-                api.abort(400, 'q is required')
+            # Remove the requirement for q parameter - allow empty searches
+            # if not q:
+            #     api.abort(400, 'q is required')
+            
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
-            qry = Advertiser.query.filter(db.or_(Advertiser.name.ilike(f'%{q}%'), Advertiser.username.ilike(f'%{q}%')))
+            
+            # If no query provided, return all advertisers with pagination
+            if not q:
+                qry = Advertiser.query
+            else:
+                qry = Advertiser.query.filter(
+                    db.or_(
+                        Advertiser.name.ilike(f'%{q}%'), 
+                        Advertiser.username.ilike(f'%{q}%')
+                    )
+                )
+            
             pagination = qry.paginate(page=page, per_page=per_page, error_out=False)
             return {
                 'items': [a.to_dict_safe() for a in pagination.items],
@@ -278,10 +293,110 @@ class SearchAdvertisers(Resource):
                 'pages': pagination.pages,
                 'current_page': pagination.page,
                 'per_page': pagination.per_page,
+                'query': q if q else None
             }
         except Exception as e:
             api.abort(500, f'Failed to search advertisers: {str(e)}')
 
+
+ # Add this to your advertiser_api.py to handle posts by advertiser
+
+@api.route('/<int:advertiser_id>/posts')
+class AdvertiserPosts(Resource):
+    @api.doc('get_advertiser_posts')
+    def get(self, advertiser_id):
+        """Get all posts by a specific advertiser"""
+        try:
+            # Verify advertiser exists
+            advertiser = Advertiser.find_by_id(advertiser_id)
+            if not advertiser:
+                api.abort(404, 'Advertiser not found')
+            
+            # Get pagination parameters
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            # Import Post model (you'll need to add this import at the top)
+            from models import Post
+            
+            # Query posts by advertiser
+            posts_query = Post.query.filter_by(advertiser_id=advertiser_id)
+            pagination = posts_query.paginate(
+                page=page, 
+                per_page=per_page, 
+                error_out=False
+            )
+            
+            # Convert to dict format
+            posts_data = []
+            for post in pagination.items:
+                post_dict = {
+                    'id': post.id,
+                    'caption': post.caption,
+                    'image_url': post.image_url,
+                    'likes_count': getattr(post, 'likes_count', 0),
+                    'comments_count': getattr(post, 'comments_count', 0),
+                    'created_at': post.created_at.isoformat() if hasattr(post, 'created_at') else None,
+                    'updated_at': post.updated_at.isoformat() if hasattr(post, 'updated_at') else None,
+                    'liked_by_me': False  # You'll need to implement this based on current user
+                }
+                posts_data.append(post_dict)
+            
+            return {
+                'posts': posts_data,
+                'total': pagination.total,
+                'pages': pagination.pages,
+                'current_page': pagination.page,
+                'per_page': pagination.per_page
+            }
+            
+        except Exception as e:
+            print(f"Error fetching advertiser posts: {str(e)}")
+            api.abort(500, f'Failed to retrieve advertiser posts: {str(e)}')
+
+# Also add better error handling to existing endpoints
+@api.route('/<int:advertiser_id>')
+class AdvertiserDetail(Resource):
+    @api.doc('get_advertiser')
+    def get(self, advertiser_id):
+        """Get advertiser by ID with better error handling"""
+        try:
+            # Add input validation
+            if not isinstance(advertiser_id, int) or advertiser_id <= 0:
+                api.abort(400, 'Invalid advertiser ID')
+                
+            advertiser = Advertiser.find_by_id(advertiser_id)
+            if not advertiser:
+                api.abort(404, 'Advertiser not found')
+            
+            # Make sure to_dict_safe() method exists
+            if not hasattr(advertiser, 'to_dict_safe'):
+                # Fallback to manual dict creation
+                advertiser_data = {
+                    'id': advertiser.id,
+                    'username': advertiser.username,
+                    'name': advertiser.name,
+                    'email': advertiser.email,
+                    'phone_number': advertiser.phone_number,
+                    'location': advertiser.location,
+                    'gender': advertiser.gender,
+                    'bio': getattr(advertiser, 'bio', ''),
+                    'profile_image_url': getattr(advertiser, 'profile_image_url', ''),
+                    'is_verified': getattr(advertiser, 'is_verified', False),
+                    'is_online': getattr(advertiser, 'is_online', False),
+                    'created_at': advertiser.created_at.isoformat() if hasattr(advertiser, 'created_at') else None,
+                    'updated_at': advertiser.updated_at.isoformat() if hasattr(advertiser, 'updated_at') else None,
+                    'last_active': getattr(advertiser, 'last_active', {}).isoformat() if hasattr(advertiser, 'last_active') else None
+                }
+                return advertiser_data
+            
+            return advertiser.to_dict_safe()
+            
+        except Exception as e:
+            print(f"Error fetching advertiser {advertiser_id}: {str(e)}")
+            api.abort(500, f'Failed to retrieve advertiser: {str(e)}')
+            
+                       
 @api.route('/nearby')
 class NearbyAdvertisers(Resource):
     @api.doc('nearby_advertisers')
@@ -318,3 +433,101 @@ class NearbyAdvertisers(Resource):
             return {'items': out, 'total': len(out)}
         except Exception as e:
             api.abort(500, f'Failed to compute nearby advertisers: {str(e)}')
+
+
+# Add this new endpoint to your advertiser_api.py
+
+@api.route('/search/filtered')
+class SearchAdvertisersWithFilters(Resource):
+    @api.doc('search_advertisers_with_filters')
+    def get(self):
+        """Search advertisers with advanced filtering by name, gender, location, and other criteria."""
+        try:
+            # Get search parameters
+            query = request.args.get('q', '').strip()
+            gender = request.args.get('gender', '').strip()
+            location = request.args.get('location', '').strip()
+            verified_only = request.args.get('verified_only', False, type=bool)
+            online_only = request.args.get('online_only', False, type=bool)
+            
+            # Pagination
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            # Start with base query
+            advertiser_query = Advertiser.query
+            
+            # Apply text search if provided (name or username)
+            if query:
+                advertiser_query = advertiser_query.filter(
+                    db.or_(
+                        Advertiser.name.ilike(f'%{query}%'),
+                        Advertiser.username.ilike(f'%{query}%')
+                    )
+                )
+            
+            # Apply gender filter if provided
+            if gender:
+                # Handle different gender formats (male/Male/MALE)
+                advertiser_query = advertiser_query.filter(
+                    Advertiser.gender.ilike(f'{gender}%')
+                )
+            
+            # Apply location filter if provided
+            if location:
+                advertiser_query = advertiser_query.filter(
+                    Advertiser.location.ilike(f'%{location}%')
+                )
+            
+            # Apply verification filter
+            if verified_only:
+                advertiser_query = advertiser_query.filter(
+                    Advertiser.is_verified == True
+                )
+            
+            # Apply online status filter
+            if online_only:
+                advertiser_query = advertiser_query.filter(
+                    Advertiser.is_online == True
+                )
+            
+            # Order by verification status, online status, then name
+            advertiser_query = advertiser_query.order_by(
+                Advertiser.is_verified.desc(),
+                Advertiser.is_online.desc(),
+                Advertiser.name.asc()
+            )
+            
+            # Execute query with pagination
+            pagination = advertiser_query.paginate(
+                page=page, 
+                per_page=per_page, 
+                error_out=False
+            )
+            
+            # Build response
+            results = []
+            for advertiser in pagination.items:
+                adv_data = advertiser.to_dict_safe()
+                # Add distance info if coordinates are available (placeholder for now)
+                adv_data['distance'] = '-- km'  # Could calculate real distance if user location provided
+                results.append(adv_data)
+            
+            return {
+                'items': results,
+                'total': pagination.total,
+                'pages': pagination.pages,
+                'current_page': pagination.page,
+                'per_page': pagination.per_page,
+                'filters_applied': {
+                    'query': query if query else None,
+                    'gender': gender if gender else None,
+                    'location': location if location else None,
+                    'verified_only': verified_only,
+                    'online_only': online_only
+                },
+                'has_filters': bool(query or gender or location or verified_only or online_only)
+            }
+            
+        except Exception as e:
+            api.abort(500, f'Failed to search advertisers: {str(e)}')

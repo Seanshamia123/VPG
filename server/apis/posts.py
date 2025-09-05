@@ -953,7 +953,72 @@ class PostLikesResource(Resource):
         except Exception as e:
             print(f"Error fetching likes for post {post_id}: {str(e)}")
             api.abort(500, f'Failed to retrieve post likes: {str(e)}')
+# Add this to your PostComments class in posts.py
 
+@api.route('/<int:post_id>/comments')
+class PostComments(Resource):
+    @api.doc('get_post_comments')
+    @token_required
+    def get(self, current_advertiser, post_id):
+        """Get comments for a post"""
+        # ... existing GET method code ...
+
+    @api.doc('create_comment')
+    @token_required
+    def post(self, current_advertiser, post_id):
+        """Add a comment to a post"""
+        try:
+            post = Post.query.get(post_id)
+            if not post:
+                api.abort(404, 'Post not found')
+            
+            data = request.get_json()
+            if not data or not data.get('content'):
+                api.abort(400, 'Comment content is required')
+            
+            content = data['content'].strip()
+            if not content:
+                api.abort(400, 'Comment content cannot be empty')
+            
+            # Create new comment
+            comment = Comment(
+                target_type='post',
+                target_id=post_id,
+                user_id=current_advertiser.id,
+                content=content,
+                likes_count=0,
+                is_deleted=False
+            )
+            
+            db.session.add(comment)
+            db.session.commit()
+            
+            # Refresh to get timestamps
+            db.session.refresh(comment)
+            
+            # Get advertiser info for response
+            advertiser = Advertiser.find_by_id(current_advertiser.id)
+            
+            result = {
+                'id': comment.id,
+                'advertiser_id': comment.user_id,
+                'content': comment.content,
+                'likes_count': comment.likes_count,
+                'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                'advertiser': {
+                    'id': advertiser.id if advertiser else None,
+                    'name': advertiser.name if advertiser else 'Unknown Advertiser',
+                    'username': advertiser.username if advertiser else 'unknown'
+                }
+            }
+            
+            return result, 201
+            
+        except Exception as e:
+            print(f"Error creating comment: {e}")
+            db.session.rollback()
+            api.abort(500, f'Failed to create comment: {str(e)}')
+            
 @api.route('/search')
 class SearchPosts(Resource):
     @api.doc('search_posts')

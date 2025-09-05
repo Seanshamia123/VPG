@@ -241,21 +241,37 @@ class SearchUsers(Resource):
     @api.doc('search_users')
     @token_required
     def get(self, current_user):
-        """Search users by name or username"""
+        """Search users by name or username with optional filters"""
         try:
             query = request.args.get('q', '').strip()
-            if not query:
-                api.abort(400, 'Search query is required')
+            gender = request.args.get('gender', '').strip()
+            location = request.args.get('location', '').strip()
             
             page = request.args.get('page', 1, type=int)
             per_page = request.args.get('per_page', 10, type=int)
             
-            users = User.query.filter(
-                db.or_(
-                    User.name.ilike(f'%{query}%'),
-                    User.username.ilike(f'%{query}%')
+            # Start with base query
+            user_query = User.query
+            
+            # Apply text search if provided
+            if query:
+                user_query = user_query.filter(
+                    db.or_(
+                        User.name.ilike(f'%{query}%'),
+                        User.username.ilike(f'%{query}%')
+                    )
                 )
-            ).paginate(
+            
+            # Apply gender filter if provided
+            if gender:
+                user_query = user_query.filter(User.gender.ilike(f'%{gender}%'))
+            
+            # Apply location filter if provided
+            if location:
+                user_query = user_query.filter(User.location.ilike(f'%{location}%'))
+            
+            # Execute query with pagination
+            users = user_query.paginate(
                 page=page,
                 per_page=per_page,
                 error_out=False
@@ -265,11 +281,17 @@ class SearchUsers(Resource):
                 'users': [user.to_dict_safe() for user in users.items],
                 'total': users.total,
                 'pages': users.pages,
-                'current_page': users.page
+                'current_page': users.page,
+                'filters_applied': {
+                    'query': query,
+                    'gender': gender,
+                    'location': location
+                }
             }
             
         except Exception as e:
             api.abort(500, f'Failed to search users: {str(e)}')
+
 @api.route('/<int:user_id>/avatar')
 class UserAvatar(Resource):
     @api.doc('upload_user_avatar')
