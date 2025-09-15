@@ -39,14 +39,27 @@ class Advertiser {
   final int id;
   final String name;
   final String username;
+  final String? city;
+  final String? country;
+  final String? profileImageUrl;
 
-  Advertiser({required this.id, required this.name, required this.username});
+  Advertiser({
+    required this.id,
+    required this.name,
+    required this.username,
+    this.city,
+    this.country,
+    this.profileImageUrl,
+  });
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
       id: json['id'] as int,
       name: json['name'] as String? ?? 'Unknown Advertiser',
       username: json['username'] as String? ?? 'unknown',
+      city: json['city'] as String?,
+      country: json['country'] as String?,
+      profileImageUrl: json['profile_image_url'] as String?,
     );
   }
 }

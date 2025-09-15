@@ -17,20 +17,22 @@ class AdvertiserService {
     try {
       final url = '$baseUrl/api/advertisers/?page=$page&per_page=$perPage';
       final data = await ApiClient.getJson(url, auth: false);
-      
+
       // Handle new standardized response format
       if (data['items'] is List) {
         return (data['items'] as List).cast<Map<String, dynamic>>();
       }
-      
+
       // Fallback for older formats
       if (data['data'] is List) {
         return (data['data'] as List).cast<Map<String, dynamic>>();
       }
       if (data is List) {
-        return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        return (data as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
       }
-      
+
       return [];
     } catch (e) {
       print('Error fetching advertisers: $e');
@@ -39,23 +41,24 @@ class AdvertiserService {
   }
 
   /// Fetch advertiser profile by ID with proper error handling
-  static Future<Map<String, dynamic>?> fetchAdvertiserById(int advertiserId) async {
+  static Future<Map<String, dynamic>?> fetchAdvertiserById(
+    int advertiserId,
+  ) async {
     try {
       print('=== FETCHING ADVERTISER BY ID ===');
       print('Advertiser ID: $advertiserId');
       print('URL: $baseUrl/api/advertisers/$advertiserId');
-      
+
       final url = '$baseUrl/api/advertisers/$advertiserId';
-      
+
       // Use consistent error handling approach
-      final response = await http.get(
-        Uri.parse(url),
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
-      
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
+
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data;
@@ -64,36 +67,37 @@ class AdvertiserService {
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
-      
     } catch (e) {
+      // ignore: avoid_print
       print('Error fetching advertiser by ID: $e');
       throw Exception('Failed to load advertiser profile: $e');
     }
   }
 
   /// Fetch posts by advertiser ID using the correct endpoint
-  static Future<List<Map<String, dynamic>>> fetchAdvertiserPosts(int advertiserId) async {
+  static Future<List<Map<String, dynamic>>> fetchAdvertiserPosts(
+    int advertiserId,
+  ) async {
     try {
       print('=== FETCHING POSTS BY ADVERTISER ID ===');
       print('Advertiser ID: $advertiserId');
-      
+
       // Use the correct endpoint pattern
       final url = '$baseUrl/api/advertisers/$advertiserId/posts';
       print('URL: $url');
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
+
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         List<Map<String, dynamic>> posts = [];
-        
+
         // Handle the response structure
         if (data['posts'] is List) {
           posts = (data['posts'] as List).cast<Map<String, dynamic>>();
@@ -104,10 +108,9 @@ class AdvertiserService {
         } else if (data is List) {
           posts = (data as List).cast<Map<String, dynamic>>();
         }
-        
+
         print('Extracted ${posts.length} posts');
         return posts;
-        
       } else if (response.statusCode == 404) {
         print('Advertiser or posts not found');
         return [];
@@ -115,7 +118,6 @@ class AdvertiserService {
         print('Server error: ${response.statusCode}');
         return [];
       }
-      
     } catch (e) {
       print('Error fetching advertiser posts: $e');
       return [];
@@ -133,30 +135,30 @@ class AdvertiserService {
         'page': page.toString(),
         'per_page': perPage.toString(),
       };
-      
+
       // Only add query parameter if it's not empty
       if (query.trim().isNotEmpty) {
         params['q'] = query.trim();
       }
-      
-      final uri = Uri.parse('$baseUrl/api/advertisers/search')
-          .replace(queryParameters: params);
-      
-      final response = await http.get(
-        uri,
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final uri = Uri.parse(
+        '$baseUrl/api/advertisers/search',
+      ).replace(queryParameters: params);
+
+      final response = await http
+          .get(uri, headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (data['items'] is List) {
           return (data['items'] as List).cast<Map<String, dynamic>>();
         }
         if (data['data'] is List) {
           return (data['data'] as List).cast<Map<String, dynamic>>();
         }
-        
+
         return [];
       } else {
         print('Search failed with status: ${response.statusCode}');
@@ -203,18 +205,18 @@ class AdvertiserService {
       }
 
       // Build URL with query parameters
-      final uri = Uri.parse('$baseUrl/api/advertisers/search/filtered')
-          .replace(queryParameters: params);
+      final uri = Uri.parse(
+        '$baseUrl/api/advertisers/search/filtered',
+      ).replace(queryParameters: params);
 
-      final response = await http.get(
-        uri,
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(uri, headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> items = data['items'] ?? [];
-        
+
         return items.map<Map<String, dynamic>>((item) {
           return {
             'id': item['id']?.toString() ?? '0',
@@ -247,12 +249,11 @@ class AdvertiserService {
   static Future<Map<String, dynamic>?> getById(int id) async {
     try {
       final url = '$baseUrl/api/advertisers/$id';
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders())
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else if (response.statusCode == 404) {
@@ -273,11 +274,8 @@ class AdvertiserService {
     int limit = 5,
   }) async {
     if (query.trim().isEmpty) return [];
-    
-    return await searchWithFilters(
-      query: query,
-      perPage: limit,
-    );
+
+    return await searchWithFilters(query: query, perPage: limit);
   }
 
   /// Get popular/trending advertisers
@@ -348,13 +346,13 @@ class AdvertiserService {
     );
   }
 
-  static Future<String?> uploadAvatarBase64(String base64Image, {String folder = 'vpg/advertisers'}) async {
+  static Future<String?> uploadAvatarBase64(
+    String base64Image, {
+    String folder = 'vpg/advertisers',
+  }) async {
     final data = await ApiClient.postJson(
       '${ApiConfig.api}/posts/upload-image',
-      {
-        'image': base64Image,
-        'folder': folder,
-      },
+      {'image': base64Image, 'folder': folder},
       auth: true,
     );
     if ((data['statusCode'] ?? 0) >= 200 && (data['statusCode'] ?? 0) < 300) {
@@ -403,9 +401,10 @@ class CommentsService {
     int perPage = 50,
   }) async {
     try {
-      final url = '${ApiConfig.api}/api/posts/$postId/comments?page=$page&per_page=$perPage';
+      final url =
+          '${ApiConfig.api}/api/posts/$postId/comments?page=$page&per_page=$perPage';
       final data = await ApiClient.getJson(url, auth: true);
-      
+
       if (data['items'] is List) {
         return (data['items'] as List).cast<Map<String, dynamic>>();
       }
@@ -415,7 +414,7 @@ class CommentsService {
       if (data is List) {
         return (data as List).cast<Map<String, dynamic>>();
       }
-      
+
       return [];
     } catch (e) {
       print('Error fetching comments: $e');
@@ -425,28 +424,28 @@ class CommentsService {
 
   // In your advertiser_service.dart, update the CommentsService.addPostComment method:
 
-static Future<Map<String, dynamic>> addPostComment({
-  required int postId,
-  required String content,
-}) async {
-  try {
-    print('=== ADDING COMMENT DEBUG ===');
-    print('Post ID: $postId');
-    print('Content: $content');
-    
-    final response = await ApiClient.postJson(
-      '${ApiConfig.api}/api/posts/$postId/comments',
-      {'content': content.trim()},
-      auth: true,
-    );
-    
-    print('Comment added successfully: $response');
-    return response;
-  } catch (e) {
-    print('Error adding comment: $e');
-    throw Exception('Failed to add comment: $e');
+  static Future<Map<String, dynamic>> addPostComment({
+    required int postId,
+    required String content,
+  }) async {
+    try {
+      print('=== ADDING COMMENT DEBUG ===');
+      print('Post ID: $postId');
+      print('Content: $content');
+
+      final response = await ApiClient.postJson(
+        '${ApiConfig.api}/api/posts/$postId/comments',
+        {'content': content.trim()},
+        auth: true,
+      );
+
+      print('Comment added successfully: $response');
+      return response;
+    } catch (e) {
+      print('Error adding comment: $e');
+      throw Exception('Failed to add comment: $e');
+    }
   }
-}
 }
 
 /// Service for handling conversations/chat - used by AdvertiserPublicProfileScreen
