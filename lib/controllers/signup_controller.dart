@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:escort/services/auth_service.dart';
 import 'package:escort/services/token_storage.dart';
-import 'package:escort/screens/shared_screens/login.dart';
+import 'package:escort/features/auth/presentation/screens/login.dart';
 
 class SignupController extends GetxController {
   // Form controllers
