@@ -12,8 +12,6 @@ import 'package:escort/services/token_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:escort/l10n/app_localizations.dart';
 import 'dart:async';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 // import 'package:http/http.dart' as http;
 import 'package:escort/services/post_service.dart';
 // ignore: library_prefixes
@@ -116,10 +114,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'VipGalz',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.black,
-      ),
+      theme: ThemeData(colorScheme: const ColorScheme.light()),
       home: MainScreen(),
       debugShowCheckedModeBanner: false,
       routes: {'/messages': (context) => MessagesScreen()},
@@ -154,13 +149,18 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.yellow,
-        unselectedItemColor: Colors.grey,
+        backgroundColor:
+            theme.bottomAppBarTheme.color ?? scheme.surface,
+        selectedItemColor: scheme.primary,
+        unselectedItemColor: scheme.onSurfaceVariant,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
@@ -344,7 +344,7 @@ class _LocationScreenState extends State<LocationScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -584,6 +584,36 @@ class _HomeScreenState extends State<HomeScreen>
 
   // No local demo posts; feed uses backend only
 
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
+  ThemeData get _theme => Theme.of(context);
+  TextTheme get _textTheme => Theme.of(context).textTheme;
+  bool get _isDark => _theme.brightness == Brightness.dark;
+
+  Color get _primaryColor => _scheme.primary;
+  Color get _onPrimaryColor => _scheme.onPrimary;
+  Color get _surfaceColor => _theme.scaffoldBackgroundColor;
+  Color get _surfaceVariantColor => _scheme.surface;
+  Color get _onSurfaceColor => _scheme.onSurface;
+  Color get _onSurfaceVariantColor => _scheme.onSurfaceVariant;
+  Color get _dividerColor => _theme.dividerColor;
+
+  Color get _panelBackgroundColor =>
+      _isDark ? const Color(0xFF111315) : _surfaceColor;
+  Color get _panelSurfaceColor =>
+      _isDark ? const Color(0xFF1F2426) : _surfaceVariantColor;
+  Color get _panelCardColor =>
+      _isDark ? const Color(0xFF1C1F20) : _theme.cardColor;
+  Color get _textPrimaryColor =>
+      _isDark ? Colors.white : _onSurfaceColor;
+  Color get _textSecondaryColor =>
+      _isDark ? Colors.white70 : _onSurfaceVariantColor;
+  Color get _borderNeutralColor =>
+      _isDark ? Colors.white24 : _dividerColor;
+  Color get _chipBackgroundColor =>
+      _primaryColor.withValues(alpha: _isDark ? 0.18 : 0.08);
+  Color get _chipBorderColor =>
+      _primaryColor.withValues(alpha: _isDark ? 0.35 : 0.2);
+
   @override
   void initState() {
     super.initState();
@@ -732,7 +762,7 @@ class _HomeScreenState extends State<HomeScreen>
       return CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(img),
-        backgroundColor: Colors.grey[700],
+        backgroundColor: _surfaceVariantColor,
       );
     }
     final initials = _initialsFor(userProfile.name);
@@ -743,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen>
       child: Text(
         initials,
         style: TextStyle(
-          color: Colors.white,
+          color: _onSurfaceColor,
           fontWeight: FontWeight.w600,
           fontSize: radius * 0.9,
           letterSpacing: 0.5,
@@ -877,6 +907,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Enhanced search widget with filters
   Widget _buildSearchWithFilters() {
+    final hintStyle = _textTheme.bodyMedium?.copyWith(
+          color: _textSecondaryColor,
+          fontSize: 16,
+        ) ??
+        TextStyle(color: _textSecondaryColor, fontSize: 16);
+
     return Column(
       children: [
         // Main search bar
@@ -884,26 +920,30 @@ class _HomeScreenState extends State<HomeScreen>
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.grey[900],
+            color: _panelSurfaceColor,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Row(
             children: [
               _buildUserAvatar(radius: 16),
               const SizedBox(width: 12),
-              const Icon(Icons.search, color: Colors.white70, size: 20),
+              Icon(Icons.search, color: _textSecondaryColor, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocus,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  cursorColor: Colors.yellow,
+                  style: _textTheme.bodyMedium?.copyWith(
+                        color: _textPrimaryColor,
+                        fontSize: 16,
+                      ) ??
+                      TextStyle(color: _textPrimaryColor, fontSize: 16),
+                  cursorColor: _primaryColor,
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: "Search people...",
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
+                    hintText: 'Search people...',
+                    hintStyle: hintStyle,
                   ),
                   onChanged: _onSearchChanged,
                   onTap: () {
@@ -917,7 +957,7 @@ class _HomeScreenState extends State<HomeScreen>
               IconButton(
                 icon: Icon(
                   _showFilters ? Icons.filter_list : Icons.tune,
-                  color: _showFilters ? Colors.yellow : Colors.white70,
+                  color: _showFilters ? _primaryColor : _textSecondaryColor,
                 ),
                 onPressed: () {
                   setState(() => _showFilters = !_showFilters);
@@ -933,56 +973,67 @@ class _HomeScreenState extends State<HomeScreen>
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[850],
+              color: _panelCardColor,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _borderNeutralColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Filters',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: _textTheme.titleSmall?.copyWith(
+                        color: _textPrimaryColor,
+                        fontWeight: FontWeight.w600,
+                      ) ??
+                      TextStyle(
+                        color: _textPrimaryColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 const SizedBox(height: 12),
 
                 // Gender filter
                 Row(
                   children: [
-                    const Icon(Icons.person, color: Colors.white70, size: 20),
+                    Icon(Icons.person, color: _textSecondaryColor, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Gender:',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      style: _textTheme.bodySmall?.copyWith(
+                            color: _textSecondaryColor,
+                            fontSize: 14,
+                          ) ??
+                          TextStyle(color: _textSecondaryColor, fontSize: 14),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButton<String>(
+                      child: DropdownButton<String?>(
                         value: _selectedGender,
-                        hint: const Text(
-                          'Any',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        dropdownColor: Colors.grey[800],
-                        style: const TextStyle(color: Colors.white),
-                        underline: Container(),
+                        hint: Text('Any', style: hintStyle),
+                        dropdownColor: _panelSurfaceColor,
+                        style: _textTheme.bodyMedium?.copyWith(
+                              color: _textPrimaryColor,
+                            ) ??
+                            TextStyle(color: _textPrimaryColor),
+                        iconEnabledColor: _textSecondaryColor,
+                        iconDisabledColor: _textSecondaryColor,
+                        underline: const SizedBox.shrink(),
                         items: const [
-                          DropdownMenuItem<String>(
+                          DropdownMenuItem<String?>(
                             value: null,
                             child: Text('Any'),
                           ),
-                          DropdownMenuItem<String>(
+                          DropdownMenuItem<String?>(
                             value: 'male',
                             child: Text('Male'),
                           ),
-                          DropdownMenuItem<String>(
+                          DropdownMenuItem<String?>(
                             value: 'female',
                             child: Text('Female'),
                           ),
-                          DropdownMenuItem<String>(
+                          DropdownMenuItem<String?>(
                             value: 'other',
                             child: Text('Other'),
                           ),
@@ -1000,35 +1051,41 @@ class _HomeScreenState extends State<HomeScreen>
                 // Location filter
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.location_on,
-                      color: Colors.white70,
+                      color: _textSecondaryColor,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Location:',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      style: _textTheme.bodySmall?.copyWith(
+                            color: _textSecondaryColor,
+                            fontSize: 14,
+                          ) ??
+                          TextStyle(color: _textSecondaryColor, fontSize: 14),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        cursorColor: Colors.yellow,
+                        style: _textTheme.bodyMedium?.copyWith(
+                              color: _textPrimaryColor,
+                              fontSize: 14,
+                            ) ??
+                            TextStyle(color: _textPrimaryColor, fontSize: 14),
+                        cursorColor: _primaryColor,
                         decoration: InputDecoration(
                           isDense: true,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey[600]!),
+                            borderSide: BorderSide(color: _borderNeutralColor),
                           ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.yellow),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: _primaryColor),
                           ),
                           hintText: 'Enter location',
-                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          hintStyle: hintStyle.copyWith(fontSize: 14),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 8,
@@ -1060,14 +1117,17 @@ class _HomeScreenState extends State<HomeScreen>
                           });
                           _onSearchChanged(_searchController.text);
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.clear,
-                          color: Colors.yellow,
+                          color: _primaryColor,
                           size: 16,
                         ),
-                        label: const Text(
+                        label: Text(
                           'Clear Filters',
-                          style: TextStyle(color: Colors.yellow, fontSize: 14),
+                          style: TextStyle(
+                            color: _primaryColor,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -1098,13 +1158,13 @@ class _HomeScreenState extends State<HomeScreen>
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: _panelSurfaceColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -1126,7 +1186,7 @@ class _HomeScreenState extends State<HomeScreen>
                         Text(
                           '${_advSuggestions.length} result${_advSuggestions.length == 1 ? '' : 's'}',
                           style: TextStyle(
-                            color: Colors.grey[400],
+                            color: _textSecondaryColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1139,25 +1199,25 @@ class _HomeScreenState extends State<HomeScreen>
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.yellow.withOpacity(0.2),
+                              color: _chipBackgroundColor,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.yellow.withOpacity(0.3),
+                                color: _chipBorderColor,
                               ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.filter_alt,
-                                  color: Colors.yellow,
+                                  color: _primaryColor,
                                   size: 10,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Filtered',
-                                  style: const TextStyle(
-                                    color: Colors.yellow,
+                                  style: TextStyle(
+                                    color: _primaryColor,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -1177,8 +1237,8 @@ class _HomeScreenState extends State<HomeScreen>
                             },
                             child: Text(
                               'Clear filters',
-                              style: const TextStyle(
-                                color: Colors.yellow,
+                              style: TextStyle(
+                                color: _primaryColor,
                                 fontSize: 11,
                               ),
                             ),
@@ -1192,7 +1252,7 @@ class _HomeScreenState extends State<HomeScreen>
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     itemCount: _advSuggestions.length,
                     separatorBuilder: (_, __) =>
-                        Divider(color: Colors.grey[800], height: 1),
+                        Divider(color: _borderNeutralColor, height: 1),
                     itemBuilder: (context, i) {
                       final a = _advSuggestions[i];
                       final id = int.tryParse(a['id']?.toString() ?? '') ?? 0;
@@ -1209,11 +1269,11 @@ class _HomeScreenState extends State<HomeScreen>
                               backgroundImage: avatar.isNotEmpty
                                   ? NetworkImage(avatar)
                                   : null,
-                              backgroundColor: Colors.grey[800],
+                              backgroundColor: _surfaceVariantColor,
                               child: avatar.isEmpty
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.person,
-                                      color: Colors.white70,
+                                      color: _textSecondaryColor,
                                     )
                                   : null,
                             ),
@@ -1229,7 +1289,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     color: Colors.green,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Colors.grey[900]!,
+                                      color: _panelSurfaceColor,
                                       width: 2,
                                     ),
                                   ),
@@ -1242,13 +1302,17 @@ class _HomeScreenState extends State<HomeScreen>
                             Expanded(
                               child: Text(
                                 name,
-                                style: const TextStyle(color: Colors.white),
+                                style: _textTheme.bodyMedium?.copyWith(
+                                      color: _textPrimaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ) ??
+                                    TextStyle(color: _textPrimaryColor),
                               ),
                             ),
                             if (a['is_verified'] == true)
-                              const Icon(
+                              Icon(
                                 Icons.verified,
-                                color: Colors.blue,
+                                color: _primaryColor,
                                 size: 16,
                               ),
                             if (a['is_online'] == true)
@@ -1266,10 +1330,10 @@ class _HomeScreenState extends State<HomeScreen>
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${username.isNotEmpty ? '@$username' : ''}${location.isNotEmpty && username.isNotEmpty ? ' • $location' : location}',
-                              style: TextStyle(
-                                color: Colors.grey[400],
+                              Text(
+                                '${username.isNotEmpty ? '@$username' : ''}${location.isNotEmpty && username.isNotEmpty ? ' • $location' : location}',
+                                style: TextStyle(
+                                color: _textSecondaryColor,
                                 fontSize: 12,
                               ),
                             ),
@@ -1278,7 +1342,7 @@ class _HomeScreenState extends State<HomeScreen>
                               Text(
                                 '${gender.isNotEmpty ? gender.capitalize() : ''}${gender.isNotEmpty && a['distance']?.toString().isNotEmpty == true ? ' • ' : ''}${a['distance']?.toString() ?? ''}',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
+                                  color: _textSecondaryColor,
                                   fontSize: 11,
                                 ),
                               ),
@@ -1308,8 +1372,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           _buildMainContent(),
@@ -1317,7 +1383,7 @@ class _HomeScreenState extends State<HomeScreen>
             GestureDetector(
               onTap: _toggleDrawer,
               child: Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: _isDark ? 0.5 : 0.25),
                 width: double.infinity,
                 height: double.infinity,
               ),
@@ -1338,26 +1404,41 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildMainContent() {
+    final theme = _theme;
+    final scheme = _scheme;
+    final textTheme = _textTheme;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor:
+            theme.appBarTheme.backgroundColor ?? scheme.surface,
         elevation: 0,
         title: Text(
           AppLocalizations.of(context)!.appName,
-          style: const TextStyle(
-            color: Colors.yellow,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: textTheme.titleLarge?.copyWith(
+                color: scheme.primary,
+                fontWeight: FontWeight.bold,
+              ) ??
+              TextStyle(
+                color: scheme.primary,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            icon: Icon(
+              Icons.notifications_outlined,
+              color: scheme.onSurface,
+            ),
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            icon: Icon(
+              Icons.chat_bubble_outline,
+              color: scheme.onSurface,
+            ),
             tooltip: 'Messages',
             onPressed: () => Navigator.of(context).pushNamed('/messages'),
           ),
@@ -1382,17 +1463,17 @@ class _HomeScreenState extends State<HomeScreen>
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.yellow.withOpacity(0.1),
+                color: _chipBackgroundColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+                border: Border.all(color: _chipBorderColor),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.filter_alt, color: Colors.yellow, size: 16),
+                  Icon(Icons.filter_alt, color: _primaryColor, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Filters: ${_buildFilterSummary()}',
-                    style: const TextStyle(color: Colors.yellow, fontSize: 12),
+                    style: TextStyle(color: _primaryColor, fontSize: 12),
                   ),
                   const Spacer(),
                   GestureDetector(
@@ -1403,9 +1484,9 @@ class _HomeScreenState extends State<HomeScreen>
                       });
                       _onSearchChanged(_searchController.text);
                     },
-                    child: const Icon(
+                    child: Icon(
                       Icons.close,
-                      color: Colors.yellow,
+                      color: _primaryColor,
                       size: 16,
                     ),
                   ),
@@ -1422,13 +1503,17 @@ class _HomeScreenState extends State<HomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Top Advertisers',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: _textTheme.titleMedium?.copyWith(
+                          color: _textPrimaryColor,
+                          fontWeight: FontWeight.w600,
+                        ) ??
+                        TextStyle(
+                          color: _textPrimaryColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(width: 20),
                   Expanded(
@@ -1485,10 +1570,10 @@ class _HomeScreenState extends State<HomeScreen>
                   final posts = snapshot.data ?? [];
 
                   if (isLoading) {
-                    return const Center(
+                    return Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.yellow,
+                          _primaryColor,
                         ),
                       ),
                     );
@@ -1498,21 +1583,25 @@ class _HomeScreenState extends State<HomeScreen>
                   if (hasError || posts.isEmpty) {
                     return ListView(
                       padding: const EdgeInsets.all(32),
-                      children: const [
-                        SizedBox(height: 80),
+                      children: [
+                        const SizedBox(height: 80),
                         Icon(
                           Icons.photo_library_outlined,
-                          color: Colors.grey,
+                          color: _textSecondaryColor,
                           size: 64,
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Center(
                           child: Text(
                             'No posts available',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
+                            style: _textTheme.bodyMedium?.copyWith(
+                                  color: _textSecondaryColor,
+                                  fontSize: 16,
+                                ) ??
+                                TextStyle(
+                                  color: _textSecondaryColor,
+                                  fontSize: 16,
+                                ),
                           ),
                         ),
                       ],
@@ -1582,7 +1671,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _openCommentsForPost(int postId) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: _panelSurfaceColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1611,7 +1700,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: _panelSurfaceColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1640,7 +1729,7 @@ class _HomeScreenState extends State<HomeScreen>
                       CircleAvatar(
                         radius: 20,
                         backgroundImage: NetworkImage(profileImage),
-                        backgroundColor: Colors.grey[700],
+                        backgroundColor: _surfaceVariantColor,
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -1648,23 +1737,28 @@ class _HomeScreenState extends State<HomeScreen>
                         children: [
                           Text(
                             name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: _textTheme.titleSmall?.copyWith(
+                                  color: _textPrimaryColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ) ??
+                                TextStyle(
+                                  color: _textPrimaryColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                           Row(
                             children: [
                               Icon(
                                 Icons.location_on,
-                                color: Colors.grey[400],
+                                color: _textSecondaryColor,
                                 size: 14,
                               ),
                               Text(
                                 location,
                                 style: TextStyle(
-                                  color: Colors.grey[400],
+                                  color: _textSecondaryColor,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1678,7 +1772,7 @@ class _HomeScreenState extends State<HomeScreen>
                 const Spacer(),
                 IconButton(
                   tooltip: 'Message',
-                  icon: const Icon(Icons.send, color: Colors.white70),
+                  icon: Icon(Icons.send, color: _textSecondaryColor),
                   onPressed: () => _startChatWithAdvertiser(advertiserId),
                 ),
               ],
@@ -1705,7 +1799,11 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Text(
                   caption,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: _textTheme.bodyMedium?.copyWith(
+                        color: _textPrimaryColor,
+                        fontSize: 14,
+                      ) ??
+                      TextStyle(color: _textPrimaryColor, fontSize: 14),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1717,7 +1815,7 @@ class _HomeScreenState extends State<HomeScreen>
                             : Icons.favorite_border,
                         color: (_likedPostIds.contains(postId) || likedByMe)
                             ? Colors.redAccent
-                            : Colors.white,
+                            : _textSecondaryColor,
                       ),
                       onPressed: () async {
                         final currentlyLiked =
@@ -1752,21 +1850,21 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     Text(
                       '${_postLikeCounts[postId] ?? likeCount}',
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: _textSecondaryColor),
                     ),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.chat_bubble_outline,
-                        color: Colors.white,
+                        color: _textSecondaryColor,
                       ),
                       onPressed: () => _openCommentsForPost(postId),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.share, color: Colors.white),
+                      icon: Icon(Icons.share, color: _textSecondaryColor),
                       onPressed: () {},
                     ),
                     const Spacer(),
-                    const Icon(Icons.bookmark_border, color: Colors.white),
+                    Icon(Icons.bookmark_border, color: _textSecondaryColor),
                   ],
                 ),
               ],
@@ -1787,21 +1885,28 @@ class _HomeScreenState extends State<HomeScreen>
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.yellow, width: 2),
+              border: Border.all(color: _primaryColor, width: 2),
             ),
             child: CircleAvatar(
               radius: 28,
               backgroundImage: imageUrl.isNotEmpty
                   ? NetworkImage(imageUrl)
                   : null,
-              backgroundColor: Colors.grey[700],
+              backgroundColor: _surfaceVariantColor,
               child: imageUrl.isEmpty
-                  ? const Icon(Icons.person, color: Colors.white70)
+                  ? Icon(Icons.person, color: _textSecondaryColor)
                   : null,
             ),
           ),
           const SizedBox(height: 4),
-          Text(name, style: const TextStyle(color: Colors.white, fontSize: 12)),
+          Text(
+            name,
+            style: _textTheme.bodySmall?.copyWith(
+                  color: _textPrimaryColor,
+                  fontSize: 12,
+                ) ??
+                TextStyle(color: _textPrimaryColor, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -1811,7 +1916,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       width: 300,
       height: double.infinity,
-      color: Colors.grey[900],
+      color: _panelBackgroundColor,
       child: Column(
         children: [
           Container(
@@ -1822,7 +1927,7 @@ class _HomeScreenState extends State<HomeScreen>
               bottom: 20,
             ),
             decoration: BoxDecoration(
-              color: Colors.grey[800],
+              color: _panelSurfaceColor,
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(20),
                 bottomRight: Radius.circular(20),
@@ -1833,16 +1938,20 @@ class _HomeScreenState extends State<HomeScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Profile',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: _textTheme.titleMedium?.copyWith(
+                            color: _textPrimaryColor,
+                            fontWeight: FontWeight.w600,
+                          ) ??
+                          TextStyle(
+                            color: _textPrimaryColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(Icons.close, color: _textPrimaryColor),
                       onPressed: _toggleDrawer,
                     ),
                   ],
@@ -1852,24 +1961,36 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 12),
                 Text(
                   userProfile.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: _textTheme.titleMedium?.copyWith(
+                        color: _textPrimaryColor,
+                        fontWeight: FontWeight.w600,
+                      ) ??
+                      TextStyle(
+                        color: _textPrimaryColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 Text(
                   userProfile.username,
-                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  style: _textTheme.bodySmall?.copyWith(
+                        color: _textSecondaryColor,
+                        fontSize: 14,
+                      ) ??
+                      TextStyle(color: _textSecondaryColor, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_on, color: Colors.grey[400], size: 16),
+                    Icon(Icons.location_on, color: _textSecondaryColor, size: 16),
                     Text(
                       userProfile.location,
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      style: _textTheme.bodySmall?.copyWith(
+                            color: _textSecondaryColor,
+                            fontSize: 12,
+                          ) ??
+                          TextStyle(color: _textSecondaryColor, fontSize: 12),
                     ),
                   ],
                 ),
@@ -1877,8 +1998,8 @@ class _HomeScreenState extends State<HomeScreen>
                 ElevatedButton(
                   onPressed: _navigateToEditProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.yellow,
-                    foregroundColor: Colors.black,
+                    backgroundColor: _primaryColor,
+                    foregroundColor: _onPrimaryColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 8,
@@ -1932,7 +2053,7 @@ class _HomeScreenState extends State<HomeScreen>
                   },
                 ),
                 _buildSidePanelItem(Icons.info_outline, 'About', () {}),
-                Divider(color: Colors.grey[700]),
+                Divider(color: _borderNeutralColor),
                 _buildSidePanelItem(
                   Icons.logout,
                   'Logout',
@@ -1956,11 +2077,14 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(icon, color: isLogout ? Colors.red : Colors.white),
+        leading: Icon(
+          icon,
+          color: isLogout ? Colors.red : _textPrimaryColor,
+        ),
         title: Text(
           title,
           style: TextStyle(
-            color: isLogout ? Colors.red : Colors.white,
+            color: isLogout ? Colors.red : _textPrimaryColor,
             fontSize: 16,
           ),
         ),
@@ -1976,20 +2100,31 @@ class _HomeScreenState extends State<HomeScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Logout', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: _panelSurfaceColor,
+        title: Text(
+          'Logout',
+          style: _textTheme.titleMedium?.copyWith(color: _textPrimaryColor) ??
+              TextStyle(color: _textPrimaryColor),
+        ),
+        content: Text(
           'Are you sure you want to logout?',
-          style: TextStyle(color: Colors.white70),
+          style: _textTheme.bodyMedium?.copyWith(color: _textSecondaryColor) ??
+              TextStyle(color: _textSecondaryColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: _textSecondaryColor),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Logout'),
+            child: Text(
+              'Logout',
+              style: TextStyle(color: _primaryColor),
+            ),
           ),
         ],
       ),
@@ -2058,33 +2193,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final onSurface = scheme.onSurface;
+    final cardColor = theme.cardColor;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? scheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.appBarTheme.foregroundColor ?? onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: textTheme.titleMedium?.copyWith(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontWeight: FontWeight.w600,
+              ) ??
+              TextStyle(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         actions: [
           TextButton(
             onPressed: _saveProfile,
-            child: const Text(
+            child: Text(
               'Save',
-              style: TextStyle(
-                color: Colors.yellow,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ) ??
+                  TextStyle(
+                    color: scheme.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
         ],
@@ -2094,27 +2246,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Avatar
             Center(
               child: Stack(
                 children: [
                   CircleAvatar(
                     radius: 60,
                     backgroundImage: NetworkImage(_profileImageUrl),
-                    backgroundColor: Colors.grey[700],
+                    backgroundColor: scheme.surface,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.yellow,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
-                        color: Colors.black,
+                        color: scheme.onPrimary,
                         size: 20,
                       ),
                     ),
@@ -2144,21 +2295,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey[900],
+                color: cardColor,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(
+                        alpha: theme.brightness == Brightness.dark ? 0.25 : 0.35,
+                      ),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     'Profile Options',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.titleMedium?.copyWith(
+                          color: onSurface,
+                          fontWeight: FontWeight.w600,
+                        ) ??
+                        TextStyle(
+                          color: onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   _ProfileOption(
                     title: 'Change Password',
                     icon: Icons.lock_outline,
@@ -2185,18 +2345,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required String label,
     required IconData icon,
   }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.4),
+        ),
       ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(color: Colors.white),
+        style: textTheme.bodyMedium?.copyWith(color: scheme.onSurface) ??
+            TextStyle(color: scheme.onSurface),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.grey[400]),
-          prefixIcon: Icon(icon, color: Colors.grey[400]),
+        labelStyle: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ) ??
+            TextStyle(color: scheme.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: scheme.onSurfaceVariant),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -2228,18 +2399,27 @@ class _ProfileOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey[400]),
+          Icon(icon, color: scheme.onSurfaceVariant),
           const SizedBox(width: 12),
           Text(
             title,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontSize: 16,
+                ) ??
+                TextStyle(color: scheme.onSurface, fontSize: 16),
           ),
           const Spacer(),
-          const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+          Icon(Icons.arrow_forward_ios,
+              color: scheme.onSurfaceVariant, size: 16),
         ],
       ),
     );
@@ -2289,6 +2469,14 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final onSurface = scheme.onSurface;
+    final onSurfaceVariant = scheme.onSurfaceVariant;
+    final divider = theme.dividerColor;
+    final surfaceVariant = scheme.surface;
+    final primary = scheme.primary;
+
     return SafeArea(
       child: AnimatedSize(
         duration: const Duration(milliseconds: 200),
@@ -2302,17 +2490,21 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 height: 5,
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey[700],
+                  color: divider,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              const Text(
+              Text(
                 'Comments',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: theme.textTheme.titleSmall?.copyWith(
+                      color: onSurface,
+                      fontWeight: FontWeight.w600,
+                    ) ??
+                    TextStyle(
+                      color: onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               const SizedBox(height: 8),
               if (loading)
@@ -2330,7 +2522,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     ),
                     itemCount: comments.length,
                     separatorBuilder: (_, __) =>
-                        Divider(color: Colors.grey[800], height: 1),
+                        Divider(color: divider, height: 1),
                     itemBuilder: (context, i) {
                       final c = comments[i];
                       final user = c['user'] as Map<String, dynamic>?;
@@ -2343,23 +2535,27 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
                           radius: 14,
-                          backgroundColor: Colors.grey[800],
-                          child: const Icon(
+                          backgroundColor: surfaceVariant,
+                          child: Icon(
                             Icons.person,
-                            color: Colors.white70,
+                            color: onSurfaceVariant,
                             size: 16,
                           ),
                         ),
                         title: Text(
                           name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                                color: onSurface,
+                                fontSize: 14,
+                              ) ??
+                              TextStyle(color: onSurface, fontSize: 14),
                         ),
                         subtitle: Text(
                           (c['content'] ?? '').toString(),
-                          style: TextStyle(color: Colors.grey[400]),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                                color: onSurfaceVariant,
+                              ) ??
+                              TextStyle(color: onSurfaceVariant),
                         ),
                       );
                     },
@@ -2372,19 +2568,30 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        style: const TextStyle(color: Colors.white),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                              color: onSurface,
+                            ) ??
+                            TextStyle(color: onSurface),
                         decoration: InputDecoration(
                           hintText: 'Add a comment',
-                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                                color: onSurfaceVariant,
+                              ) ??
+                              TextStyle(color: onSurfaceVariant),
                           filled: true,
-                          fillColor: Colors.grey[850],
+                          fillColor: surfaceVariant.withValues(
+                            alpha:
+                                theme.brightness == Brightness.dark ? 0.4 : 0.6,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: Colors.grey[700]!),
+                            borderSide: BorderSide(color: divider),
                           ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
-                            borderSide: BorderSide(color: Colors.yellow),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            borderSide: BorderSide(color: primary),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -2394,7 +2601,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.send, color: Colors.yellow),
+                      icon: Icon(Icons.send, color: primary),
                       onPressed: _send,
                     ),
                   ],

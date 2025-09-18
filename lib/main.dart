@@ -15,12 +15,19 @@ import 'package:flutter_localized_locales/flutter_localized_locales.dart';
 import 'package:escort/localization/supported_locales.dart';
 import 'package:escort/theme/theme_controller.dart';
 import 'package:escort/localization/locale_controller.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ThemeController.load();
+  final themeController = ThemeController();
+  await themeController.load();
   await LocaleController.load();
-  runApp(const Escort());
+  runApp(
+    ChangeNotifierProvider.value(
+      value: themeController,
+      child: const Escort(),
+    ),
+  );
 }
 
 class Escort extends StatelessWidget {
@@ -28,16 +35,15 @@ class Escort extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.themeMode,
-      builder: (context, mode, _) {
+    return Consumer<ThemeController>(
+      builder: (context, themeController, _) {
         return ValueListenableBuilder<Locale>(
           valueListenable: LocaleController.locale,
           builder: (context, appLocale, __) {
             return MaterialApp(
               title: 'VipGalz',
               debugShowCheckedModeBanner: false,
-              themeMode: mode,
+              themeMode: themeController.mode,
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               locale: appLocale,

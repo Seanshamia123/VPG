@@ -135,20 +135,50 @@ class _AdvertiserEditProfileScreenState extends State<AdvertiserEditProfileScree
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final onSurface = scheme.onSurface;
+    final onSurfaceVariant = scheme.onSurfaceVariant;
+    final surface = scheme.surface;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.appBarTheme.foregroundColor ?? onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Edit Profile',
+          style: textTheme.titleMedium?.copyWith(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontWeight: FontWeight.w600,
+              ) ??
+              TextStyle(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
-            child: const Text('Save', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Save',
+              style: textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ) ??
+                  TextStyle(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
         ],
       ),
@@ -167,9 +197,9 @@ class _AdvertiserEditProfileScreenState extends State<AdvertiserEditProfileScree
                       backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
                           ? NetworkImage(_avatarUrl!)
                           : null,
-                      backgroundColor: Colors.grey[800],
+                      backgroundColor: scheme.surfaceVariant,
                       child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                          ? const Icon(Icons.person, color: Colors.white54, size: 40)
+                          ? Icon(Icons.person, color: onSurfaceVariant, size: 40)
                           : null,
                     ),
                     Positioned(
@@ -179,8 +209,8 @@ class _AdvertiserEditProfileScreenState extends State<AdvertiserEditProfileScree
                         onTap: _promptAvatarSource,
                         child: Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(color: Colors.yellow, shape: BoxShape.circle),
-                          child: const Icon(Icons.camera_alt, color: Colors.black, size: 20),
+                          decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+                          child: Icon(Icons.camera_alt, color: scheme.onPrimary, size: 20),
                         ),
                       ),
                     ),
@@ -199,8 +229,12 @@ class _AdvertiserEditProfileScreenState extends State<AdvertiserEditProfileScree
               SwitchListTile(
                 value: _isOnline,
                 onChanged: (v) => setState(() => _isOnline = v),
-                title: const Text('Online status', style: TextStyle(color: Colors.white)),
-                activeColor: Colors.yellow,
+                title: Text(
+                  'Online status',
+                  style: textTheme.bodyMedium?.copyWith(color: onSurface) ??
+                      TextStyle(color: onSurface),
+                ),
+                activeColor: scheme.primary,
               ),
               if (_saving) const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator()),
             ],
@@ -217,28 +251,33 @@ class _AdvertiserEditProfileScreenState extends State<AdvertiserEditProfileScree
     int maxLines = 1,
     TextInputType? keyboardType,
   }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     return TextField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: textTheme.bodyMedium?.copyWith(color: scheme.onSurface) ??
+          TextStyle(color: scheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[400]),
-        prefixIcon: Icon(icon, color: Colors.yellow),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant) ??
+            TextStyle(color: scheme.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: scheme.primary),
         filled: true,
-        fillColor: Colors.grey[900],
+        fillColor: scheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[700]!),
+          borderSide: BorderSide(color: theme.dividerColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[700]!),
+          borderSide: BorderSide(color: theme.dividerColor),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Colors.yellow),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: scheme.primary),
         ),
       ),
     );

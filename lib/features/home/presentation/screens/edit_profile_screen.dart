@@ -5,7 +5,8 @@ import 'package:escort/features/home/domain/models/user_profile.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserProfile userProfile;
-  const EditProfileScreen({Key? key, required this.userProfile}) : super(key: key);
+  const EditProfileScreen({Key? key, required this.userProfile})
+    : super(key: key);
 
   @override
   _EditProfileScreenState createState() => _EditProfileScreenState();
@@ -40,33 +41,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final onSurface = scheme.onSurface;
+    final onSurfaceVariant = scheme.onSurfaceVariant;
+    final primary = scheme.primary;
+    final surface = scheme.surface;
+    final cardColor = theme.cardColor;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.appBarTheme.foregroundColor ?? onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style:
+              textTheme.titleMedium?.copyWith(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontWeight: FontWeight.w600,
+              ) ??
+              TextStyle(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         actions: [
           TextButton(
             onPressed: _saveProfile,
-            child: const Text(
+            child: Text(
               'Save',
-              style: TextStyle(
-                color: Colors.yellow,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style:
+                  textTheme.labelLarge?.copyWith(
+                    color: primary,
+                    fontWeight: FontWeight.w600,
+                  ) ??
+                  TextStyle(
+                    color: primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
         ],
@@ -83,20 +106,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundImage: NetworkImage(_profileImageUrl),
-                    backgroundColor: Colors.grey[700],
+                    backgroundColor: scheme.surfaceVariant,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.yellow,
+                      decoration: BoxDecoration(
+                        color: primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
-                        color: Colors.black,
+                        color: scheme.onPrimary,
                         size: 20,
                       ),
                     ),
@@ -126,21 +149,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey[900],
+                color: cardColor,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(
+                    alpha: theme.brightness == Brightness.dark ? 0.25 : 0.35,
+                  ),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     'Profile Options',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        textTheme.titleMedium?.copyWith(
+                          color: onSurface,
+                          fontWeight: FontWeight.w600,
+                        ) ??
+                        TextStyle(
+                          color: onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   _ProfileOption(
                     title: 'Change Password',
                     icon: Icons.lock_outline,
@@ -167,22 +200,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required String label,
     required IconData icon,
   }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final outline = theme.dividerColor;
+
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
+      style:
+          textTheme.bodyMedium?.copyWith(color: scheme.onSurface) ??
+          TextStyle(color: scheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: Icon(icon, color: Colors.white70),
+        labelStyle:
+            textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant) ??
+            TextStyle(color: scheme.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: scheme.onSurfaceVariant),
         filled: true,
-        fillColor: Colors.grey[900],
+        fillColor: scheme.surfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[800]!),
+          borderSide: BorderSide(color: outline.withValues(alpha: 0.6)),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Colors.yellow),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: scheme.primary),
         ),
       ),
     );
@@ -206,21 +248,33 @@ class _ProfileOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey[400]),
+          Icon(icon, color: scheme.onSurfaceVariant),
           const SizedBox(width: 12),
           Text(
             title,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style:
+                textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontSize: 16,
+                ) ??
+                TextStyle(color: scheme.onSurface, fontSize: 16),
           ),
           const Spacer(),
-          const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+          Icon(
+            Icons.arrow_forward_ios,
+            color: scheme.onSurfaceVariant,
+            size: 16,
+          ),
         ],
       ),
     );
   }
 }
-

@@ -16,6 +16,7 @@ import 'package:escort/features/settings/presentation/screens/profile_settings_s
 import 'package:escort/l10n/app_localizations.dart';
 import 'package:flutter_localized_locales/flutter_localized_locales.dart';
 import 'package:escort/features/settings/presentation/screens/language_selection_screen.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    final mode = context.read<ThemeController>().mode;
+    _selectedTheme = _labelForMode(mode);
     _loadLocalPrefs().then((_) => _loadSettings());
   }
 
@@ -55,29 +58,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final id = await UserSession.getUserId();
-    if (id != null) {
-      final data = await SettingsService.getByUserId(int.parse(id.toString()));
-      if (data != null) {
-        setState(() {
-          _notificationsEnabled = data['notification_enabled'] ?? _notificationsEnabled;
-          _showOnlineStatus = data['show_online_status'] ?? _showOnlineStatus;
-          _readReceipts = data['read_receipts'] ?? _readReceipts;
-          _selectedLanguage = data['selected_language']?.toString() ?? _selectedLanguage;
-          final theme = data['selected_theme']?.toString() ?? _selectedTheme.toLowerCase();
-          _selectedTheme = theme.substring(0,1).toUpperCase() + theme.substring(1);
-          _loading = false;
-        });
-        // Sync theme with server preference
-        if (_selectedTheme == 'Dark') {
-          await ThemeController.set(ThemeMode.dark);
-        } else if (_selectedTheme == 'Light') {
-          await ThemeController.set(ThemeMode.light);
-        } else {
-          await ThemeController.set(ThemeMode.system);
-        }
-      } else {
-        setState(() => _loading = false);
-      }
+    if (id == null) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
+
+    final data = await SettingsService.getByUserId(int.parse(id.toString()));
+    if (!mounted) return;
+
+    if (data != null) {
+      setState(() {
+        _notificationsEnabled = data['notification_enabled'] ?? _notificationsEnabled;
+        _showOnlineStatus = data['show_online_status'] ?? _showOnlineStatus;
+        _readReceipts = data['read_receipts'] ?? _readReceipts;
+        _selectedLanguage = data['selected_language']?.toString() ?? _selectedLanguage;
+        final theme = data['selected_theme']?.toString() ?? _selectedTheme.toLowerCase();
+        _selectedTheme = theme.substring(0, 1).toUpperCase() + theme.substring(1);
+        _loading = false;
+      });
+      await _applyThemePreference(_selectedTheme);
     } else {
       setState(() => _loading = false);
     }
@@ -96,11 +96,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await SettingsService.createOrUpdate(int.parse(id.toString()), payload);
   }
 
+  String _labelForMode(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.system:
+        return 'Auto';
+    }
+  }
+
+  ThemeMode _modeFromLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'dark':
+        return ThemeMode.dark;
+      case 'light':
+        return ThemeMode.light;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  Future<void> _applyThemePreference(String label) async {
+    if (!mounted) return;
+    await context.read<ThemeController>().setMode(_modeFromLabel(label));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
@@ -112,19 +138,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         : '${currentLocale.languageCode}_${currentLocale.countryCode}';
     final currentLocaleName = names?.nameOf(currentLocaleTag) ?? _selectedLanguage;
 
+    final scheme = Theme.of(context).colorScheme;
+    final appBarBg = Theme.of(context).appBarTheme.backgroundColor ?? scheme.surface;
+    final onAppBar = Theme.of(context).appBarTheme.foregroundColor ?? scheme.onSurface;
+
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: appBarBg,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: onAppBar),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           t.settingsTitle,
           style: TextStyle(
-            color: Colors.white,
+            color: onAppBar,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -255,15 +284,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               items: ['Dark', 'Light', 'Auto'],
               selectedValue: _selectedTheme,
               onChanged: (value) async {
-                setState(() => _selectedTheme = value!);
+                if (value == null) return;
+                setState(() => _selectedTheme = value);
                 await _persist();
-                if (_selectedTheme == 'Dark') {
-                  await ThemeController.set(ThemeMode.dark);
-                } else if (_selectedTheme == 'Light') {
-                  await ThemeController.set(ThemeMode.light);
-                } else {
-                  await ThemeController.set(ThemeMode.system);
-                }
+                await _applyThemePreference(_selectedTheme);
               },
             ),
             _buildSwitchItem(
@@ -387,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          color: Colors.yellow,
+          color: Theme.of(context).colorScheme.primary,
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.0,
@@ -409,7 +433,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.grey[800]!, width: 0.5),
+            bottom: BorderSide(color: Theme.of(context).dividerColor, width: 0.5),
           ),
         ),
         child: Row(
@@ -417,10 +441,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey[800],
+                color: Theme.of(context).colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: Colors.white, size: 20),
+              child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 20),
             ),
             SizedBox(width: 16),
             Expanded(
@@ -432,7 +456,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -442,13 +466,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                 ],
               ),
             ),
             trailing ??
-                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
           ],
         ),
       ),
@@ -470,10 +494,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: Colors.yellow,
-        activeTrackColor: Colors.yellow.withOpacity(0.3),
-        inactiveThumbColor: Colors.grey[400],
-        inactiveTrackColor: Colors.grey[700],
+        activeColor: Theme.of(context).colorScheme.primary,
+        activeTrackColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+        inactiveThumbColor: Theme.of(context).colorScheme.onSurfaceVariant,
+        inactiveTrackColor: Theme.of(context).colorScheme.outlineVariant,
       ),
     );
   }
@@ -505,7 +529,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -518,7 +542,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(
                 'Select $title',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
@@ -526,9 +550,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SizedBox(height: 16),
               ...items.map(
                 (item) => ListTile(
-                  title: Text(item, style: TextStyle(color: Colors.white), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  title: Text(item, style: TextStyle(color: Theme.of(context).colorScheme.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis),
                   trailing: selectedValue == item
-                      ? Icon(Icons.check, color: Colors.yellow)
+                      ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
                       : null,
                   onTap: () {
                     onChanged(item);
@@ -549,7 +573,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Privacy settings opened'),
-        backgroundColor: Colors.grey[800],
       ),
     );
   }
@@ -559,7 +582,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Notification preferences opened'),
-        backgroundColor: Colors.grey[800],
       ),
     );
   }
@@ -568,8 +590,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(AppLocalizations.of(context)!.storageUsageTitle, style: TextStyle(color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.storageUsageTitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -582,7 +603,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.commonClose, style: TextStyle(color: Colors.yellow)),
+            child: Text(AppLocalizations.of(context)!.commonClose, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),
@@ -596,18 +617,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Expanded(
             flex: 2,
-            child: Text(type, style: TextStyle(color: Colors.white)),
+            child: Text(type, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ),
           Expanded(
             flex: 3,
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.grey[700],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+              backgroundColor: Theme.of(context).colorScheme.outlineVariant,
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
             ),
           ),
           SizedBox(width: 8),
-          Text(size, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+          Text(size, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
         ],
       ),
     );
@@ -627,23 +648,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(AppLocalizations.of(context)!.dialogResetTitle, style: const TextStyle(color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.dialogResetTitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         content: Text(
           AppLocalizations.of(context)!.resetSettingsDescription,
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.commonCancel, style: const TextStyle(color: Colors.grey)),
+            child: Text(AppLocalizations.of(context)!.commonCancel, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await _resetAllSettings();
             },
-            child: Text(AppLocalizations.of(context)!.commonReset, style: const TextStyle(color: Colors.yellow)),
+            child: Text(AppLocalizations.of(context)!.commonReset, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),
@@ -702,16 +722,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(AppLocalizations.of(context)!.dialogClearCacheTitle, style: TextStyle(color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.dialogClearCacheTitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         content: Text(
           AppLocalizations.of(context)!.dialogClearCacheDescription,
-          style: TextStyle(color: Colors.grey[300]),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.commonCancel, style: TextStyle(color: Colors.grey[400])),
+            child: Text(AppLocalizations.of(context)!.commonCancel, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () {
@@ -719,11 +738,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(AppLocalizations.of(context)!.snackbarCacheCleared),
-                  backgroundColor: Colors.green,
                 ),
               );
             },
-            child: Text(AppLocalizations.of(context)!.commonClear, style: TextStyle(color: Colors.yellow)),
+            child: Text(AppLocalizations.of(context)!.commonClear, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),
@@ -736,27 +754,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(AppLocalizations.of(context)!.sendFeedbackTitle, style: TextStyle(color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.sendFeedbackTitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         content: TextField(
           controller: feedbackController,
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
           maxLines: 4,
           decoration: InputDecoration(
             hintText: 'Tell us what you think...',
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey[600]!),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.yellow),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.commonCancel, style: TextStyle(color: Colors.grey[400])),
+            child: Text(AppLocalizations.of(context)!.commonCancel, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () {
@@ -764,11 +781,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(AppLocalizations.of(context)!.snackbarFeedbackSent),
-                  backgroundColor: Colors.green,
                 ),
               );
             },
-            child: Text(AppLocalizations.of(context)!.commonSend, style: TextStyle(color: Colors.yellow)),
+            child: Text(AppLocalizations.of(context)!.commonSend, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),
@@ -779,32 +795,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
         title: Row(
           children: [
-            Icon(Icons.info, color: Colors.yellow),
+            Icon(Icons.info, color: Theme.of(context).colorScheme.primary),
             SizedBox(width: 8),
-            Text(AppLocalizations.of(context)!.aboutAppTitle, style: TextStyle(color: Colors.white)),
+            Text(AppLocalizations.of(context)!.aboutAppTitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Version: 1.0.0', style: TextStyle(color: Colors.grey[300])),
+            Text('Version: 1.0.0', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             SizedBox(height: 8),
-            Text('${AppLocalizations.of(context)!.dialogAboutBuild}: 100', style: TextStyle(color: Colors.grey[300])),
+            Text('${AppLocalizations.of(context)!.dialogAboutBuild}: 100', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             SizedBox(height: 16),
             Text(
               'Connect with people around you and discover new experiences.',
-              style: TextStyle(color: Colors.grey[300]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.commonClose, style: TextStyle(color: Colors.yellow)),
+            child: Text(AppLocalizations.of(context)!.commonClose, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
           ),
         ],
       ),

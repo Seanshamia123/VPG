@@ -186,24 +186,38 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final onSurface = scheme.onSurface;
+    final onSurfaceVariant = scheme.onSurfaceVariant;
+    final divider = theme.dividerColor;
+    final surface = scheme.surface;
+    final cardColor = theme.cardColor;
+    final primary = scheme.primary;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? surface,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Locations',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: textTheme.titleMedium?.copyWith(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontWeight: FontWeight.w600,
+              ) ??
+              TextStyle(
+                color: theme.appBarTheme.foregroundColor ?? onSurface,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
         ),
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+                valueColor: AlwaysStoppedAnimation<Color>(primary),
               ),
             )
           : Column(
@@ -234,7 +248,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   flex: 1,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey[900],
+                      color: surface,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(16),
                       ),
@@ -246,23 +260,27 @@ class _LocationScreenState extends State<LocationScreen> {
                           height: 4,
                           margin: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.grey[600],
+                            color: divider,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.all(16),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
-                              Icon(Icons.location_on, color: Colors.yellow),
-                              SizedBox(width: 8),
+                              Icon(Icons.location_on, color: primary),
+                              const SizedBox(width: 8),
                               Text(
                                 'Nearby Advertisers',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: textTheme.titleMedium?.copyWith(
+                                      color: onSurface,
+                                      fontWeight: FontWeight.w600,
+                                    ) ??
+                                    TextStyle(
+                                      color: onSurface,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
                             ],
                           ),
@@ -286,7 +304,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                 ),
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[800],
+                                  color: cardColor,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -294,10 +312,10 @@ class _LocationScreenState extends State<LocationScreen> {
                                     CircleAvatar(
                                       radius: 25,
                                       backgroundImage: hasImage ? NetworkImage(image) : null,
-                                      backgroundColor: Colors.grey[700],
+                                      backgroundColor: scheme.surfaceVariant,
                                       child: hasImage
                                           ? null
-                                          : const Icon(Icons.person, color: Colors.white70),
+                                          : Icon(Icons.person, color: onSurfaceVariant),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -307,18 +325,26 @@ class _LocationScreenState extends State<LocationScreen> {
                                         children: [
                                           Text(
                                             name,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                            style: textTheme.titleSmall?.copyWith(
+                                                  color: onSurface,
+                                                  fontWeight: FontWeight.w600,
+                                                ) ??
+                                                TextStyle(
+                                                  color: onSurface,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                           Text(
                                             location,
-                                            style: TextStyle(
-                                              color: Colors.grey[400],
-                                              fontSize: 14,
-                                            ),
+                                            style: textTheme.bodySmall?.copyWith(
+                                                  color: onSurfaceVariant,
+                                                  fontSize: 14,
+                                                ) ??
+                                                TextStyle(
+                                                  color: onSurfaceVariant,
+                                                  fontSize: 14,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -329,15 +355,19 @@ class _LocationScreenState extends State<LocationScreen> {
                                         vertical: 8,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.yellow,
+                                        color: primary,
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'View',
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: textTheme.labelLarge?.copyWith(
+                                              color: scheme.onPrimary,
+                                              fontWeight: FontWeight.w600,
+                                            ) ??
+                                            TextStyle(
+                                              color: scheme.onPrimary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                     ),
                                   ],

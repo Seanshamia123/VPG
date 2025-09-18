@@ -103,14 +103,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
         elevation: 0,
-        title: Text(
-          widget.title ?? 'Chat',
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: Text(widget.title ?? 'Chat', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface)),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -135,25 +132,13 @@ class _ChatScreenState extends State<ChatScreen> {
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[850],
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceVariant, borderRadius: BorderRadius.circular(10)),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                content,
-                                style: const TextStyle(color: Colors.white),
-                              ),
+                              Text(content, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                               const SizedBox(height: 2),
-                              Text(
-                                ts,
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 10,
-                                ),
-                              ),
+                              Text(ts, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 10)),
                             ],
                           ),
                         ),
@@ -170,23 +155,19 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.all(12.0),
                           child: TextField(
                             controller: _controller,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                             decoration: InputDecoration(
                               hintText: 'Type a message',
-                              hintStyle: TextStyle(color: Colors.grey[500]),
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                               filled: true,
-                              fillColor: Colors.grey[900],
+                              fillColor: Theme.of(context).colorScheme.surface,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(20),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[700]!,
-                                ),
+                                borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(20),
-                                borderSide: const BorderSide(
-                                  color: Colors.yellow,
-                                ),
+                                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12,
@@ -198,15 +179,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       IconButton(
                         icon: _sending
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary)),
                               )
-                            : const Icon(Icons.send, color: Colors.yellow),
+                            : Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
                         onPressed: _sending ? null : _send,
                       ),
                     ],

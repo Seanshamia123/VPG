@@ -91,7 +91,7 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: Stack(
         children: [
           // Video player or fallback
@@ -100,12 +100,9 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
+                  CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
                   SizedBox(height: 20),
-                  Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                  Text('Loading...', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16)),
                 ],
               ),
             )
@@ -115,25 +112,11 @@ class _VideoSplashScreenState extends State<VideoSplashScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Your app logo as fallback
-                  Icon(
-                    Icons.play_circle_outline,
-                    color: Colors.white,
-                    size: 100,
-                  ),
+                  Icon(Icons.play_circle_outline, color: Theme.of(context).colorScheme.onSurface, size: 100),
                   SizedBox(height: 20),
-                  Text(
-                    'Your App Name',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Your App Name', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 24, fontWeight: FontWeight.bold)),
                   SizedBox(height: 10),
-                  Text(
-                    'Loading...',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
+                  Text('Loading...', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                 ],
               ),
             )
