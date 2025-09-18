@@ -67,7 +67,6 @@ class _MessageState extends State<Message> {
 
     if (loading) {
       return const Scaffold(
-        backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
@@ -102,8 +101,8 @@ class _MessageState extends State<Message> {
                           ? Sizes.avatarRadiusMd
                           : Sizes.avatarRadiusLg,
                   backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                  backgroundColor: Colors.grey[800],
-                  child: avatar.isEmpty ? const Icon(Icons.person, color: Colors.white70) : null,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  child: avatar.isEmpty ? Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant) : null,
                 ),
               );
             },

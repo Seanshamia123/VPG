@@ -33,41 +33,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Messages',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: Text('Messages', style: TextStyle(color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.w600)),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureConversations,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
-              ),
-            );
+            return Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary)));
           }
           final items = snapshot.data ?? [];
           if (items.isEmpty) {
-            return const Center(
-              child: Text(
-                'No conversations yet',
-                style: TextStyle(color: Colors.white70),
-              ),
-            );
+            return Center(child: Text('No conversations yet', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)));
           }
           return ListView.builder(
             itemCount: items.length,
@@ -81,11 +65,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.grey[700],
-                      child: const Icon(Icons.person, color: Colors.white70),
-                    ),
+                    CircleAvatar(radius: 25, backgroundColor: Theme.of(context).colorScheme.outlineVariant, child: Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -94,31 +74,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                name.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                '',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 12,
-                                ),
-                              ),
+                              Text(name.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.w600)),
+                              Text('', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            message.toString(),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
+                          Text(message.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
                         ],
                       ),
                     ),
@@ -132,4 +93,3 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 }
-

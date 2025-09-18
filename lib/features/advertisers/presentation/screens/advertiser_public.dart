@@ -153,7 +153,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
   void _openCommentsForPost(int postId) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -198,20 +198,20 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        backgroundColor: Colors.grey[900],
-        body: const Center(
-          child: CircularProgressIndicator(color: Colors.yellow),
+        backgroundColor: Theme.of(context).colorScheme.background,
+        body: Center(
+          child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
         ),
       );
     }
 
     if (hasError || advertiserData == null) {
       return Scaffold(
-        backgroundColor: Colors.grey[900],
+        backgroundColor: Theme.of(context).colorScheme.background,
         appBar: AppBar(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -225,29 +225,15 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                 size: 64,
               ),
               const SizedBox(height: 16),
-              Text(
-                'Failed to load profile',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Failed to load profile', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text(
-                errorMessage,
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              Text(errorMessage, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14), textAlign: TextAlign.center),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _loadAdvertiserProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.yellow,
-                  foregroundColor: Colors.black,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 child: const Text('Retry'),
               ),
@@ -266,7 +252,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
     final location = advertiserData!['location'] ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: CustomScrollView(
         slivers: [
           // App bar with profile image background
@@ -274,7 +260,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
             expandedHeight: 400,
             floating: false,
             pinned: true,
-            backgroundColor: Colors.grey[900],
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
             leading: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -282,7 +268,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -294,7 +280,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurface),
                   onPressed: () {
                     // Show options menu
                   },
@@ -312,7 +298,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: Colors.grey[800],
+                              color: Theme.of(context).colorScheme.surfaceVariant,
                               child: const Icon(
                                 Icons.person,
                                 size: 100,
@@ -322,7 +308,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                           },
                         )
                       : Container(
-                          color: Colors.grey[800],
+                          color: Theme.of(context).colorScheme.surfaceVariant,
                           child: const Icon(
                             Icons.person,
                             size: 100,
@@ -454,31 +440,17 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const Text(
-                    'Posts',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text('Posts', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[700],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant, borderRadius: BorderRadius.circular(12)),
                     child: Text(
                       '${posts.length}',
-                      style: TextStyle(
-                        color: Colors.grey[300],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -535,10 +507,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                           _showPostDetail(post);
                         },
                         child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceVariant, borderRadius: BorderRadius.circular(4)),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
@@ -550,7 +519,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) {
                                           return Container(
-                                            color: Colors.grey[800],
+                                            color: Theme.of(context).colorScheme.surfaceVariant,
                                             child: const Icon(
                                               Icons.broken_image,
                                               color: Colors.grey,
@@ -559,7 +528,7 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                                         },
                                       )
                                     : Container(
-                                        color: Colors.grey[800],
+                                        color: Theme.of(context).colorScheme.surfaceVariant,
                                         child: const Icon(
                                           Icons.image,
                                           color: Colors.grey,
@@ -585,18 +554,11 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
                                       children: [
                                         Icon(
                                           Icons.favorite,
-                                          color: isLiked ? Colors.red : Colors.white,
+                                          color: isLiked ? Colors.red : Theme.of(context).colorScheme.onSurface,
                                           size: 12,
                                         ),
                                         const SizedBox(width: 2),
-                                        Text(
-                                          '$likesCount',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                        Text('$likesCount', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 10, fontWeight: FontWeight.w600)),
                                       ],
                                     ),
                                   ),
@@ -654,10 +616,7 @@ class _PostDetailDialog extends StatelessWidget {
     
     return Container(
       margin: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(16)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -817,20 +776,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              const Text(
-                'Comments',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Comments', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               if (loading)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(color: Colors.yellow),
-                )
+                Padding(padding: const EdgeInsets.all(16.0), child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
               else
                 Flexible(
                   child: ListView.separated(
@@ -840,8 +789,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       vertical: 8,
                     ),
                     itemCount: comments.length,
-                    separatorBuilder: (_, __) =>
-                        Divider(color: Colors.grey[800], height: 1),
+                    separatorBuilder: (_, __) => Divider(color: Theme.of(context).dividerColor, height: 1),
                     itemBuilder: (context, i) {
                       final c = comments[i];
                       final user = c['user'] as Map<String, dynamic>?;
@@ -852,26 +800,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       return ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Colors.grey[800],
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white70,
-                            size: 16,
-                          ),
-                        ),
-                        title: Text(
-                          name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          (c['content'] ?? '').toString(),
-                          style: TextStyle(color: Colors.grey[400]),
-                        ),
+                        leading: CircleAvatar(radius: 14, backgroundColor: Theme.of(context).colorScheme.surfaceVariant, child: Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16)),
+                        title: Text(name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
+                        subtitle: Text((c['content'] ?? '').toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       );
                     },
                   ),
@@ -883,19 +814,19 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: 'Add a comment',
-                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           filled: true,
-                          fillColor: Colors.grey[850],
+                          fillColor: Theme.of(context).colorScheme.surfaceVariant,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide(color: Colors.grey[700]!),
+                            borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                           ),
-                          focusedBorder: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
-                            borderSide: BorderSide(color: Colors.yellow),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.all(Radius.circular(20)),
+                            borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -905,7 +836,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.send, color: Colors.yellow),
+                      icon: Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
                       onPressed: _send,
                     ),
                   ],
