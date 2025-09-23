@@ -449,21 +449,21 @@ static Future<Map<String, dynamic>> addPostComment({
 }
 }
 
-/// Service for handling conversations/chat - used by AdvertiserPublicProfileScreen
-class ConversationsService {
-  static Future<Map<String, dynamic>?> createOrGetConversation({
-    required int participantId,
-  }) async {
-    try {
-      final response = await ApiClient.postJson(
-        '${ApiConfig.api}/conversations',
-        {'participant_id': participantId},
-        auth: true,
-      );
-      return response;
-    } catch (e) {
-      print('Error creating conversation: $e');
-      throw Exception('Failed to create conversation');
-    }
-  }
-}
+// /// Service for handling conversations/chat - used by AdvertiserPublicProfileScreen
+// class ConversationsService {
+//   static Future<Map<String, dynamic>?> createOrGetConversation({
+//     required int participantId,
+//   }) async {
+//     try {
+//       final response = await ApiClient.postJson(
+//         '${ApiConfig.api}/conversations',
+//         {'participant_id': participantId},
+//         auth: true,
+//       );
+//       return response;
+//     } catch (e) {
+//       print('Error creating conversation: $e');
+//       throw Exception('Failed to create conversation');
+//     }
+//   }
+// }

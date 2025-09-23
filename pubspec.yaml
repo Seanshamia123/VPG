@@ -11,9 +11,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   image_picker: ^1.0.4
   video_player: ^2.8.1
-   
+  webview_flutter: ^4.0.0
+  
 
  #utility Packages
   http: ^1.2.2
@@ -24,6 +26,7 @@ dependencies:
   flutter_secure_storage: ^9.0.0 
   json_annotation: ^4.8.1
   cached_network_image: ^3.3.1
+
 
 #icons
   iconsax: ^0.0.8 

@@ -18,6 +18,13 @@ class Config:
     CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET') or 'WBDJI-xZEAUZ6eU4z3_EPWpvlXA'
     CLOUDINARY_UPLOAD_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'VPG_UPLOADS')
 
+    INTASEND_PUBLISHABLE_KEY = os.environ.get('INTASEND_PUBLISHABLE_KEY')
+    INTASEND_SECRET_KEY = os.environ.get('INTASEND_SECRET_KEY')
+    INTASEND_IS_TEST = os.environ.get('INTASEND_IS_TEST', 'True').lower() == 'true'
+    
+    # Base URL for your application (for webhooks)
+    BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+
 
     # Construct DATABASE_URL for MySQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \

@@ -100,6 +100,7 @@ def create_app(config_name=None):
     from apis.comments import api as comments_ns
     from apis.auth import api as auth_ns
     from apis.subscriptions import api as subs_ns
+    from apis.payments import api as payments_ns
     # from apis.user_block_api import api as user
 
     # Register routes
@@ -111,6 +112,8 @@ def create_app(config_name=None):
     api.add_namespace(comments_ns, path='/api/comments')
     api.add_namespace(auth_ns, path='/auth')
     api.add_namespace(subs_ns, path='/api/subscriptions')
+    api.add_namespace(payments_ns, path='/api/payment')
+
     
 
     # Simple health endpoint for frontend connectivity checks

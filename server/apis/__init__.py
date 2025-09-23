@@ -9,6 +9,7 @@ from .conversations import api as conversations_ns
 # from .subscriptions import api as subscriptions_ns
 from .auth import api as auth_ns
 from .user_settings import api as user_settings_ns
+from .payments import api as payments_ns
 
 # Create the main API blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -42,6 +43,7 @@ api.add_namespace(comments_ns, path='/comments')
 api.add_namespace(messages_ns, path='/messages')
 api.add_namespace(conversations_ns, path='/conversations')
 api.add_namespace(user_settings_ns, path='/user-settings')
+api.add_namespace(payments_ns, path='/payment')
 # api.add_namespace(subscriptions_ns, path='/subscriptions')
 api.add_namespace(user_settings_ns, path='/user-settings')
 
