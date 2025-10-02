@@ -133,7 +133,7 @@ class IntaSendService:
         self.publishable_key = publishable_key
         self.secret_key = secret_key
         self.is_test = is_test
-        self.base_url = "https://sandbox.intasend.com" if is_test else "https://payment.intasend.com"
+        self.base_url ="https://payment.intasend.com"
         
     def _get_headers(self) -> Dict[str, str]:
         return {

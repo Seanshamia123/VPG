@@ -5,21 +5,27 @@ import 'package:flutter/material.dart';
 class AppTheme {
   final String fontFamily;
 
-  static var darkTheme;
-  static var lightTheme;
+  // Provide initialized, reusable themes so callers can use
+  // AppTheme.lightTheme / AppTheme.darkTheme safely.
+  static const String _defaultFont = 'Poppins';
+  static late final ThemeData lightTheme =
+      AppTheme(fontFamily: _defaultFont).light;
+  static late final ThemeData darkTheme =
+      AppTheme(fontFamily: _defaultFont).dark;
 
   AppTheme({required this.fontFamily});
 
   ThemeData get dark {
     return _getThemeData(
-      colorScheme: ColorScheme.light(
+      colorScheme: ColorScheme.dark(
         primary: AppColors.primaryColor,
         surface: AppColors.gray[850]!,
-        outline: AppColors.gray[800]!,
-        outlineVariant: AppColors.gray[700]!,
-        onSurface: AppColors.gray[300]!,
-        onSurfaceVariant: AppColors.gray[400]!,
+        outline: AppColors.gray[700]!,
+        outlineVariant: AppColors.gray[800]!,
+        onSurface: AppColors.gray[100]!,
+        onSurfaceVariant: AppColors.gray[300]!,
         tertiary: AppColors.gray[900]!,
+        background: AppColors.darkBackgroundColor,
       ),
       scaffoldBackgroundColor: AppColors.darkBackgroundColor,
       elevatedButtonTextStyle: _darkElevatedButtonTextStyle,
@@ -31,13 +37,14 @@ class AppTheme {
   ThemeData get light {
     return _getThemeData(
       colorScheme: ColorScheme.light(
-        primary: AppColors.primaryColor, // Warm off-white
-        surface: const Color(0xFFEDEDEB), // Light neutral gray
-        outline: const Color(0xFFD4D4D1), // Mid-tone gray
-        outlineVariant: AppColors.gray[400]!, // Warm dark gray
-        onSurface: const Color(0xFF525252), // Medium gray
-        onSurfaceVariant: AppColors.gray[600]!, // #6B7280
-        tertiary: AppColors.gray[900]!, // #1F2A44
+        primary: AppColors.primaryColor,
+        surface: const Color(0xFFEDEDEB),
+        outline: const Color(0xFFD4D4D1),
+        outlineVariant: AppColors.gray[400]!,
+        onSurface: const Color(0xFF1F2937),
+        onSurfaceVariant: AppColors.gray[700]!,
+        tertiary: AppColors.gray[900]!,
+        background: const Color(0xFFF5F5F4),
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F5F4),
       elevatedButtonTextStyle: _lightElevatedButtonTextStyle,
@@ -59,6 +66,7 @@ class AppTheme {
       fontFamily: fontFamily,
       scaffoldBackgroundColor: scaffoldBackgroundColor,
       appBarTheme: appBarTheme,
+      dividerColor: colorScheme.outlineVariant,
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
           fixedSize: const WidgetStatePropertyAll(Size.fromHeight(40)),

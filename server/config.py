@@ -23,7 +23,7 @@ class Config:
     INTASEND_IS_TEST = os.environ.get('INTASEND_IS_TEST', 'True').lower() == 'true'
     
     # Base URL for your application (for webhooks)
-    BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+    BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
 
 
     # Construct DATABASE_URL for MySQL

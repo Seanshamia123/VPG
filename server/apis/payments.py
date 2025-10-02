@@ -1,4 +1,4 @@
-# payments.py - New payment endpoints
+# payments.py - Fixed payment endpoints
 import sys
 import os
 from flask import request, jsonify, current_app
@@ -6,7 +6,7 @@ from flask_restx import Namespace, Resource, fields
 from datetime import datetime, timedelta
 import uuid
 import logging
-
+# from intasend_service import IntaSendService
 # Add the parent directory to the Python path to find intasend_service
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,7 +15,7 @@ from .decorators import token_required
 
 # Import IntaSend service with error handling
 try:
-    from intasend_service import IntaSendService, SubscriptionPlans
+    from .intasend_service import IntaSendService, SubscriptionPlans
 except ImportError as e:
     logging.error(f"Failed to import IntaSend service: {e}")
     # Create a dummy class to prevent startup errors during development
@@ -86,7 +86,7 @@ def get_intasend_service():
         return IntaSendService(
             publishable_key=current_app.config.get('INTASEND_PUBLISHABLE_KEY', ''),
             secret_key=current_app.config.get('INTASEND_SECRET_KEY', ''),
-            is_test=current_app.config.get('INTASEND_IS_TEST', True)
+            is_test=current_app.config.get('INTASEND_IS_TEST')
         )
     except Exception as e:
         logging.error(f"Failed to initialize IntaSend service: {e}")
@@ -145,7 +145,7 @@ class CreateCheckout(Resource):
         redirect_url = data.get('redirect_url')
         
         if not plan_id:
-            api.abort(400, 'Plan ID is required')
+            return {'error': 'Plan ID is required'}, 400
         
         try:
             # Get plan details
@@ -158,7 +158,7 @@ class CreateCheckout(Resource):
             # Get IntaSend service
             intasend = get_intasend_service()
             if not intasend:
-                api.abort(500, "Payment service not available")
+                return {'error': 'Payment service not available'}, 503
             
             # Prepare customer info
             customer_name = getattr(current_user, 'name', '').split(' ', 1)
@@ -178,26 +178,40 @@ class CreateCheckout(Resource):
                 reference=reference
             )
             
+            # Check for errors in response
             if 'error' in checkout_response:
-                api.abort(400, f"Payment creation failed: {checkout_response['error']}")
+                logging.error(f"IntaSend checkout creation failed: {checkout_response['error']}")
+                return {
+                    'success': False,
+                    'error': f"Payment creation failed: {checkout_response['error']}"
+                }, 400
+            
+            # Validate required fields in response
+            if not checkout_response.get('url') and not checkout_response.get('checkout_url'):
+                logging.error(f"IntaSend response missing URL: {checkout_response}")
+                return {
+                    'success': False,
+                    'error': 'Payment service did not return checkout URL'
+                }, 502
             
             # Store payment reference for later verification
             # You might want to create a PendingPayment model to track this
             
             return {
                 'success': True,
-                'checkout_url': checkout_response.get('url'),
-                'checkout_id': checkout_response.get('id'),
+                'checkout_url': checkout_response.get('url') or checkout_response.get('checkout_url'),
+                'checkout_id': checkout_response.get('id') or checkout_response.get('checkout_id'),
                 'amount': amount,
                 'currency': currency,
                 'reference': reference,
             }, 201
             
         except ValueError as e:
-            api.abort(400, str(e))
+            logging.error(f"Validation error in payment creation: {str(e)}")
+            return {'error': str(e)}, 400
         except Exception as e:
-            logging.error(f"Payment creation error: {str(e)}")
-            api.abort(500, 'Internal server error')
+            logging.error(f"Unexpected error in payment creation: {str(e)}")
+            return {'error': 'An unexpected error occurred while creating payment'}, 500
 
 @api.route('/verify/<string:checkout_id>')
 class VerifyPayment(Resource):
@@ -209,12 +223,17 @@ class VerifyPayment(Resource):
             # Get IntaSend service
             intasend = get_intasend_service()
             if not intasend:
-                api.abort(500, "Payment service not available")
+                return {
+                    'success': False,
+                    'status': 'error',
+                    'message': 'Payment service not available'
+                }, 503
             
             # Verify payment with IntaSend
             verification_response = intasend.verify_payment(checkout_id)
             
             if 'error' in verification_response:
+                logging.error(f"Payment verification failed: {verification_response['error']}")
                 return {
                     'success': False,
                     'status': 'error',
@@ -259,6 +278,7 @@ class VerifyPayment(Resource):
                             'message': 'Payment successful and subscription activated'
                         }
                     else:
+                        logging.error(f"Invalid reference format: {reference}")
                         return {
                             'success': False,
                             'status': 'error',
@@ -287,7 +307,11 @@ class VerifyPayment(Resource):
                 
         except Exception as e:
             logging.error(f"Payment verification error: {str(e)}")
-            api.abort(500, 'Internal server error')
+            return {
+                'success': False,
+                'status': 'error',
+                'message': 'An unexpected error occurred during verification'
+            }, 500
 
 @api.route('/webhook')
 class PaymentWebhook(Resource):
@@ -327,7 +351,7 @@ class ExchangeRates(Resource):
         try:
             intasend = get_intasend_service()
             if not intasend:
-                api.abort(500, "Payment service not available")
+                return {'error': 'Payment service not available'}, 503
             
             rates = intasend.get_exchange_rates(base_currency)
             
@@ -338,4 +362,4 @@ class ExchangeRates(Resource):
             }
         except Exception as e:
             logging.error(f"Exchange rate error: {str(e)}")
-            api.abort(500, 'Failed to fetch exchange rates')
+            return {'error': 'Failed to fetch exchange rates'}, 500
