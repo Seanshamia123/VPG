@@ -69,8 +69,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       id: 'basic',
       name: 'Basic Plan',
       description: 'Perfect for getting started',
-      priceKes: 10,
-      priceUsd: 15,
+      priceKes: 1,
+      priceUsd: 1.00,
       priceEur: 13,
       durationDays: 30,
       features: [

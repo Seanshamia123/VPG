@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 
-load_dotenv()
-
 def create_app(config_name=None):
     app = Flask(__name__)
 
