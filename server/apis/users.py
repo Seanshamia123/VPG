@@ -322,3 +322,60 @@ class UserAvatar(Resource):
         except Exception as e:
             db.session.rollback()
             api.abort(500, f'Failed to upload avatar: {str(e)}')
+
+@api.route('/fcm-token')
+class FCMToken(Resource):
+    @api.doc('update_fcm_token')
+    @token_required
+    def post(self, current_user):
+        """
+        Update user's FCM token for push notifications
+        
+        Request body:
+        {
+            "fcm_token": "firebase_token_here"
+        }
+        """
+        try:
+            data = request.get_json()
+            fcm_token = data.get('fcm_token')
+            
+            if not fcm_token:
+                api.abort(400, 'fcm_token is required')
+            
+            # Update user's FCM token
+            current_user.fcm_token = fcm_token
+            db.session.commit()
+            
+            print(f'[FCMToken] Updated token for {current_user.__class__.__name__}:{current_user.id}')
+            
+            return {
+                'message': 'FCM token updated successfully',
+                'user_id': current_user.id
+            }, 200
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f'[FCMToken] Error updating token: {str(e)}')
+            api.abort(500, f'Failed to update FCM token: {str(e)}')
+    
+    @api.doc('delete_fcm_token')
+    @token_required
+    def delete(self, current_user):
+        """
+        Delete user's FCM token (for logout)
+        """
+        try:
+            current_user.fcm_token = None
+            db.session.commit()
+            
+            print(f'[FCMToken] Deleted token for {current_user.__class__.__name__}:{current_user.id}')
+            
+            return {
+                'message': 'FCM token deleted successfully'
+            }, 200
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f'[FCMToken] Error deleting token: {str(e)}')
+            api.abort(500, f'Failed to delete FCM token: {str(e)}')

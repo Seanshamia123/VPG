@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "941580715785",
+    "project_id": "vpg-notification",
+    "storage_bucket": "vpg-notification.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:941580715785:android:8b0471e4d54fe8d43b75d8",
+        "android_client_info": {
+          "package_name": "com.example.escort"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5rXupHOn19GQ0RIB56hNEZWpf_94PNyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

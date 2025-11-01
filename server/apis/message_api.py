@@ -81,13 +81,23 @@ def _build_message_dict(msg, include_sender=True):
     
     return msg_dict
 
+"""
+Add this to your existing message_api.py file
+This shows the changes needed to send notifications when messages are created
+"""
+
+# Add this import at the top
+from .notification_utils import send_message_notification, send_notification_to_multiple
+
+# Update the POST method in MessageList Resource class:
+
 @api.route('/')
 class MessageList(Resource):
     @api.doc('create_message')
     @api.expect(message_create_model)
     @token_required
     def post(self, current_user):
-        """Create a new message and broadcast via WebSocket"""
+        """Create a new message and broadcast via WebSocket + Send Push Notification"""
         try:
             data = request.get_json()
             
@@ -125,25 +135,81 @@ class MessageList(Resource):
             message = Message(
                 conversation_id=data['conversation_id'],
                 sender_id=sender_id,
-                sender_type=sender_type,  # EXPLICITLY SET
+                sender_type=sender_type,
                 content=data['content']
             )
             
             db.session.add(message)
-            db.session.flush()  # Get message ID
+            db.session.flush()
             
-            # CRITICAL FIX: Update conversation's last_message_id and last_message_at
+            # Update conversation's last_message_id and last_message_at
             conversation.last_message_id = message.id
             conversation.last_message_at = datetime.utcnow()
             conversation.updated_at = datetime.utcnow()
             
             db.session.commit()
             
-            print(f'[MessageAPI] Message {message.id} created, conversation {conversation.id} updated')
-            print(f'[MessageAPI] Conversation last_message_at: {conversation.last_message_at}')
+            print(f'[MessageAPI] Message {message.id} created')
 
             # Build response payload
             payload = _build_message_dict(message, include_sender=True)
+            
+            # ========== SEND PUSH NOTIFICATIONS ==========
+            try:
+                # Get OTHER participants in the conversation (not the sender)
+                other_participants = ConversationParticipant.query.filter(
+                    ConversationParticipant.conversation_id == conversation.id,
+                    db.or_(
+                        ConversationParticipant.participant_id != sender_id,
+                        ConversationParticipant.participant_type != sender_type
+                    )
+                ).all()
+                
+                # Get sender info for notification
+                sender_name = current_user.name if hasattr(current_user, 'name') else 'Someone'
+                sender_avatar = getattr(current_user, 'profile_image_url', None)
+                
+                # Send notification to each recipient
+                for participant in other_participants:
+                    try:
+                        # Get recipient user/advertiser object
+                        if participant.participant_type == 'user':
+                            recipient = User.find_by_id(participant.participant_id)
+                        else:
+                            recipient = Advertiser.find_by_id(participant.participant_id)
+                        
+                        if not recipient:
+                            continue
+                        
+                        # Get recipient's FCM token
+                        fcm_token = getattr(recipient, 'fcm_token', None)
+                        
+                        if fcm_token:
+                            print(f'[MessageAPI] Sending notification to {participant.participant_type}:{participant.participant_id}')
+                            
+                            # Send notification
+                            send_message_notification(
+                                fcm_token=fcm_token,
+                                sender_name=sender_name,
+                                message_content=message.content,
+                                conversation_id=conversation.id,
+                                sender_id=sender_id,
+                                sender_type=sender_type,
+                                sender_avatar=sender_avatar
+                            )
+                        else:
+                            print(f'[MessageAPI] No FCM token for {participant.participant_type}:{participant.participant_id}')
+                    
+                    except Exception as notif_error:
+                        print(f'[MessageAPI] Error sending notification to participant: {notif_error}')
+                        # Don't fail the whole request if notification fails
+                        continue
+            
+            except Exception as notif_error:
+                print(f'[MessageAPI] Error in notification process: {notif_error}')
+                # Don't fail message creation if notification fails
+            
+            # ========== END PUSH NOTIFICATIONS ==========
             
             # Emit via WebSocket
             try:
@@ -151,9 +217,9 @@ class MessageList(Resource):
                 if socketio:
                     room = f"conv_{message.conversation_id}"
                     socketio.emit('new_message', payload, room=room)
-                    print(f'Message {message.id} emitted: sender={sender_type}:{sender_id}')
+                    print(f'[MessageAPI] WebSocket emitted for message {message.id}')
             except Exception as ws_error:
-                print(f'WebSocket emit error: {ws_error}')
+                print(f'[MessageAPI] WebSocket emit error: {ws_error}')
 
             return payload, 201
             
@@ -162,6 +228,7 @@ class MessageList(Resource):
             print(f'[MessageAPI] Error creating message: {str(e)}')
             api.abort(500, f'Failed to create message: {str(e)}')
 
+            
 @api.route('/<int:message_id>')
 class MessageDetail(Resource):
     @api.doc('get_message')

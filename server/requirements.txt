@@ -21,3 +21,4 @@ requests
 intasend-python  
 celery 
 redis 
+firebase-admin

@@ -20,7 +20,9 @@ dependencies:
   webview_flutter: ^4.0.0
   webview_flutter_wkwebview: ^3.9.4
   webview_flutter_android: ^3.12.1
-  
+  firebase_core: ^4.2.0
+  firebase_messaging: ^16.0.3
+  flutter_local_notifications: ^16.3.0
 
  #utility Packages
   http: ^1.2.2

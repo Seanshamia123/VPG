@@ -100,6 +100,7 @@ def create_app(config_name=None):
     from apis.subscriptions import api as subs_ns
     from apis.payments import api as payments_ns
     from apis.conversations import api as conversations_ns
+    # from server.apis.notification_utils import api as notifications_ns
     # from apis.user_block_api import api as user
 
     # Register routes
@@ -113,6 +114,7 @@ def create_app(config_name=None):
     api.add_namespace(auth_ns, path='/auth')
     api.add_namespace(subs_ns, path='/api/subscriptions')
     api.add_namespace(payments_ns, path='/api/payment')
+    # api.add_namespace(notifications_ns, path='/api/notifications')
 
     
 
