@@ -1,4 +1,6 @@
 import 'package:escort/device_utility/device_checker.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription_plans_page.dart';
 import 'package:escort/features/auth/presentation/screens/signupoptions.dart';
 import 'package:escort/features/advertisers/presentation/screens/advertiser_profile.dart';
 import 'package:escort/services/auth_service.dart';
@@ -77,7 +79,6 @@ class _LoginState extends State<Login> {
       _isLoading = true;
     });
 
-    // Debug: Print login data
     print('=== LOGIN ATTEMPT ===');
     print('Email: ${_emailController.text.trim()}');
     print('User Type: $_selectedUserType');
@@ -90,33 +91,46 @@ class _LoginState extends State<Login> {
         userType: _selectedUserType,
       );
 
-      // Enhanced debugging
       print('=== LOGIN RESULT DEBUG ===');
       print('Result Type: ${result.runtimeType}');
       print('Result Keys: ${result.keys.toList()}');
       print('Full result: $result');
       print('==========================');
 
+      // Check for subscription requirement (for advertisers)
+      if (result.containsKey('subscription_required') &&
+          result['subscription_required'] == true) {
+        print('Subscription required for advertiser');
+
+        String errorMessage = result['error'] ??
+            result['message'] ??
+            'Active subscription required to access advertiser account';
+
+        // Show subscription required dialog with credentials
+        if (mounted) {
+          _showSubscriptionRequiredDialog(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            userId: result['user_id'],
+            currentStatus: result['subscription_status'] ?? 'No subscription',
+          );
+        }
+        return;
+      }
+
       // Check for successful login
       bool isSuccess = _determineLoginSuccess(result);
       print('Login success determination: $isSuccess');
 
       if (isSuccess) {
-        // Handle successful login
-        _handleSuccessfulLogin(result);
-
-        // Show success message
+        await _handleSuccessfulLogin(result);
         _showSuccessSnackBar('Login successful! Welcome back!');
-
-        // Wait a bit to show the success message
         await Future.delayed(const Duration(milliseconds: 1000));
 
-        // Navigate to appropriate dashboard based on user type
         if (mounted) {
           String userType = result['user_type'] ?? _selectedUserType;
           print('Navigating to dashboard for user type: $userType');
 
-          // TODO: Replace these with your actual dashboard routes
           if (userType == 'advertiser') {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
@@ -124,17 +138,14 @@ class _LoginState extends State<Login> {
               ),
               (route) => false,
             );
-            print('Should navigate to Advertiser Dashboard');
           } else {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (context) => const HomeScreen()),
               (route) => false,
             );
-            print('Should navigate to User Dashboard');
           }
         }
       } else {
-        // Handle login failure
         String errorMessage = _extractErrorMessage(result);
         print('Login failed: $errorMessage');
         _showErrorSnackBar(errorMessage);
@@ -147,6 +158,187 @@ class _LoginState extends State<Login> {
       print('===============================');
 
       _showErrorSnackBar('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showSubscriptionRequiredDialog({
+    required String email,
+    required String password,
+    dynamic userId,
+    required String currentStatus,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: darkGray,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: primaryGold.withOpacity(0.5)),
+          ),
+          title: Row(
+            children: [
+              Icon(Iconsax.warning_2, color: primaryGold, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Subscription Required',
+                  style: TextStyle(
+                    color: primaryGold,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your advertiser account requires an active subscription to access all features.',
+                style: TextStyle(
+                  color: white,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Current status: $currentStatus',
+                style: TextStyle(
+                  color: lightGray,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Back',
+                style: TextStyle(color: lightGray),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+
+                // CRITICAL FIX: Pass credentials to subscription page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SubscriptionPlansPage(
+                      onSubscriptionComplete: () async {
+                        // After subscription completes, attempt login again
+                        print('=== POST-SUBSCRIPTION LOGIN ===');
+                        await _retryLoginAfterSubscription(email, password);
+                      },
+                      userId: userId,
+                      // PASS CREDENTIALS FOR PAYMENT FLOW
+                      pendingLoginEmail: email,
+                      pendingLoginPassword: password,
+                      pendingLoginUserType: _selectedUserType,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGold,
+                foregroundColor: pureBlack,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Subscribe Now',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _retryLoginAfterSubscription(
+      String email, String password) async {
+    print('=== RETRYING LOGIN AFTER SUBSCRIPTION ===');
+    print('Email: $email');
+    print('User Type: $_selectedUserType');
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Retry login with credentials
+      Map<String, dynamic> result = await AuthService.login(
+        email: email,
+        password: password,
+        userType: _selectedUserType,
+      );
+
+      print('=== POST-SUBSCRIPTION LOGIN RESULT ===');
+      print(
+        'Access Token: ${result.containsKey('access_token') ? "Present" : "Missing"}',
+      );
+      print('Subscription Required: ${result['subscription_required']}');
+      print('Status Code: ${result['statusCode']}');
+      print('======================================');
+
+      // Check again if subscription is still required
+      if (result.containsKey('subscription_required') &&
+          result['subscription_required'] == true) {
+        _showErrorSnackBar(
+          'Subscription is still processing. Please try again in a moment.',
+        );
+        return;
+      }
+
+      bool isSuccess = _determineLoginSuccess(result);
+
+      if (isSuccess) {
+        // Save session with new tokens
+        await _handleSuccessfulLogin(result);
+
+        _showSuccessSnackBar(
+          'Subscription activated! Welcome to VipGalz Advertiser!',
+        );
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        if (mounted) {
+          // Navigate to advertiser profile
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const AdvertiserProfile(),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        String errorMessage = _extractErrorMessage(result);
+        _showErrorSnackBar('Login after subscription failed: $errorMessage');
+        print('Post-subscription login failed: $errorMessage');
+      }
+    } catch (e) {
+      print('=== EXCEPTION IN POST-SUBSCRIPTION LOGIN ===');
+      print('Exception: $e');
+      _showErrorSnackBar(
+        'Unable to complete login. Please try manually logging in.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -170,14 +362,16 @@ class _LoginState extends State<Login> {
       if (status == 'success' || status == 'ok') return true;
     }
 
-    // Check HTTP status codes
+    // Check HTTP status codes (200-299 are success)
     if (result.containsKey('statusCode')) {
       int statusCode = result['statusCode'];
       if (statusCode >= 200 && statusCode < 300) return true;
     }
 
     // Check for presence of access token (most reliable indicator)
-    if (result.containsKey('access_token') && result['access_token'] != null) {
+    if (result.containsKey('access_token') &&
+        result['access_token'] != null &&
+        result['access_token'].isNotEmpty) {
       return true;
     }
 
@@ -192,7 +386,8 @@ class _LoginState extends State<Login> {
     // If no explicit error and we have some meaningful data, assume success
     if (!result.containsKey('error') &&
         !result.containsKey('errors') &&
-        result.isNotEmpty) {
+        result.isNotEmpty &&
+        result['statusCode'] != 403) {
       return true;
     }
 
@@ -252,14 +447,17 @@ class _LoginState extends State<Login> {
     Map<String, dynamic> userData = {
       'email': _emailController.text.trim(),
       'user_type': userType ?? _selectedUserType,
-      'is_online': true, // Assume online after login
+      'is_online': true,
     };
 
     // Add any additional data from login response
     if (userId != null) userData['id'] = userId;
-    if (result.containsKey('username'))
+    if (result.containsKey('username')) {
       userData['username'] = result['username'];
-    if (result.containsKey('name')) userData['name'] = result['name'];
+    }
+    if (result.containsKey('name')) {
+      userData['name'] = result['name'];
+    }
 
     try {
       // First, save basic session data
@@ -309,7 +507,6 @@ class _LoginState extends State<Login> {
       }
     } catch (e) {
       print('Error during profile setup: $e');
-      // Continue with navigation even if profile fetch fails
     }
   }
 
@@ -337,8 +534,8 @@ class _LoginState extends State<Login> {
                   maxWidth: StyleContext(context).isTablet
                       ? 600
                       : StyleContext(context).isDesktop
-                      ? 400
-                      : context.screenWidth * 0.9,
+                          ? 400
+                          : context.screenWidth * 0.9,
                 ),
                 child: Form(
                   key: _formKey,
@@ -373,9 +570,8 @@ class _LoginState extends State<Login> {
                       Container(
                         decoration: BoxDecoration(
                           color: darkGray,
-                          borderRadius: BorderRadius.circular(
-                            Sizes.inputFieldRadius,
-                          ),
+                          borderRadius:
+                              BorderRadius.circular(Sizes.inputFieldRadius),
                           border: Border.all(
                             color: primaryGold.withOpacity(0.5),
                           ),
@@ -455,40 +651,36 @@ class _LoginState extends State<Login> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(color: white),
+                        style: const TextStyle(color: white),
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          labelStyle: TextStyle(color: lightGray),
+                          labelStyle: const TextStyle(color: lightGray),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(color: primaryGold),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(color: primaryGold),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
                             borderSide: BorderSide(
                               color: primaryGold.withOpacity(0.5),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(
                               color: primaryGold,
                               width: 2,
                             ),
                           ),
                           errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(color: Colors.red),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(color: Colors.red),
                           ),
-                          prefixIcon: Icon(Iconsax.sms, color: primaryGold),
+                          prefixIcon: const Icon(Iconsax.sms, color: primaryGold),
                           filled: true,
                           fillColor: darkGray,
                         ),
@@ -507,38 +699,34 @@ class _LoginState extends State<Login> {
                       // Password Field
                       TextFormField(
                         controller: _passwordController,
-                        style: TextStyle(color: white),
+                        style: const TextStyle(color: white),
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          labelStyle: TextStyle(color: lightGray),
+                          labelStyle: const TextStyle(color: lightGray),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(color: primaryGold),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(color: primaryGold),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
                             borderSide: BorderSide(
                               color: primaryGold.withOpacity(0.5),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(
                               color: primaryGold,
                               width: 2,
                             ),
                           ),
                           errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              Sizes.inputFieldRadius,
-                            ),
-                            borderSide: BorderSide(color: Colors.red),
+                            borderRadius:
+                                BorderRadius.circular(Sizes.inputFieldRadius),
+                            borderSide: const BorderSide(color: Colors.red),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -553,7 +741,7 @@ class _LoginState extends State<Login> {
                               });
                             },
                           ),
-                          prefixIcon: Icon(
+                          prefixIcon: const Icon(
                             Iconsax.password_check,
                             color: primaryGold,
                           ),
@@ -583,18 +771,17 @@ class _LoginState extends State<Login> {
                                     _rememberMe = value ?? false;
                                   });
                                 },
-                                fillColor: WidgetStateProperty.resolveWith((
-                                  states,
-                                ) {
+                                fillColor:
+                                    WidgetStateProperty.resolveWith((states) {
                                   if (states.contains(WidgetState.selected)) {
                                     return primaryGold;
                                   }
                                   return Colors.transparent;
                                 }),
                                 checkColor: pureBlack,
-                                side: BorderSide(color: primaryGold),
+                                side: const BorderSide(color: primaryGold),
                               ),
-                              Text(
+                              const Text(
                                 "Remember Me",
                                 style: TextStyle(color: white),
                               ),
@@ -602,12 +789,11 @@ class _LoginState extends State<Login> {
                           ),
                           TextButton(
                             onPressed: () {
-                              // TODO: Implement forgot password functionality
                               _showErrorSnackBar(
                                 'Forgot password feature coming soon!',
                               );
                             },
-                            child: Text(
+                            child: const Text(
                               "Forgot Password",
                               style: TextStyle(color: primaryGold),
                             ),
@@ -619,36 +805,33 @@ class _LoginState extends State<Login> {
                       // Login Button
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
-                        style:
-                            ElevatedButton.styleFrom(
-                              backgroundColor: primaryGold,
-                              foregroundColor: pureBlack,
-                              minimumSize: Size(
-                                double.infinity,
-                                Sizes.buttonHeight,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                            ).copyWith(
-                              backgroundColor:
-                                  WidgetStateProperty.resolveWith<Color>((
-                                    Set<WidgetState> states,
-                                  ) {
-                                    if (states.contains(WidgetState.disabled)) {
-                                      return primaryGold.withOpacity(0.6);
-                                    }
-                                    if (states.contains(WidgetState.pressed)) {
-                                      return darkGold;
-                                    }
-                                    if (states.contains(WidgetState.hovered)) {
-                                      return accentGold;
-                                    }
-                                    return primaryGold;
-                                  }),
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGold,
+                          foregroundColor: pureBlack,
+                          minimumSize:
+                              const Size(double.infinity, Sizes.buttonHeight),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                        ).copyWith(
+                          backgroundColor:
+                              WidgetStateProperty.resolveWith<Color>((
+                            Set<WidgetState> states,
+                          ) {
+                            if (states.contains(WidgetState.disabled)) {
+                              return primaryGold.withOpacity(0.6);
+                            }
+                            if (states.contains(WidgetState.pressed)) {
+                              return darkGold;
+                            }
+                            if (states.contains(WidgetState.hovered)) {
+                              return accentGold;
+                            }
+                            return primaryGold;
+                          }),
+                        ),
                         child: _isLoading
                             ? const SizedBox(
                                 height: 20,
@@ -660,7 +843,7 @@ class _LoginState extends State<Login> {
                                   ),
                                 ),
                               )
-                            : Text(
+                            : const Text(
                                 'Login',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -671,46 +854,44 @@ class _LoginState extends State<Login> {
                       ),
                       const SizedBox(height: Sizes.spaceBtwSections),
 
-                      // Sign up → go to card chooser (SignOptions)
+                      // Sign up - go to card chooser (SignOptions)
                       ElevatedButton(
                         onPressed: _isLoading
                             ? null
                             : () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const SignOptions(),
+                                  MaterialPageRoute(
+                                    builder: (_) => const SignOptions(),
+                                  ),
                                 ),
-                              ),
-                        style:
-                            ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              foregroundColor: primaryGold,
-                              minimumSize: Size(
-                                double.infinity,
-                                Sizes.buttonHeight,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: primaryGold, width: 2),
-                              ),
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                            ).copyWith(
-                              backgroundColor:
-                                  WidgetStateProperty.resolveWith<Color>((
-                                    Set<WidgetState> states,
-                                  ) {
-                                    if (states.contains(WidgetState.disabled)) {
-                                      return Colors.transparent;
-                                    }
-                                    if (states.contains(WidgetState.pressed)) {
-                                      return primaryGold.withOpacity(0.1);
-                                    }
-                                    if (states.contains(WidgetState.hovered)) {
-                                      return primaryGold.withOpacity(0.05);
-                                    }
-                                    return Colors.transparent;
-                                  }),
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: primaryGold,
+                          minimumSize:
+                              const Size(double.infinity, Sizes.buttonHeight),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side:
+                                const BorderSide(color: primaryGold, width: 2),
+                          ),
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                        ).copyWith(
+                          backgroundColor:
+                              WidgetStateProperty.resolveWith<Color>((
+                            Set<WidgetState> states,
+                          ) {
+                            if (states.contains(WidgetState.disabled)) {
+                              return Colors.transparent;
+                            }
+                            if (states.contains(WidgetState.pressed)) {
+                              return primaryGold.withOpacity(0.1);
+                            }
+                            if (states.contains(WidgetState.hovered)) {
+                              return primaryGold.withOpacity(0.05);
+                            }
+                            return Colors.transparent;
+                          }),
+                        ),
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
@@ -733,5 +914,3 @@ class _LoginState extends State<Login> {
     );
   }
 }
-/// Feature: Auth
-/// Screen: Login

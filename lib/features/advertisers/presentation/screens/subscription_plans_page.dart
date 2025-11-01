@@ -1,6 +1,9 @@
-// subscription_plans_page.dart - Plan selection page
+// subscription_plans_page.dart - Fixed with all imports at top
 import 'package:flutter/material.dart';
-import 'subscription_checkout.dart'; // Import your checkout page
+import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:escort/services/user_session.dart';
+import 'subscription_checkout.dart';
 
 class SubscriptionPlan {
   final String id;
@@ -47,7 +50,20 @@ class SubscriptionPlan {
 }
 
 class SubscriptionPlansPage extends StatefulWidget {
-  const SubscriptionPlansPage({Key? key}) : super(key: key);
+  final VoidCallback? onSubscriptionComplete;
+  final dynamic userId;
+  final String? pendingLoginEmail;
+  final String? pendingLoginPassword;
+  final String? pendingLoginUserType;
+
+  const SubscriptionPlansPage({
+    Key? key,
+    this.onSubscriptionComplete,
+    this.userId,
+    this.pendingLoginEmail,
+    this.pendingLoginPassword,
+    this.pendingLoginUserType,
+  }) : super(key: key);
 
   @override
   State<SubscriptionPlansPage> createState() => _SubscriptionPlansPageState();
@@ -69,9 +85,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       id: 'basic',
       name: 'Basic Plan',
       description: 'Perfect for getting started',
-      priceKes: 1,
-      priceUsd: 1.00,
-      priceEur: 13,
+      priceKes: 1000.00,
+      priceUsd: 10.00,
+      priceEur: 9,
       durationDays: 30,
       features: [
         'Up to 10 posts per month',
@@ -109,6 +125,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDialog = Navigator.canPop(context) && widget.onSubscriptionComplete != null;
+    final hasPendingLogin = widget.pendingLoginEmail != null;
+
     return Scaffold(
       backgroundColor: pureBlack,
       appBar: AppBar(
@@ -119,6 +138,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
         ),
         iconTheme: const IconThemeData(color: primaryGold),
         elevation: 0,
+        leading: isDialog ? null : const BackButton(),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -133,11 +153,51 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Show notice if pending login
+              if (hasPendingLogin)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: darkGray,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryGold.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: primaryGold),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Complete Subscription',
+                              style: TextStyle(
+                                color: primaryGold,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Subscribe to activate your account: ${widget.pendingLoginEmail}',
+                              style: const TextStyle(
+                                color: lightGray,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
               // Header
               Center(
                 child: Column(
-                  children: [
-                    const Text(
+                  children: const [
+                    Text(
                       'Unlock Premium Features',
                       style: TextStyle(
                         color: primaryGold,
@@ -145,8 +205,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'Choose the perfect plan for your needs',
                       style: TextStyle(
                         color: lightGray,
@@ -165,6 +225,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
               // Plans
               ..._plans.map((plan) => _buildPlanCard(plan)),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -174,7 +236,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
   Widget _buildCurrencySelector() {
     final currencies = ['KES', 'USD', 'EUR'];
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -209,8 +271,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                       color: isSelected ? primaryGold : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: isSelected 
-                            ? primaryGold 
+                        color: isSelected
+                            ? primaryGold
                             : lightGray.withOpacity(0.3),
                       ),
                     ),
@@ -244,18 +306,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
           color: darkGray,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: plan.isPopular 
-                ? plan.accentColor 
+            color: plan.isPopular
+                ? plan.accentColor
                 : lightGray.withOpacity(0.3),
             width: plan.isPopular ? 2 : 1,
           ),
-          boxShadow: plan.isPopular ? [
-            BoxShadow(
-              color: plan.accentColor.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ] : null,
+          boxShadow: plan.isPopular
+              ? [
+                  BoxShadow(
+                    color: plan.accentColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,28 +394,28 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
             // Features
             ...plan.features.map((feature) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: plan.isPopular ? plan.accentColor : primaryGold,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: const TextStyle(
-                        color: lightGray,
-                        fontSize: 13,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: plan.isPopular ? plan.accentColor : primaryGold,
+                        size: 16,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          feature,
+                          style: const TextStyle(
+                            color: lightGray,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )),
+                )),
             const SizedBox(height: 24),
 
             // Get Started Button
@@ -360,7 +424,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
               child: ElevatedButton(
                 onPressed: () => _navigateToCheckout(plan),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: plan.isPopular ? plan.accentColor : primaryGold,
+                  backgroundColor:
+                      plan.isPopular ? plan.accentColor : primaryGold,
                   foregroundColor: pureBlack,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -390,12 +455,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
         builder: (context) => SubscriptionCheckoutPage(
           selectedPlan: selectedPlan,
           selectedCurrency: _selectedCurrency,
+          pendingLoginEmail: widget.pendingLoginEmail,
+          pendingLoginPassword: widget.pendingLoginPassword,
+          pendingLoginUserType: widget.pendingLoginUserType,
         ),
       ),
     ).then((result) {
-      if (result == true) {
-        // Payment successful - navigate back to profile or show success
-        Navigator.pop(context, true);
+      if (result == true && widget.onSubscriptionComplete != null) {
+        widget.onSubscriptionComplete!();
       }
     });
   }

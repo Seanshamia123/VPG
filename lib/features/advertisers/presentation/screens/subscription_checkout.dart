@@ -1,11 +1,12 @@
-// subscription_checkout.dart - Complete with country support
+// subscription_checkout.dart - FIXED to support pending login credentials
+import 'package:escort/services/user_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'subscription_plans_page.dart';
-import 'package:escort/services/user_session.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription_plans_page.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription.dart';
 import 'package:escort/config/api_config.dart';
 
 // Currency class
@@ -25,7 +26,7 @@ class Currency {
   }
 }
 
-// Payment Service with card details and country
+// Payment Service - FIXED to handle pending login
 class PaymentService {
   static Future<Map<String, dynamic>> createCheckout({
     required String planId,
@@ -39,43 +40,40 @@ class PaymentService {
     String? cardCvc,
     String? cardHolderName,
     String? country,
+    // CRITICAL: Pending login credentials
+    String? pendingLoginEmail,
+    String? pendingLoginPassword,
+    String? pendingLoginUserType,
   }) async {
     try {
-      final isLoggedIn = await UserSession.isLoggedIn();
-      if (!isLoggedIn) {
-        throw Exception('User must be logged in to make payments');
-      }
-
-      final userId = await UserSession.getUserId();
-      
       print('=== CREATING CHECKOUT ===');
-      print('User ID: $userId');
       print('Plan ID: $planId');
       print('Currency: $currency');
-      print('Email: $email');
-      print('Phone: $phoneNumber');
-      print('Country: $country');
-      print('Has Card Details: ${cardNumber != null}');
+      print('Has Pending Login: ${pendingLoginEmail != null}');
       print('========================');
 
       final requestBody = {
         'plan_id': planId,
         'currency': currency,
-        'user_id': userId,
         if (phoneNumber != null && phoneNumber.isNotEmpty) 'phone_number': phoneNumber,
         if (email != null && email.isNotEmpty) 'email': email,
         if (redirectUrl != null && redirectUrl.isNotEmpty) 'redirect_url': redirectUrl,
-        // Add card details if provided
         if (cardNumber != null && cardNumber.isNotEmpty) 'card_number': cardNumber,
         if (cardExpiry != null && cardExpiry.isNotEmpty) 'card_expiry': cardExpiry,
         if (cardCvc != null && cardCvc.isNotEmpty) 'card_cvc': cardCvc,
         if (cardHolderName != null && cardHolderName.isNotEmpty) 'card_holder_name': cardHolderName,
         if (country != null && country.isNotEmpty) 'country': country,
+        // CRITICAL: Add pending login credentials
+        if (pendingLoginEmail != null && pendingLoginEmail.isNotEmpty) 'pending_login_email': pendingLoginEmail,
+        if (pendingLoginPassword != null && pendingLoginPassword.isNotEmpty) 'pending_login_password': pendingLoginPassword,
+        if (pendingLoginUserType != null && pendingLoginUserType.isNotEmpty) 'pending_login_user_type': pendingLoginUserType,
       };
+
+      final headers = await _getHeaders();
 
       final response = await http.post(
         Uri.parse('${ApiConfig.api}/payment/create-checkout'),
-        headers: await _getHeaders(),
+        headers: headers,
         body: json.encode(requestBody),
       );
 
@@ -89,13 +87,7 @@ class PaymentService {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return responseData;
       } else {
-        if (response.statusCode == 401) {
-          throw Exception('Authentication failed. Please log in again.');
-        } else if (response.statusCode == 403) {
-          throw Exception('Access denied. Please check your account status.');
-        } else {
-          throw Exception(responseData['message'] ?? 'Failed to create checkout');
-        }
+        throw Exception(responseData['message'] ?? responseData['error'] ?? 'Failed to create checkout');
       }
     } catch (e) {
       print('Error creating checkout: $e');
@@ -103,20 +95,30 @@ class PaymentService {
     }
   }
 
-  static Future<Map<String, dynamic>> verifyPayment(String checkoutId) async {
+  static Future<Map<String, dynamic>> verifyPayment(
+    String checkoutId, {
+    String? pendingLoginEmail,
+    String? pendingLoginPassword,
+    String? pendingLoginUserType,
+  }) async {
     try {
-      final isLoggedIn = await UserSession.isLoggedIn();
-      if (!isLoggedIn) {
-        throw Exception('User session expired. Please log in again.');
-      }
-
       print('=== VERIFYING PAYMENT ===');
       print('Checkout ID: $checkoutId');
+      print('Has Pending Login: ${pendingLoginEmail != null}');
       print('========================');
+
+      final requestBody = {
+        if (pendingLoginEmail != null && pendingLoginEmail.isNotEmpty) 'pending_login_email': pendingLoginEmail,
+        if (pendingLoginPassword != null && pendingLoginPassword.isNotEmpty) 'pending_login_password': pendingLoginPassword,
+        if (pendingLoginUserType != null && pendingLoginUserType.isNotEmpty) 'pending_login_user_type': pendingLoginUserType,
+      };
+
+      final headers = await _getHeaders();
 
       final response = await http.post(
         Uri.parse('${ApiConfig.api}/payment/verify/$checkoutId'),
-        headers: await _getHeaders(),
+        headers: headers,
+        body: requestBody.isNotEmpty ? json.encode(requestBody) : null,
       );
 
       print('=== VERIFICATION RESPONSE ===');
@@ -129,11 +131,7 @@ class PaymentService {
       if (response.statusCode == 200) {
         return responseData;
       } else {
-        if (response.statusCode == 401) {
-          throw Exception('Authentication failed. Please log in again.');
-        } else {
-          throw Exception(responseData['message'] ?? 'Failed to verify payment');
-        }
+        throw Exception(responseData['message'] ?? 'Failed to verify payment');
       }
     } catch (e) {
       print('Error verifying payment: $e');
@@ -149,13 +147,12 @@ class PaymentService {
         'Accept': 'application/json',
       };
       
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
       
       return headers;
     } catch (e) {
-      print('Error getting headers: $e');
       return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -164,15 +161,21 @@ class PaymentService {
   }
 }
 
-// Main Checkout Page
+// Main Checkout Page - FIXED
 class SubscriptionCheckoutPage extends StatefulWidget {
   final SubscriptionPlan selectedPlan;
   final String selectedCurrency;
+  final String? pendingLoginEmail;
+  final String? pendingLoginPassword;
+  final String? pendingLoginUserType;
 
   const SubscriptionCheckoutPage({
     Key? key,
     required this.selectedPlan,
     required this.selectedCurrency,
+    this.pendingLoginEmail,
+    this.pendingLoginPassword,
+    this.pendingLoginUserType,
   }) : super(key: key);
 
   @override
@@ -206,16 +209,13 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   WebViewController? _webViewController;
   bool _webViewInitialized = false;
 
-  Map<String, dynamic>? _userData;
   String? _userEmail;
-  String? _userPhone;
   bool _sessionChecked = false;
+  bool _hasPendingLogin = false;
 
-  // Card brand detection
   String _cardBrand = '';
-  
-  // Country selection
   String _selectedCountry = 'US';
+  
   final Map<String, String> _countries = {
     'US': 'United States',
     'KE': 'Kenya',
@@ -226,23 +226,16 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     'ES': 'Spain',
     'CA': 'Canada',
     'AU': 'Australia',
-    'NL': 'Netherlands',
-    'BE': 'Belgium',
-    'CH': 'Switzerland',
-    'SE': 'Sweden',
-    'NO': 'Norway',
-    'DK': 'Denmark',
   };
 
   @override
   void initState() {
     super.initState();
-    _initializeUserSession();
+    _initializeSession();
     _autoSelectCountry();
   }
   
   void _autoSelectCountry() {
-    // Auto-select country based on currency
     final currencyCountryMap = {
       'KES': 'KE',
       'USD': 'US',
@@ -258,31 +251,54 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     }
   }
 
-  Future<void> _initializeUserSession() async {
+  Future<void> _initializeSession() async {
     try {
-      final isLoggedIn = await UserSession.isLoggedIn();
-      if (!isLoggedIn) {
-        _showErrorSnackBar('Please log in to continue with payment');
-        Navigator.of(context).pop();
+      // CRITICAL FIX: Check if we have pending login credentials
+      _hasPendingLogin = widget.pendingLoginEmail != null && 
+                        widget.pendingLoginPassword != null;
+
+      print('=== INITIALIZING SESSION ===');
+      print('Has Pending Login: $_hasPendingLogin');
+      print('Pending Email: ${widget.pendingLoginEmail}');
+      
+      if (_hasPendingLogin) {
+        // Use pending login email for checkout
+        _userEmail = widget.pendingLoginEmail;
+        _emailController.text = _userEmail!;
+        
+        print('✓ Using pending login credentials');
+        setState(() {
+          _sessionChecked = true;
+        });
         return;
       }
 
-      _userData = await UserSession.getCurrentUserData();
-      _userEmail = await UserSession.getUserEmail();
-      _userPhone = await UserSession.getUserPhoneNumber();
+      // Try to get logged-in user session
+      final isLoggedIn = await UserSession.isLoggedIn();
+      print('Is Logged In: $isLoggedIn');
 
-      if (_userEmail != null && _userEmail!.isNotEmpty) {
-        _emailController.text = _userEmail!;
-      }
+      if (isLoggedIn) {
+        _userEmail = await UserSession.getUserEmail();
+        final userPhone = await UserSession.getUserPhoneNumber();
 
-      if (widget.selectedCurrency == 'KES' && _userPhone != null && _userPhone!.isNotEmpty) {
-        String displayPhone = _userPhone!;
-        if (displayPhone.startsWith('254')) {
-          displayPhone = '0${displayPhone.substring(3)}';
-        } else if (displayPhone.startsWith('+254')) {
-          displayPhone = '0${displayPhone.substring(4)}';
+        if (_userEmail != null && _userEmail!.isNotEmpty) {
+          _emailController.text = _userEmail!;
         }
-        _phoneController.text = displayPhone;
+
+        if (widget.selectedCurrency == 'KES' && userPhone != null && userPhone.isNotEmpty) {
+          String displayPhone = userPhone;
+          if (displayPhone.startsWith('254')) {
+            displayPhone = '0${displayPhone.substring(3)}';
+          } else if (displayPhone.startsWith('+254')) {
+            displayPhone = '0${displayPhone.substring(4)}';
+          }
+          _phoneController.text = displayPhone;
+        }
+      } else if (!_hasPendingLogin) {
+        // No session and no pending login - can't proceed
+        _showErrorSnackBar('Please log in or complete signup to continue');
+        Navigator.of(context).pop();
+        return;
       }
 
       setState(() {
@@ -290,9 +306,19 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       });
 
     } catch (e) {
-      print('Error initializing user session: $e');
-      _showErrorSnackBar('Failed to load user session');
-      Navigator.of(context).pop();
+      print('Error initializing session: $e');
+      
+      // If we have pending login, continue anyway
+      if (_hasPendingLogin) {
+        _userEmail = widget.pendingLoginEmail;
+        _emailController.text = _userEmail!;
+        setState(() {
+          _sessionChecked = true;
+        });
+      } else {
+        _showErrorSnackBar('Failed to load session');
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -317,7 +343,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           );
         _webViewInitialized = true;
       } catch (e) {
-        print('Error initializing WebView controller: $e');
+        print('Error initializing WebView: $e');
         _showErrorSnackBar('Failed to initialize payment interface');
       }
     }
@@ -364,7 +390,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
               CircularProgressIndicator(color: primaryGold),
               SizedBox(height: 16),
               Text(
-                'Loading user session...',
+                'Loading...',
                 style: TextStyle(color: white),
               ),
             ],
@@ -401,8 +427,45 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildUserInfo(),
-              const SizedBox(height: 16),
+              // Show pending login notice
+              if (_hasPendingLogin)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: darkGray.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: primaryGold.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: primaryGold, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Completing Registration',
+                              style: TextStyle(
+                                color: primaryGold,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Account: ${widget.pendingLoginEmail}',
+                              style: const TextStyle(
+                                color: lightGray,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
               _buildPlanSummary(),
               const SizedBox(height: 24),
               _buildPaymentForm(),
@@ -413,43 +476,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildUserInfo() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: darkGray.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: primaryGold.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.person, color: primaryGold, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Logged in as',
-                  style: TextStyle(color: lightGray, fontSize: 12),
-                ),
-                FutureBuilder<String?>(
-                  future: UserSession.getUserName(),
-                  builder: (context, snapshot) {
-                    return Text(
-                      snapshot.data ?? _userEmail ?? 'User',
-                      style: const TextStyle(color: white, fontWeight: FontWeight.w500),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -545,34 +571,13 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Text(
-              'Payment Details',
-              style: TextStyle(
-                color: primaryGold,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Spacer(),
-            if (!isKES) ...[
-              Image.network(
-                'https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg',
-                height: 20,
-              ),
-              const SizedBox(width: 8),
-              Image.network(
-                'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg',
-                height: 20,
-              ),
-              const SizedBox(width: 8),
-              Image.network(
-                'https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg',
-                height: 20,
-              ),
-            ],
-          ],
+        const Text(
+          'Payment Details',
+          style: TextStyle(
+            color: primaryGold,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 16),
         
@@ -593,6 +598,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
       style: const TextStyle(color: white),
+      enabled: !_hasPendingLogin, // Disable if using pending login
       decoration: InputDecoration(
         labelText: 'Email Address',
         labelStyle: const TextStyle(color: primaryGold),
@@ -614,38 +620,33 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   }
 
   Widget _buildPhoneField() {
-    return Column(
-      children: [
-        TextFormField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(color: white),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(10),
-          ],
-          decoration: InputDecoration(
-            labelText: 'Phone Number (M-Pesa)',
-            labelStyle: const TextStyle(color: primaryGold),
-            hintText: '0712345678',
-            hintStyle: const TextStyle(color: lightGray),
-            prefixText: '+254 ',
-            prefixStyle: const TextStyle(color: primaryGold),
-            filled: true,
-            fillColor: darkGray,
-            prefixIcon: const Icon(Icons.phone_android, color: primaryGold),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: primaryGold),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
+    return TextFormField(
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      style: const TextStyle(color: white),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(10),
       ],
+      decoration: InputDecoration(
+        labelText: 'Phone Number (M-Pesa)',
+        labelStyle: const TextStyle(color: primaryGold),
+        hintText: '0712345678',
+        hintStyle: const TextStyle(color: lightGray),
+        prefixText: '+254 ',
+        prefixStyle: const TextStyle(color: primaryGold),
+        filled: true,
+        fillColor: darkGray,
+        prefixIcon: const Icon(Icons.phone_android, color: primaryGold),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: primaryGold),
+        ),
+      ),
     );
   }
 
@@ -665,11 +666,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
             prefixIcon: const Icon(Icons.public, color: primaryGold),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: primaryGold),
             ),
           ),
           items: _countries.entries.map((entry) {
@@ -707,7 +703,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
             labelText: 'Card Number',
             labelStyle: const TextStyle(color: primaryGold),
             hintText: '4### #### #### ####',
-            hintStyle: const TextStyle(color: lightGray),
             filled: true,
             fillColor: darkGray,
             prefixIcon: const Icon(Icons.credit_card, color: primaryGold),
@@ -726,17 +721,12 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: primaryGold),
             ),
           ),
         ),
         const SizedBox(height: 16),
         
-        // Expiry and CVC Row
+        // Expiry and CVC
         Row(
           children: [
             Expanded(
@@ -750,20 +740,14 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                   _ExpiryDateFormatter(),
                 ],
                 decoration: InputDecoration(
-                  labelText: 'Expiry Date',
+                  labelText: 'Expiry',
                   labelStyle: const TextStyle(color: primaryGold),
                   hintText: '12/25',
-                  hintStyle: const TextStyle(color: lightGray),
                   filled: true,
                   fillColor: darkGray,
                   prefixIcon: const Icon(Icons.calendar_today, color: primaryGold, size: 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: primaryGold),
                   ),
                 ),
               ),
@@ -780,20 +764,14 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                   LengthLimitingTextInputFormatter(3),
                 ],
                 decoration: InputDecoration(
-                  labelText: 'CVV / CVC',
+                  labelText: 'CVV',
                   labelStyle: const TextStyle(color: primaryGold),
                   hintText: '123',
-                  hintStyle: const TextStyle(color: lightGray),
                   filled: true,
                   fillColor: darkGray,
                   prefixIcon: const Icon(Icons.lock_outline, color: primaryGold, size: 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: primaryGold),
                   ),
                 ),
               ),
@@ -812,44 +790,12 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
             labelText: 'Name on Card',
             labelStyle: const TextStyle(color: primaryGold),
             hintText: 'John Doe',
-            hintStyle: const TextStyle(color: lightGray),
             filled: true,
             fillColor: darkGray,
             prefixIcon: const Icon(Icons.person_outline, color: primaryGold),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: lightGray.withOpacity(0.3)),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: primaryGold),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        // 3D Secure Notice
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: darkGray.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: primaryGold.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: primaryGold, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'You may be directed to your bank\'s 3D secure process to authenticate your information',
-                  style: TextStyle(
-                    color: lightGray,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ],
@@ -993,11 +939,14 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   }
 
   Future<void> _proceedToPayment() async {
-    final isLoggedIn = await UserSession.isLoggedIn();
-    if (!isLoggedIn) {
-      _showErrorSnackBar('Session expired. Please log in again.');
-      Navigator.of(context).pop();
-      return;
+    // CRITICAL FIX: Allow payment with pending login credentials
+    if (!_hasPendingLogin) {
+      final isLoggedIn = await UserSession.isLoggedIn();
+      if (!isLoggedIn) {
+        _showErrorSnackBar('Session expired. Please log in again.');
+        Navigator.of(context).pop();
+        return;
+      }
     }
 
     if (_emailController.text.trim().isEmpty) {
@@ -1031,20 +980,17 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
         return;
       }
       
-      // Validate card number length
       final cardNumber = _cardNumberController.text.replaceAll(' ', '');
       if (cardNumber.length < 13 || cardNumber.length > 19) {
         _showErrorSnackBar('Invalid card number');
         return;
       }
       
-      // Validate expiry format
       if (!_cardExpiryController.text.contains('/') || _cardExpiryController.text.length != 5) {
         _showErrorSnackBar('Invalid expiry date format (MM/YY)');
         return;
       }
       
-      // Validate CVC length
       if (_cardCvcController.text.length < 3) {
         _showErrorSnackBar('Invalid CVC');
         return;
@@ -1058,18 +1004,28 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           ? _formatPhoneNumber(_phoneController.text.trim())
           : null;
 
+      print('=== PAYMENT REQUEST ===');
+      print('Has Pending Login: $_hasPendingLogin');
+      print('Email: ${_emailController.text.trim()}');
+      print('Phone: $phoneNumber');
+      print('Currency: ${widget.selectedCurrency}');
+      print('======================');
+
       final checkoutResult = await PaymentService.createCheckout(
         planId: widget.selectedPlan.id,
         currency: widget.selectedCurrency,
         phoneNumber: phoneNumber,
         email: _emailController.text.trim(),
         redirectUrl: 'your-app://payment-complete',
-        // Add card details for non-KES payments
         cardNumber: !isKES ? _cardNumberController.text.replaceAll(' ', '') : null,
         cardExpiry: !isKES ? _cardExpiryController.text.replaceAll('/', '') : null,
         cardCvc: !isKES ? _cardCvcController.text : null,
         cardHolderName: !isKES ? _cardHolderController.text.trim() : null,
         country: !isKES ? _selectedCountry : null,
+        // CRITICAL: Pass pending login credentials
+        pendingLoginEmail: widget.pendingLoginEmail,
+        pendingLoginPassword: widget.pendingLoginPassword,
+        pendingLoginUserType: widget.pendingLoginUserType,
       );
 
       if (checkoutResult['success'] == true) {
@@ -1104,12 +1060,8 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       }
     } catch (e) {
       String errorMessage = e.toString();
-      if (errorMessage.contains('Authentication failed')) {
-        Navigator.of(context).pop();
-        _showErrorSnackBar('Please log in again to continue');
-      } else {
-        _showErrorSnackBar('Error: $errorMessage');
-      }
+      print('Payment error: $errorMessage');
+      _showErrorSnackBar('Error: $errorMessage');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1131,7 +1083,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     print('=== M-PESA STK PUSH INITIATED ===');
     print('Checkout ID: $checkoutId');
     print('Invoice ID: $invoiceId');
-    print('API Ref: $apiRef');
     print('Phone: $phoneNumber');
     print('================================');
 
@@ -1177,28 +1128,24 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       return;
     }
 
-    final isLoggedIn = await UserSession.isLoggedIn();
-    if (!isLoggedIn) {
-      _showErrorSnackBar('Session expired during payment');
-      Navigator.of(context).pop();
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
       print('=== VERIFYING PAYMENT ===');
       print('Checkout ID: $_checkoutId');
-      print('Invoice ID: $_invoiceId');
-      print('API Ref: $_apiRef');
+      print('Has Pending Login: $_hasPendingLogin');
       print('========================');
 
-      final result = await PaymentService.verifyPayment(_checkoutId!);
+      final result = await PaymentService.verifyPayment(
+        _checkoutId!,
+        pendingLoginEmail: widget.pendingLoginEmail,
+        pendingLoginPassword: widget.pendingLoginPassword,
+        pendingLoginUserType: widget.pendingLoginUserType,
+      );
       
       print('=== VERIFICATION RESULT ===');
       print('Success: ${result['success']}');
       print('Status: ${result['status']}');
-      print('State: ${result['state']}');
       print('Message: ${result['message']}');
       print('===========================');
       
@@ -1218,7 +1165,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           }
         });
       } else if (state == 'PENDING' || status == 'pending') {
-        _showErrorSnackBar('Payment is still processing. Please wait and try again in a moment.');
+        _showErrorSnackBar('Payment is still processing. Please wait and try again.');
       } else {
         final errorMessage = result['message'] ?? 'Payment verification failed';
         _showErrorSnackBar(errorMessage);
@@ -1239,13 +1186,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     } catch (e) {
       String errorMessage = e.toString();
       print('Verification error: $errorMessage');
-      
-      if (errorMessage.contains('Authentication failed') || errorMessage.contains('401')) {
-        Navigator.of(context).pop();
-        _showErrorSnackBar('Session expired. Please log in again.');
-      } else {
-        _showErrorSnackBar('Verification error: $errorMessage');
-      }
+      _showErrorSnackBar('Verification error: $errorMessage');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1341,7 +1282,7 @@ class _ExpiryDateFormatter extends TextInputFormatter {
   }
 }
 
-// M-Pesa Waiting Dialog Widget
+// M-Pesa Waiting Dialog
 class _MpesaWaitingDialog extends StatelessWidget {
   final String message;
   final String? phoneNumber;
@@ -1368,10 +1309,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Icon(
-            Icons.phone_android,
-            color: const Color(0xFFFFD700),
-          ),
+          Icon(Icons.phone_android, color: const Color(0xFFFFD700)),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
@@ -1387,9 +1325,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(
-            color: Color(0xFFFFD700),
-          ),
+          const CircularProgressIndicator(color: Color(0xFFFFD700)),
           const SizedBox(height: 20),
           Text(
             message,
@@ -1407,11 +1343,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.phone_iphone,
-                    color: Color(0xFFFFD700),
-                    size: 16,
-                  ),
+                  const Icon(Icons.phone_iphone, color: Color(0xFFFFD700), size: 16),
                   const SizedBox(width: 8),
                   Text(
                     phoneNumber!,
@@ -1424,53 +1356,10 @@ class _MpesaWaitingDialog extends StatelessWidget {
               ),
             ),
           ],
-          if (invoiceId != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Reference',
-                    style: TextStyle(
-                      color: Color(0xFFCCCCCC),
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    invoiceId!,
-                    style: const TextStyle(
-                      color: Color(0xFFFFD700),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
           const SizedBox(height: 20),
           const Text(
-            'Please enter your M-Pesa PIN on your phone to complete the payment.',
-            style: TextStyle(
-              color: Color(0xFFCCCCCC),
-              fontSize: 12,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'After completing payment, click "Verify Payment" below.',
-            style: TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+            'Enter your M-Pesa PIN on your phone to complete payment.',
+            style: TextStyle(color: Color(0xFFCCCCCC), fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1478,10 +1367,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: onCancel,
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: Colors.red),
-          ),
+          child: const Text('Cancel', style: TextStyle(color: Colors.red)),
         ),
         ElevatedButton(
           onPressed: onVerify,

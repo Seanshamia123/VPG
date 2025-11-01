@@ -2,9 +2,8 @@
 /// Screen: SignOptions
 import 'package:escort/features/advertisers/presentation/screens/subscription.dart';
 import 'package:escort/features/auth/presentation/screens/login.dart';
-import 'package:escort/features/auth/presentation/screens/signup.dart'; // Import your signup screen
+import 'package:escort/features/auth/presentation/screens/signup.dart';
 import 'package:flutter/material.dart';
-// import 'package:get/get.dart';
 
 class SignOptions extends StatelessWidget {
   const SignOptions({super.key});
@@ -21,21 +20,18 @@ class SignOptions extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A1A), // Dark charcoal
-              Color(0xFF000000), // Pure black
-              Color(0xFF1A1A1A), // Dark charcoal
+              Color(0xFF1A1A1A),
+              Color(0xFF000000),
+              Color(0xFF1A1A1A),
             ],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // Golden particles/stars background effect
             Positioned.fill(
               child: CustomPaint(painter: GoldenParticlesPainter()),
             ),
-
-            // Main content
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
@@ -48,7 +44,6 @@ class SignOptions extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Glamorous title
                           Container(
                             margin: const EdgeInsets.only(bottom: 40),
                             child: Column(
@@ -57,9 +52,9 @@ class SignOptions extends StatelessWidget {
                                   shaderCallback: (bounds) =>
                                       const LinearGradient(
                                         colors: [
-                                          Color(0xFFFFD700), // Bright gold
-                                          Color(0xFFFFA500), // Orange gold
-                                          Color(0xFFFFD700), // Bright gold
+                                          Color(0xFFFFD700),
+                                          Color(0xFFFFA500),
+                                          Color(0xFFFFD700),
                                         ],
                                       ).createShader(bounds),
                                   child: Text(
@@ -90,8 +85,6 @@ class SignOptions extends StatelessWidget {
                               ],
                             ),
                           ),
-
-                          // Sign up cards
                           isMobile
                               ? Column(
                                   children: [
@@ -101,7 +94,6 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as User',
                                       subtitle: 'Join our exclusive community',
                                       onTap: () {
-                                        // Navigate to signup page with user type
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -118,8 +110,6 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as Advertiser',
                                       subtitle: 'Promote your premium services',
                                       onTap: () {
-                                        // For advertisers, you might want to show subscription first
-                                        // or navigate directly to signup
                                         showDialog(
                                           context: context,
                                           builder: (context) => AlertDialog(
@@ -129,22 +119,6 @@ class SignOptions extends StatelessWidget {
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) =>
-                                                        const Dialog(
-                                                          child:
-                                                              SubscriptionDialog(),
-                                                        ),
-                                                  );
-                                                },
-                                                child: const Text(
-                                                  'View Subscriptions',
-                                                ),
-                                              ),
-                                              ElevatedButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   Navigator.push(
@@ -180,7 +154,6 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as User',
                                       subtitle: 'Join our exclusive community',
                                       onTap: () {
-                                        // Navigate to signup page with user type
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -196,7 +169,6 @@ class SignOptions extends StatelessWidget {
                                       title: 'Sign up as Advertiser',
                                       subtitle: 'Promote your premium services',
                                       onTap: () {
-                                        // For advertisers, you might want to show subscription first
                                         showDialog(
                                           context: context,
                                           builder: (context) => AlertDialog(
@@ -206,22 +178,6 @@ class SignOptions extends StatelessWidget {
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) =>
-                                                        const Dialog(
-                                                          child:
-                                                              SubscriptionDialog(),
-                                                        ),
-                                                  );
-                                                },
-                                                child: const Text(
-                                                  'View Subscriptions',
-                                                ),
-                                              ),
-                                              ElevatedButton(
                                                 onPressed: () {
                                                   Navigator.pop(context);
                                                   Navigator.push(
@@ -246,10 +202,7 @@ class SignOptions extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-
                           const SizedBox(height: 40),
-
-                          // Glamorous back to login button
                           Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(30),
@@ -428,7 +381,6 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Icon with golden glow
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -450,10 +402,7 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                           color: const Color(0xFFFFD700),
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
-                      // Title
                       ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
                           colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
@@ -469,10 +418,7 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                           textAlign: TextAlign.center,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
-                      // Subtitle
                       Text(
                         widget.subtitle,
                         style: TextStyle(
@@ -482,10 +428,7 @@ class _GlamorousSignUpCardState extends State<GlamorousSignUpCard>
                         ),
                         textAlign: TextAlign.center,
                       ),
-
                       const SizedBox(height: 16),
-
-                      // Decorative line
                       Container(
                         height: 1,
                         width: 60,
@@ -518,7 +461,6 @@ class GoldenParticlesPainter extends CustomPainter {
       ..color = const Color(0xFFFFD700).withOpacity(0.1)
       ..style = PaintingStyle.fill;
 
-    // Draw golden particles/stars
     for (int i = 0; i < 50; i++) {
       final x = (i * 37) % size.width;
       final y = (i * 23) % size.height;

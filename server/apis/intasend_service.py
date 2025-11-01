@@ -26,7 +26,7 @@ class SubscriptionPlans:
             id="basic",
             name="Basic Plan",
             description="Essential features for small businesses",
-            price_kes=1.0,
+            price_kes=10.0,
             price_usd=1.00,
             price_eur=13.0,
             duration_days=30,

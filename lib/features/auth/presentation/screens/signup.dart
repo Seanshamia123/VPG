@@ -1,11 +1,145 @@
 // Enhanced signup.dart with Navigator and simplified success handling
 import 'package:escort/device_utility/device_checker.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription.dart';
 import 'package:escort/features/auth/presentation/screens/login.dart';
 import 'package:escort/styles/app_size.dart';
 import 'package:escort/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+
+// Top-level widget class - MUST be outside any State class
+class SubscriptionDialogWithCallback extends StatelessWidget {
+  final dynamic userId;
+  final VoidCallback onSubscriptionComplete;
+  final VoidCallback onSkip;
+
+  const SubscriptionDialogWithCallback({
+    Key? key,
+    required this.userId,
+    required this.onSubscriptionComplete,
+    required this.onSkip,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: 600,
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFFFFD700).withOpacity(0.2),
+                  Colors.transparent,
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.workspace_premium,
+                  color: Color(0xFFFFD700),
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Complete Your Registration',
+                        style: TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Choose a subscription plan to activate your account',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Subscription content
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: SubscriptionDialog(
+                  userId: userId,
+                  onSubscriptionComplete: onSubscriptionComplete,
+                ),
+              ),
+            ),
+          ),
+
+          // Footer with skip option
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: const Color(0xFFFFD700).withOpacity(0.3),
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: onSkip,
+                  child: const Text(
+                    'Skip for now',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Note: You cannot login without an active subscription',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class Signup extends StatefulWidget {
   final String userType; // 'user' or 'advertiser'
@@ -89,18 +223,10 @@ class _SignupState extends State<Signup> {
       _isLoading = true;
     });
 
-    // Debug: Print form data before sending
     print('=== FORM DATA ===');
     print('User Type: ${widget.userType}');
     print('Username: ${_usernameController.text.trim()}');
-    print('Name: ${_nameController.text.trim()}');
     print('Email: ${_emailController.text.trim()}');
-    print('Phone: ${_phoneController.text.trim()}');
-    print('Location: ${_locationController.text.trim()}');
-    print('Gender: $_selectedGender');
-    if (widget.userType == 'advertiser') {
-      print('Bio: ${_bioController.text.trim()}');
-    }
     print('==================');
 
     try {
@@ -131,44 +257,66 @@ class _SignupState extends State<Signup> {
         );
       }
 
-      // Enhanced debugging
       print('=== SIGNUP RESULT DEBUG ===');
-      print('Result Type: ${result.runtimeType}');
-      print('Result Keys: ${result.keys.toList()}');
-      print('Full result: $result');
-      print('Success field exists: ${result.containsKey('success')}');
-      if (result.containsKey('success')) {
-        print('Success value: ${result['success']}');
-        print('Success value type: ${result['success'].runtimeType}');
-      }
+      print('Result: $result');
       print('==========================');
 
-      // Simplified success detection
       bool isSuccess = _determineSuccess(result);
       print('Final success determination: $isSuccess');
 
       if (isSuccess) {
-        // Store tokens and user info if available
-        _handleSuccessfulRegistration(result);
-
-        // Show success message using ScaffoldMessenger
         _showSuccessSnackBar(
-          'Account created successfully! Welcome to VipGalz!',
+          widget.userType == 'advertiser'
+              ? 'Account created! Please complete subscription to activate.'
+              : 'Account created successfully! Welcome to VipGalz!',
         );
 
-        // Wait a bit to show the success message
         await Future.delayed(const Duration(milliseconds: 1000));
 
-        // Navigate to login screen using Navigator
         if (mounted) {
-          print('Navigating to login screen using Navigator...');
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const Login()),
-            (route) => false, // Remove all previous routes
-          );
+          if (widget.userType == 'advertiser') {
+            // For advertisers, show subscription dialog before login
+            print('Showing subscription dialog for advertiser...');
+
+            // Store registration data temporarily (optional)
+            final userId = result['user_id'] ?? result['data']?['user_id'];
+
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => WillPopScope(
+                onWillPop: () async => false,
+                child: Dialog(
+                  child: SubscriptionDialogWithCallback(
+                    userId: userId,
+                    onSubscriptionComplete: () {
+                      // After successful subscription, navigate to login
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const Login()),
+                        (route) => false,
+                      );
+                    },
+                    onSkip: () {
+                      // If they skip, go to login (they won't be able to login without subscription)
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const Login()),
+                        (route) => false,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          } else {
+            // For regular users, go directly to login
+            print('Navigating to login screen for user...');
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const Login()),
+              (route) => false,
+            );
+          }
         }
       } else {
-        // Handle registration failure
         String errorMessage = _extractErrorMessage(result);
         print('Registration failed: $errorMessage');
         _showErrorSnackBar(errorMessage);
@@ -176,7 +324,6 @@ class _SignupState extends State<Signup> {
     } catch (e, stackTrace) {
       print('=== EXCEPTION DURING SIGNUP ===');
       print('Exception: $e');
-      print('Exception type: ${e.runtimeType}');
       print('Stack trace: $stackTrace');
       print('===============================');
 

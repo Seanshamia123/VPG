@@ -30,7 +30,7 @@ import 'package:escort/services/user_session.dart';
 import 'package:escort/services/conversations_service.dart';
 
 import 'package:escort/features/messages/presentation/screens/chat_screen.dart';
-import 'package:escort/features/messages/presentation/screens/messages_screen.dart';
+import 'package:escort/features/messages/presentation/screens/message.dart';
 
 import 'package:escort/features/advertisers/presentation/screens/advertiser_public.dart';
 
@@ -117,7 +117,7 @@ class App extends StatelessWidget {
       theme: ThemeData(colorScheme: const ColorScheme.light()),
       home: MainScreen(),
       debugShowCheckedModeBanner: false,
-      routes: {'/messages': (context) => MessagesScreen()},
+      routes: {'/messages': (context) => Message()},
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(
@@ -142,7 +142,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     HomeScreen(),
     LocationScreen(), // Changed from ExploreScreen to LocationScreen
-    MessagesScreen(),
+    Message(),
     CommunityScreen(),
     ProfileScreen(),
   ];
@@ -1643,26 +1643,96 @@ class _HomeScreenState extends State<HomeScreen>
 
   // get _hasActiveFilters => null;
 
-  void _startChatWithAdvertiser(int advertiserId) async {
+    void _startChatWithAdvertiser(int advertiserId) async {
     try {
-      final res = await ConversationsService.getOrCreateWithAdvertiser(
-        advertiserId,
+      if (advertiserId <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid advertiser ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      print('[HomeScreen] Starting chat with advertiser $advertiserId');
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+          ),
+        ),
       );
-      final cid =
-          int.tryParse('${res['id'] ?? res['conversation_id'] ?? 0}') ?? 0;
-      if (cid > 0 && mounted) {
+
+      try {
+        // Get or create conversation with advertiser
+        final res =
+            await ConversationsService.getOrCreateWithAdvertiser(advertiserId);
+
+        print('[HomeScreen] Conversation response: $res');
+
+        // Extract conversation ID from response
+        final conversationId = int.tryParse(
+          (res['id'] ?? res['conversation_id'] ?? 0).toString(),
+        );
+
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        if (conversationId == null || conversationId <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create conversation'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        print('[HomeScreen] Navigating to chat screen with ID: $conversationId');
+
+        // Navigate to chat screen
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatScreen(conversationId: cid),
+            builder: (context) => ChatScreen(
+              conversationId: conversationId,
+              title: 'Chat',
+            ),
+          ),
+        );
+      } catch (innerError) {
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        print('[HomeScreen] Inner error: $innerError');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $innerError'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open chat: $e')));
+
+      print('[HomeScreen] Outer error: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open chat: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -1684,6 +1754,98 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+
+   Widget _buildPostCardHeader({
+    required String name,
+    required String location,
+    required String profileImage,
+    required int advertiserId,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () async {
+              print('[HomeScreen] Navigating to advertiser profile: $advertiserId');
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AdvertiserPublicProfileScreen(
+                    advertiserId: advertiserId,
+                  ),
+                ),
+              );
+            },
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: profileImage.isNotEmpty
+                      ? NetworkImage(profileImage)
+                      : null,
+                  backgroundColor: _surfaceVariantColor,
+                  child: profileImage.isEmpty
+                      ? Icon(
+                          Icons.person,
+                          color: _textSecondaryColor,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: _textTheme.titleSmall?.copyWith(
+                            color: _textPrimaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ) ??
+                          TextStyle(
+                            color: _textPrimaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: _textSecondaryColor,
+                          size: 14,
+                        ),
+                        Text(
+                          location,
+                          style: TextStyle(
+                            color: _textSecondaryColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          Tooltip(
+            message: 'Message advertiser',
+            child: IconButton(
+              tooltip: 'Message',
+              icon: Icon(Icons.send, color: _textSecondaryColor),
+              onPressed: () {
+                print('[HomeScreen] Message button pressed for advertiser: $advertiserId');
+                _startChatWithAdvertiser(advertiserId);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildPostCard({
     required int postId,
@@ -1709,75 +1871,12 @@ class _HomeScreenState extends State<HomeScreen>
           // Header
           // Replace your existing header section in _buildPostCard with this:
           // Header with clickable profile
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    // Navigate to advertiser public profile
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AdvertiserPublicProfileScreen(
-                          advertiserId: advertiserId,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundImage: NetworkImage(profileImage),
-                        backgroundColor: _surfaceVariantColor,
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: _textTheme.titleSmall?.copyWith(
-                                  color: _textPrimaryColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ) ??
-                                TextStyle(
-                                  color: _textPrimaryColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                color: _textSecondaryColor,
-                                size: 14,
-                              ),
-                              Text(
-                                location,
-                                style: TextStyle(
-                                  color: _textSecondaryColor,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Message',
-                  icon: Icon(Icons.send, color: _textSecondaryColor),
-                  onPressed: () => _startChatWithAdvertiser(advertiserId),
-                ),
-              ],
-            ),
-          ),
+           _buildPostCardHeader(
+    name: name,
+    location: location,
+    profileImage: profileImage,
+    advertiserId: advertiserId,
+  ),
           // Image
           Container(
             height: 300,

@@ -99,12 +99,14 @@ def create_app(config_name=None):
     from apis.auth import api as auth_ns
     from apis.subscriptions import api as subs_ns
     from apis.payments import api as payments_ns
+    from apis.conversations import api as conversations_ns
     # from apis.user_block_api import api as user
 
     # Register routes
     api.add_namespace(users_ns, path='/api/users')
     api.add_namespace(advertiser_ns, path='/api/advertisers')
     api.add_namespace(message_ns, path='/api/messages')
+    api.add_namespace(conversations_ns, path='/api/conversations')
     api.add_namespace(posts_ns, path='/api/posts')
     api.add_namespace(user_settings_ns, path='/api/user-settings')
     api.add_namespace(comments_ns, path='/api/comments')

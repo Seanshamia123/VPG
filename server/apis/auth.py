@@ -4,12 +4,18 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 import jwt
 import os
-from models import User, Advertiser, AuthToken, db
+from models import User, Advertiser, AuthToken, Subscription, db
 
 api = Namespace('auth', description='Authentication operations')
 
-# Configuration - you can move these to environment variables or config
-ACCESS_TOKEN_EXPIRES_HOURS = 24  # 24 hours instead of 1-3 hours
+# ============================================
+# DEVELOPMENT MODE FLAG
+# ============================================
+DEVELOPMENT_MODE = True  # Set to False to re-enable subscription checks
+# ============================================
+
+# Configuration
+ACCESS_TOKEN_EXPIRES_HOURS = 24
 REFRESH_TOKEN_EXPIRES_DAYS = 30
 
 # Input models for Swagger documentation
@@ -47,12 +53,82 @@ token_response_model = api.model('TokenResponse', {
     'user_id': fields.Integer(description='User ID'),
     'user_type': fields.String(description='Type of user'),
     'expires_in': fields.Integer(description='Token expiration time in seconds'),
-    'expires_at': fields.String(description='Token expiration datetime (ISO format)')
+    'expires_at': fields.String(description='Token expiration datetime (ISO format)'),
+    'subscription_required': fields.Boolean(description='Whether subscription is required'),
+    'subscription_status': fields.String(description='Current subscription status')
 })
 
 error_model = api.model('Error', {
     'error': fields.String(description='Error message')
 })
+
+def check_advertiser_subscription(advertiser_id):
+    """
+    Check if advertiser has an active subscription
+    Returns: (has_active_subscription: bool, subscription_info: dict)
+    """
+    # DEVELOPMENT MODE: Skip subscription checks
+    if DEVELOPMENT_MODE:
+        print("⚠️  DEVELOPMENT MODE: Skipping subscription check - allowing login")
+        return True, {
+            'has_subscription': True,
+            'subscription_id': 0,
+            'plan_name': 'Development Mode - No Subscription Required',
+            'status': 'active',
+            'end_date': (datetime.utcnow() + timedelta(days=365)).isoformat(),
+            'days_remaining': 365,
+            'payment_status': 'dev_mode',
+            'development_mode': True
+        }
+    
+    try:
+        # Get the most recent subscription for this advertiser
+        subscription = Subscription.query.filter_by(
+            user_id=advertiser_id,
+            status='active'
+        ).order_by(Subscription.end_date.desc()).first()
+        
+        if not subscription:
+            return False, {
+                'has_subscription': False,
+                'message': 'No active subscription found. Please subscribe to continue.',
+                'status': 'no_subscription'
+            }
+        
+        # Check if subscription is still valid
+        now = datetime.utcnow()
+        if subscription.end_date and subscription.end_date < now:
+            # Subscription has expired
+            subscription.status = 'expired'
+            db.session.commit()
+            
+            return False, {
+                'has_subscription': False,
+                'message': 'Your subscription has expired. Please renew to continue.',
+                'expired_at': subscription.end_date.isoformat(),
+                'status': 'expired'
+            }
+        
+        # Subscription is active and valid
+        days_remaining = (subscription.end_date - now).days if subscription.end_date else None
+        
+        return True, {
+            'has_subscription': True,
+            'subscription_id': subscription.id,
+            'plan_name': subscription.plan_name,
+            'status': subscription.status,
+            'end_date': subscription.end_date.isoformat() if subscription.end_date else None,
+            'days_remaining': days_remaining,
+            'payment_status': subscription.payment_status
+        }
+        
+    except Exception as e:
+        print(f"Error checking subscription: {str(e)}")
+        return False, {
+            'has_subscription': False,
+            'message': 'Error checking subscription status',
+            'status': 'error'
+        }
 
 def generate_tokens(user_id, user_type):
     """Generate access and refresh tokens with consistent expiration times"""
@@ -60,10 +136,9 @@ def generate_tokens(user_id, user_type):
         secret_key = os.environ.get('SECRET_KEY', '732ffbadb13fee4198fbd1e32394e7366c595da6cc66d2a3')
         print(f"Generating tokens for user_id: {user_id}, user_type: {user_type}")
         
-        # Current time for consistency
         now = datetime.utcnow()
         
-        # Access token (configurable expiration)
+        # Access token
         access_expires = now + timedelta(hours=ACCESS_TOKEN_EXPIRES_HOURS)
         access_payload = {
             'user_id': int(user_id),
@@ -85,7 +160,6 @@ def generate_tokens(user_id, user_type):
         }
         refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
         
-        # Ensure tokens are strings (some JWT versions return bytes)
         if isinstance(access_token, bytes):
             access_token = access_token.decode('utf-8')
         if isinstance(refresh_token, bytes):
@@ -104,7 +178,7 @@ class Login(Resource):
     @api.expect(login_model)
     @api.marshal_with(token_response_model)
     def post(self):
-        """User/Advertiser login"""
+        """User/Advertiser login with subscription check for advertisers"""
         try:
             data = request.get_json(force=True)
             print(f"Login attempt - Data received: {data}")
@@ -121,7 +195,7 @@ class Login(Resource):
             if not email or not password:
                 api.abort(400, 'Email and password are required')
             
-            # Find user based on type (or auto-detect if not specified)
+            # Find user based on type
             user = None
             actual_user_type = user_type
             
@@ -132,7 +206,7 @@ class Login(Resource):
                 user = User.find_by_email(email)
                 print(f"User lookup result: {user}")
             else:
-                # Auto-detect: try both tables
+                # Auto-detect
                 user = User.find_by_email(email)
                 if user:
                     actual_user_type = 'user'
@@ -152,22 +226,48 @@ class Login(Resource):
                 print("Password verification failed")
                 api.abort(401, 'Invalid credentials')
             
+            print("Credentials verified successfully")
+            
+            # CRITICAL: Check subscription status for advertisers (unless DEVELOPMENT_MODE)
+            subscription_info = None
+            if actual_user_type == 'advertiser':
+                has_active_sub, subscription_info = check_advertiser_subscription(user.id)
+                
+                print(f"=== ADVERTISER SUBSCRIPTION CHECK ===")
+                print(f"Development Mode: {DEVELOPMENT_MODE}")
+                print(f"Has active subscription: {has_active_sub}")
+                print(f"Subscription info: {subscription_info}")
+                print("=====================================")
+                
+                if not has_active_sub and not DEVELOPMENT_MODE:
+                    # Block login if no active subscription (only when not in dev mode)
+                    error_message = subscription_info.get(
+                        'message', 
+                        'Active subscription required. Please subscribe to continue.'
+                    )
+                    
+                    return {
+                        'error': error_message,
+                        'subscription_required': True,
+                        'subscription_status': subscription_info.get('status', 'no_subscription'),
+                        'user_id': user.id,
+                        'user_type': actual_user_type
+                    }, 403  # 403 Forbidden - subscription required
+            
             print("Login successful, generating tokens...")
             
-            # Generate tokens using the consistent function
+            # Generate tokens
             access_token, refresh_token, expires_at = generate_tokens(user.id, actual_user_type)
             
             print(f"Tokens generated successfully")
             
-            # Store tokens in database (optional - you can skip this for testing)
+            # Store tokens in database
             try:
-                # Remove old tokens for this user
                 AuthToken.query.filter_by(
                     user_id=user.id, 
                     user_type=actual_user_type
                 ).delete()
                 
-                # Create new token record
                 auth_token = AuthToken(
                     user_id=user.id,
                     user_type=actual_user_type,
@@ -183,7 +283,6 @@ class Login(Resource):
             except Exception as db_error:
                 print(f"Database storage failed (non-critical): {db_error}")
                 db.session.rollback()
-                # Continue anyway - tokens still work without database storage
             
             # Create response
             response_data = {
@@ -191,9 +290,17 @@ class Login(Resource):
                 'refresh_token': refresh_token,
                 'user_id': int(user.id),
                 'user_type': str(actual_user_type),
-                'expires_in': ACCESS_TOKEN_EXPIRES_HOURS * 3600,  # Convert hours to seconds
-                'expires_at': expires_at.isoformat()
+                'expires_in': ACCESS_TOKEN_EXPIRES_HOURS * 3600,
+                'expires_at': expires_at.isoformat(),
+                'subscription_required': False
             }
+            
+            # Add subscription info for advertisers
+            if actual_user_type == 'advertiser' and subscription_info:
+                response_data['subscription_status'] = subscription_info.get('status', 'active')
+                response_data['subscription_info'] = subscription_info
+                if DEVELOPMENT_MODE:
+                    response_data['development_mode'] = True
             
             print(f"Login successful for user {user.id}")
             return response_data
@@ -220,17 +327,14 @@ class UserRegister(Resource):
             if not password:
                 api.abort(400, 'Password is required')
 
-            # Check if user already exists
             if User.find_by_email(data.get('email')):
                 api.abort(400, 'User with this email already exists')
             
-            # Validate required fields
             required_fields = ['username', 'name', 'email', 'phone_number', 'location', 'gender']
             for field in required_fields:
                 if not data.get(field):
                     api.abort(400, f'{field} is required')
             
-            # Create new user
             user = User(
                 username=data['username'],
                 name=data['name'],
@@ -243,10 +347,8 @@ class UserRegister(Resource):
             
             user.save()
             
-            # Generate tokens
             access_token, refresh_token, expires_at = generate_tokens(user.id, 'user')
             
-            # Store tokens
             auth_token = AuthToken(
                 user_id=user.id,
                 user_type='user',
@@ -264,7 +366,8 @@ class UserRegister(Resource):
                 'user_id': user.id,
                 'user_type': 'user',
                 'expires_in': ACCESS_TOKEN_EXPIRES_HOURS * 3600,
-                'expires_at': expires_at.isoformat()
+                'expires_at': expires_at.isoformat(),
+                'subscription_required': False
             }, 201
             
         except Exception as e:
@@ -274,26 +377,26 @@ class UserRegister(Resource):
 @api.route('/register/advertiser')
 class AdvertiserRegister(Resource):
     @api.expect(advertiser_register_model)
-    @api.marshal_with(token_response_model)
     def post(self):
-        """Register a new advertiser"""
+        """
+        Register a new advertiser
+        DEVELOPMENT MODE: Returns tokens immediately for auto-login
+        PRODUCTION MODE: Requires subscription payment before login
+        """
         try:
             data = request.get_json()
             
             if not data:
                 api.abort(400, 'No JSON data provided')
             
-            # Check if advertiser already exists
             if Advertiser.find_by_email(data.get('email')):
                 api.abort(400, 'Advertiser with this email already exists')
             
-            # Validate required fields
             required_fields = ['username', 'name', 'email', 'password', 'phone_number', 'location', 'gender']
             for field in required_fields:
                 if not data.get(field):
                     api.abort(400, f'{field} is required')
             
-            # Create new advertiser
             advertiser = Advertiser(
                 username=data['username'],
                 name=data['name'],
@@ -307,28 +410,46 @@ class AdvertiserRegister(Resource):
             
             advertiser.save()
             
-            # Generate tokens
-            access_token, refresh_token, expires_at = generate_tokens(advertiser.id, 'advertiser')
+            # DEVELOPMENT MODE: Return tokens for immediate login
+            if DEVELOPMENT_MODE:
+                print("⚠️  DEVELOPMENT MODE: Auto-generating tokens for advertiser registration")
+                
+                access_token, refresh_token, expires_at = generate_tokens(advertiser.id, 'advertiser')
+                
+                auth_token = AuthToken(
+                    user_id=advertiser.id,
+                    user_type='advertiser',
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    expires_at=expires_at
+                )
+                
+                db.session.add(auth_token)
+                db.session.commit()
+                
+                return {
+                    'success': True,
+                    'message': 'Advertiser account created successfully (Development Mode - No subscription required)',
+                    'access_token': access_token,
+                    'refresh_token': refresh_token,
+                    'user_id': advertiser.id,
+                    'user_type': 'advertiser',
+                    'expires_in': ACCESS_TOKEN_EXPIRES_HOURS * 3600,
+                    'expires_at': expires_at.isoformat(),
+                    'subscription_required': False,
+                    'development_mode': True,
+                    'auto_login': True
+                }, 201
             
-            # Store tokens
-            auth_token = AuthToken(
-                user_id=advertiser.id,
-                user_type='advertiser',
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=expires_at
-            )
-            
-            db.session.add(auth_token)
-            db.session.commit()
-            
+            # PRODUCTION MODE: Require subscription payment
             return {
-                'access_token': access_token,
-                'refresh_token': refresh_token,
+                'success': True,
+                'message': 'Advertiser account created successfully. Please complete subscription payment to activate your account.',
                 'user_id': advertiser.id,
                 'user_type': 'advertiser',
-                'expires_in': ACCESS_TOKEN_EXPIRES_HOURS * 3600,
-                'expires_at': expires_at.isoformat()
+                'email': advertiser.email,
+                'subscription_required': True,
+                'next_step': 'payment'
             }, 201
             
         except Exception as e:
@@ -351,7 +472,6 @@ class RefreshToken(Resource):
             if not refresh_token:
                 api.abort(400, 'Refresh token is required')
             
-            # Decode refresh token
             secret_key = os.environ.get('SECRET_KEY', '732ffbadb13fee4198fbd1e32394e7366c595da6cc66d2a3')
             try:
                 payload = jwt.decode(refresh_token, secret_key, algorithms=['HS256'])
@@ -363,7 +483,6 @@ class RefreshToken(Resource):
             if payload.get('type') != 'refresh':
                 api.abort(400, 'Invalid token type')
             
-            # Generate new access token
             access_token, _, expires_at = generate_tokens(payload['user_id'], payload['user_type'])
             
             return {
@@ -381,14 +500,12 @@ class Logout(Resource):
     def post(self):
         """Logout user and invalidate tokens"""
         try:
-            # Get token from header
             auth_header = request.headers.get('Authorization')
             if not auth_header or not auth_header.startswith('Bearer '):
                 api.abort(401, 'Authorization token required')
             
             token = auth_header.split(' ')[1]
             
-            # Find and delete token from database
             try:
                 auth_token = AuthToken.query.filter_by(access_token=token).first()
                 if auth_token:
@@ -403,7 +520,6 @@ class Logout(Resource):
         except Exception as e:
             api.abort(500, f'Logout failed: {str(e)}')
 
-# Debug endpoint to check token validity
 @api.route('/verify')
 class VerifyToken(Resource):
     @api.doc('verify_token')
@@ -420,7 +536,6 @@ class VerifyToken(Resource):
             try:
                 payload = jwt.decode(token, secret_key, algorithms=['HS256'])
                 
-                # Check token expiration
                 exp_timestamp = payload.get('exp')
                 current_timestamp = datetime.utcnow().timestamp()
                 
