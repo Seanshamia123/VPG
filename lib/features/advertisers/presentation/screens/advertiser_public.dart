@@ -9,8 +9,10 @@ import 'package:escort/features/settings/presentation/screens/terms_and_conditio
 import 'package:escort/services/advertiser_service.dart';
 import 'package:escort/services/user_session.dart';
 import 'package:escort/features/auth/presentation/screens/login.dart';
-// import 'package:escort/styles/app_size.dart';
-// import 'package:escort/styles/post_cards_styling.dart';
+// Add this import for ConversationsService
+import 'package:escort/services/conversations_service.dart';
+// Add this import for ChatScreen
+import 'package:escort/features/messages/presentation/screens/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -82,43 +84,42 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
   }
 
   Future<List<Map<String, dynamic>>> _fetchPostsByAdvertiserId(int advertiserId) async {
-  try {
-    final accessToken = await UserSession.getAccessToken();
-    if (accessToken == null) return [];
-    
-    print('=== FETCHING POSTS BY ADVERTISER ID ===');
-    print('Advertiser ID: $advertiserId');
-    
-    final res = await ApiClient.getJson(
-      '${ApiConfig.api}/posts/advertiser/$advertiserId',
-      auth: true,
-    );
-    
-    print('API Response: $res');
-    
-    List<Map<String, dynamic>> posts = [];
-    
-    // Handle the response structure from the new endpoint
-    if (res['posts'] is List) {
-      posts = (res['posts'] as List).cast<Map<String, dynamic>>();
-    } else if (res['data'] is List) {
-      posts = (res['data'] as List).cast<Map<String, dynamic>>();
-    } else if (res is List) {
-      posts = (res as List).cast<Map<String, dynamic>>();
+    try {
+      final accessToken = await UserSession.getAccessToken();
+      if (accessToken == null) return [];
+      
+      print('=== FETCHING POSTS BY ADVERTISER ID ===');
+      print('Advertiser ID: $advertiserId');
+      
+      final res = await ApiClient.getJson(
+        '${ApiConfig.api}/posts/advertiser/$advertiserId',
+        auth: true,
+      );
+      
+      print('API Response: $res');
+      
+      List<Map<String, dynamic>> posts = [];
+      
+      // Handle the response structure from the new endpoint
+      if (res['posts'] is List) {
+        posts = (res['posts'] as List).cast<Map<String, dynamic>>();
+      } else if (res['data'] is List) {
+        posts = (res['data'] as List).cast<Map<String, dynamic>>();
+      } else if (res is List) {
+        posts = (res as List).cast<Map<String, dynamic>>();
+      }
+      
+      print('Extracted ${posts.length} posts');
+      if (posts.isNotEmpty) {
+        print('First post: ${posts[0]}');
+      }
+      
+      return posts;
+    } catch (e) {
+      print('Error fetching posts by advertiser ID: $e');
+      return [];
     }
-    
-    print('Extracted ${posts.length} posts');
-    if (posts.isNotEmpty) {
-      print('First post: ${posts[0]}');
-    }
-    
-    return posts;
-  } catch (e) {
-    print('Error fetching posts by advertiser ID: $e');
-    return [];
   }
-}
-
 
   Future<void> _likePost(int postId) async {
     final currentlyLiked = _likedPostIds.contains(postId);
@@ -167,32 +168,100 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
     );
   }
 
-  // Future<void> _startChat() async {
-  //   try {
-  //     // Create or get conversation with this advertiser
-  //     final conversation = await ConversationsService.createOrGetConversation(
-  //       participantId: widget.advertiserId,
-  //     );
-      
-  //     if (conversation != null && conversation['id'] != null) {
-  //       await Navigator.push(
-  //         context,
-  //         MaterialPageRoute(
-  //           builder: (context) => ChatScreen(
-  //             conversationId: conversation['id'],
-  //           ),
-  //         ),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text('Failed to start chat: $e'),
-  //         backgroundColor: Colors.red,
-  //       ),
-  //     );
-  //   }
-  // }
+  // Add the _startChatWithAdvertiser method from home_screen.dart
+  void _startChatWithAdvertiser(int advertiserId) async {
+    try {
+      if (advertiserId <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid advertiser ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      print('[AdvertiserPublicProfile] Starting chat with advertiser $advertiserId');
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+
+      try {
+        // Get or create conversation with advertiser
+        final res = await ConversationsService.getOrCreateWithAdvertiser(advertiserId);
+
+        print('[AdvertiserPublicProfile] Conversation response: $res');
+
+        // Extract conversation ID from response
+        final conversationId = int.tryParse(
+          (res['id'] ?? res['conversation_id'] ?? 0).toString(),
+        );
+
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        if (conversationId == null || conversationId <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create conversation'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        print('[AdvertiserPublicProfile] Navigating to chat screen with ID: $conversationId');
+
+        // Navigate to chat screen
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              conversationId: conversationId,
+              title: 'Chat',
+            ),
+          ),
+        );
+      } catch (innerError) {
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        print('[AdvertiserPublicProfile] Inner error: $innerError');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $innerError'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      print('[AdvertiserPublicProfile] Outer error: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open chat: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +342,22 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
               ),
             ),
             actions: [
+              // Add Message button in the app bar
+              Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.send, color: Colors.white),
+                  tooltip: 'Message',
+                  onPressed: () {
+                    print('[AdvertiserPublicProfile] Message button pressed for advertiser: ${widget.advertiserId}');
+                    _startChatWithAdvertiser(widget.advertiserId);
+                  },
+                ),
+              ),
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -432,8 +517,54 @@ class _AdvertiserPublicProfileScreenState extends State<AdvertiserPublicProfileS
             ),
           ),
           
-          // Action buttons
-         
+          // Action buttons section - Add a prominent message button here too
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        print('[AdvertiserPublicProfile] Message button pressed for advertiser: ${widget.advertiserId}');
+                        _startChatWithAdvertiser(widget.advertiserId);
+                      },
+                      icon: const Icon(Icons.send),
+                      label: const Text('Message'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      // Add to favorites or follow functionality
+                    },
+                    icon: const Icon(Icons.favorite_border),
+                    label: const Text('Follow'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
           // Posts header
           SliverToBoxAdapter(
             child: Padding(

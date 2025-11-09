@@ -22,3 +22,7 @@ intasend-python
 celery 
 redis 
 firebase-admin
+ffmpeg-python
+Pillow
+Flask-Mail
+APScheduler

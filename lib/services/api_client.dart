@@ -55,6 +55,22 @@ class ApiClient {
 
     return res;
   }
+  static Future<String?> getAccessToken() async {
+    // Return your stored auth token
+    return await UserSession.getAccessToken();
+  }
+
+  static dynamic parseResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      try {
+        return json.decode(response.body);
+      } catch (e) {
+        return response.body;
+      }
+    } else {
+      throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    }
+  }
 
   static Future<bool> _tryRefreshToken() async {
     try {

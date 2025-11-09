@@ -1,4 +1,4 @@
-// subscription_checkout.dart - FIXED to support pending login credentials
+// subscription_checkout.dart - Multi-provider support (IntaSend + Paystack)
 import 'package:escort/services/user_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,21 +26,57 @@ class Currency {
   }
 }
 
-// Payment Service - FIXED to handle pending login
+// Payment Method enum
+enum PaymentMethod {
+  mpesa,
+  card,
+  bankTransfer,
+}
+
+extension PaymentMethodExtension on PaymentMethod {
+  String get name {
+    switch (this) {
+      case PaymentMethod.mpesa:
+        return 'mpesa';
+      case PaymentMethod.card:
+        return 'card';
+      case PaymentMethod.bankTransfer:
+        return 'bank_transfer';
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case PaymentMethod.mpesa:
+        return 'M-Pesa';
+      case PaymentMethod.card:
+        return 'Card Payment';
+      case PaymentMethod.bankTransfer:
+        return 'Bank Transfer';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case PaymentMethod.mpesa:
+        return Icons.phone_android;
+      case PaymentMethod.card:
+        return Icons.credit_card;
+      case PaymentMethod.bankTransfer:
+        return Icons.account_balance;
+    }
+  }
+}
+
+// Payment Service
 class PaymentService {
   static Future<Map<String, dynamic>> createCheckout({
     required String planId,
     required String currency,
+    required String paymentMethod,
     String? phoneNumber,
     String? email,
     String? redirectUrl,
-    // Card payment fields
-    String? cardNumber,
-    String? cardExpiry,
-    String? cardCvc,
-    String? cardHolderName,
-    String? country,
-    // CRITICAL: Pending login credentials
     String? pendingLoginEmail,
     String? pendingLoginPassword,
     String? pendingLoginUserType,
@@ -49,21 +85,17 @@ class PaymentService {
       print('=== CREATING CHECKOUT ===');
       print('Plan ID: $planId');
       print('Currency: $currency');
+      print('Payment Method: $paymentMethod');
       print('Has Pending Login: ${pendingLoginEmail != null}');
       print('========================');
 
       final requestBody = {
         'plan_id': planId,
         'currency': currency,
+        'payment_method': paymentMethod,
         if (phoneNumber != null && phoneNumber.isNotEmpty) 'phone_number': phoneNumber,
         if (email != null && email.isNotEmpty) 'email': email,
         if (redirectUrl != null && redirectUrl.isNotEmpty) 'redirect_url': redirectUrl,
-        if (cardNumber != null && cardNumber.isNotEmpty) 'card_number': cardNumber,
-        if (cardExpiry != null && cardExpiry.isNotEmpty) 'card_expiry': cardExpiry,
-        if (cardCvc != null && cardCvc.isNotEmpty) 'card_cvc': cardCvc,
-        if (cardHolderName != null && cardHolderName.isNotEmpty) 'card_holder_name': cardHolderName,
-        if (country != null && country.isNotEmpty) 'country': country,
-        // CRITICAL: Add pending login credentials
         if (pendingLoginEmail != null && pendingLoginEmail.isNotEmpty) 'pending_login_email': pendingLoginEmail,
         if (pendingLoginPassword != null && pendingLoginPassword.isNotEmpty) 'pending_login_password': pendingLoginPassword,
         if (pendingLoginUserType != null && pendingLoginUserType.isNotEmpty) 'pending_login_user_type': pendingLoginUserType,
@@ -96,14 +128,14 @@ class PaymentService {
   }
 
   static Future<Map<String, dynamic>> verifyPayment(
-    String checkoutId, {
+    String reference, {
     String? pendingLoginEmail,
     String? pendingLoginPassword,
     String? pendingLoginUserType,
   }) async {
     try {
       print('=== VERIFYING PAYMENT ===');
-      print('Checkout ID: $checkoutId');
+      print('Reference: $reference');
       print('Has Pending Login: ${pendingLoginEmail != null}');
       print('========================');
 
@@ -116,7 +148,7 @@ class PaymentService {
       final headers = await _getHeaders();
 
       final response = await http.post(
-        Uri.parse('${ApiConfig.api}/payment/verify/$checkoutId'),
+        Uri.parse('${ApiConfig.api}/payment/verify/$reference'),
         headers: headers,
         body: requestBody.isNotEmpty ? json.encode(requestBody) : null,
       );
@@ -161,7 +193,7 @@ class PaymentService {
   }
 }
 
-// Main Checkout Page - FIXED
+// Main Checkout Page
 class SubscriptionCheckoutPage extends StatefulWidget {
   final SubscriptionPlan selectedPlan;
   final String selectedCurrency;
@@ -194,17 +226,11 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   // Form controllers
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  final _cardNumberController = TextEditingController();
-  final _cardExpiryController = TextEditingController();
-  final _cardCvcController = TextEditingController();
-  final _cardHolderController = TextEditingController();
 
   bool _isLoading = false;
   bool _showWebView = false;
   String? _checkoutUrl;
-  String? _checkoutId;
-  String? _invoiceId;
-  String? _apiRef;
+  String? _paymentReference;
   
   WebViewController? _webViewController;
   bool _webViewInitialized = false;
@@ -213,47 +239,27 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   bool _sessionChecked = false;
   bool _hasPendingLogin = false;
 
-  String _cardBrand = '';
-  String _selectedCountry = 'US';
-  
-  final Map<String, String> _countries = {
-    'US': 'United States',
-    'KE': 'Kenya',
-    'DE': 'Germany',
-    'GB': 'United Kingdom',
-    'FR': 'France',
-    'IT': 'Italy',
-    'ES': 'Spain',
-    'CA': 'Canada',
-    'AU': 'Australia',
-  };
+  // Payment method selection
+  PaymentMethod _selectedPaymentMethod = PaymentMethod.mpesa;
 
   @override
   void initState() {
     super.initState();
     _initializeSession();
-    _autoSelectCountry();
+    _autoSelectPaymentMethod();
   }
   
-  void _autoSelectCountry() {
-    final currencyCountryMap = {
-      'KES': 'KE',
-      'USD': 'US',
-      'EUR': 'DE',
-      'GBP': 'GB',
-    };
-    
-    final autoCountry = currencyCountryMap[widget.selectedCurrency];
-    if (autoCountry != null && _countries.containsKey(autoCountry)) {
-      setState(() {
-        _selectedCountry = autoCountry;
-      });
+  void _autoSelectPaymentMethod() {
+    // Auto-select payment method based on currency
+    if (widget.selectedCurrency == 'KES') {
+      _selectedPaymentMethod = PaymentMethod.mpesa;
+    } else {
+      _selectedPaymentMethod = PaymentMethod.card;
     }
   }
 
   Future<void> _initializeSession() async {
     try {
-      // CRITICAL FIX: Check if we have pending login credentials
       _hasPendingLogin = widget.pendingLoginEmail != null && 
                         widget.pendingLoginPassword != null;
 
@@ -262,7 +268,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       print('Pending Email: ${widget.pendingLoginEmail}');
       
       if (_hasPendingLogin) {
-        // Use pending login email for checkout
         _userEmail = widget.pendingLoginEmail;
         _emailController.text = _userEmail!;
         
@@ -273,7 +278,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
         return;
       }
 
-      // Try to get logged-in user session
       final isLoggedIn = await UserSession.isLoggedIn();
       print('Is Logged In: $isLoggedIn');
 
@@ -295,7 +299,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           _phoneController.text = displayPhone;
         }
       } else if (!_hasPendingLogin) {
-        // No session and no pending login - can't proceed
         _showErrorSnackBar('Please log in or complete signup to continue');
         Navigator.of(context).pop();
         return;
@@ -308,7 +311,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     } catch (e) {
       print('Error initializing session: $e');
       
-      // If we have pending login, continue anyway
       if (_hasPendingLogin) {
         _userEmail = widget.pendingLoginEmail;
         _emailController.text = _userEmail!;
@@ -366,18 +368,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     }
   }
 
-  String _detectCardBrand(String number) {
-    final cleaned = number.replaceAll(' ', '');
-    if (cleaned.isEmpty) return '';
-    
-    if (cleaned.startsWith('4')) return 'VISA';
-    if (cleaned.startsWith('5')) return 'MASTERCARD';
-    if (cleaned.startsWith('34') || cleaned.startsWith('37')) return 'AMEX';
-    if (cleaned.startsWith('6')) return 'DISCOVER';
-    
-    return '';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!_sessionChecked) {
@@ -427,7 +417,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Show pending login notice
               if (_hasPendingLogin)
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -467,6 +456,8 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                 ),
               
               _buildPlanSummary(),
+              const SizedBox(height: 24),
+              _buildPaymentMethodSelector(),
               const SizedBox(height: 24),
               _buildPaymentForm(),
               const SizedBox(height: 32),
@@ -565,9 +556,105 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     );
   }
 
-  Widget _buildPaymentForm() {
+  Widget _buildPaymentMethodSelector() {
     final isKES = widget.selectedCurrency == 'KES';
     
+    List<PaymentMethod> availableMethods = [];
+    if (isKES) {
+      availableMethods = [PaymentMethod.mpesa, PaymentMethod.card, PaymentMethod.bankTransfer];
+    } else {
+      availableMethods = [PaymentMethod.card, PaymentMethod.bankTransfer];
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Payment Method',
+          style: TextStyle(
+            color: primaryGold,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...availableMethods.map((method) => GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedPaymentMethod = method;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _selectedPaymentMethod == method 
+                  ? primaryGold.withOpacity(0.2)
+                  : darkGray,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _selectedPaymentMethod == method
+                    ? primaryGold
+                    : lightGray.withOpacity(0.3),
+                width: _selectedPaymentMethod == method ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  method.icon,
+                  color: _selectedPaymentMethod == method ? primaryGold : white,
+                  size: 24,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        method.displayName,
+                        style: TextStyle(
+                          color: _selectedPaymentMethod == method ? primaryGold : white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        _getPaymentMethodDescription(method),
+                        style: const TextStyle(
+                          color: lightGray,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_selectedPaymentMethod == method)
+                  const Icon(
+                    Icons.check_circle,
+                    color: primaryGold,
+                    size: 24,
+                  ),
+              ],
+            ),
+          ),
+        )),
+      ],
+    );
+  }
+
+  String _getPaymentMethodDescription(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.mpesa:
+        return 'Pay with M-Pesa mobile money (Kenya)';
+      case PaymentMethod.card:
+        return 'Pay with Visa, Mastercard, or other cards';
+      case PaymentMethod.bankTransfer:
+        return 'Direct bank transfer';
+    }
+  }
+
+  Widget _buildPaymentForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -584,10 +671,74 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
         _buildEmailField(),
         const SizedBox(height: 16),
         
-        if (isKES) ...[
+        if (_selectedPaymentMethod == PaymentMethod.mpesa) ...[
           _buildPhoneField(),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: darkGray.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: primaryGold.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.info_outline, color: primaryGold, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You will receive an M-Pesa prompt on your phone',
+                    style: TextStyle(color: lightGray, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ] else ...[
-          _buildCardFields(),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: darkGray.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: primaryGold.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _selectedPaymentMethod.icon,
+                      color: primaryGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedPaymentMethod == PaymentMethod.card
+                            ? 'Secure Card Payment via Paystack'
+                            : 'Bank Transfer via Paystack',
+                        style: const TextStyle(
+                          color: white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _selectedPaymentMethod == PaymentMethod.card
+                      ? 'You will be redirected to Paystack\'s secure payment page to complete your card payment.'
+                      : 'You will receive bank transfer instructions to complete your payment.',
+                  style: const TextStyle(
+                    color: lightGray,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ],
     );
@@ -598,7 +749,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
       style: const TextStyle(color: white),
-      enabled: !_hasPendingLogin, // Disable if using pending login
+      enabled: !_hasPendingLogin,
       decoration: InputDecoration(
         labelText: 'Email Address',
         labelStyle: const TextStyle(color: primaryGold),
@@ -650,159 +801,11 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
     );
   }
 
-  Widget _buildCardFields() {
-    return Column(
-      children: [
-        // Country Selector
-        DropdownButtonFormField<String>(
-          value: _selectedCountry,
-          dropdownColor: darkGray,
-          style: const TextStyle(color: white),
-          decoration: InputDecoration(
-            labelText: 'Country',
-            labelStyle: const TextStyle(color: primaryGold),
-            filled: true,
-            fillColor: darkGray,
-            prefixIcon: const Icon(Icons.public, color: primaryGold),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          items: _countries.entries.map((entry) {
-            return DropdownMenuItem<String>(
-              value: entry.key,
-              child: Text(entry.value),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() {
-                _selectedCountry = value;
-              });
-            }
-          },
-        ),
-        const SizedBox(height: 16),
-        
-        // Card Number
-        TextFormField(
-          controller: _cardNumberController,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: white),
-          onChanged: (value) {
-            setState(() {
-              _cardBrand = _detectCardBrand(value);
-            });
-          },
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(16),
-            _CardNumberFormatter(),
-          ],
-          decoration: InputDecoration(
-            labelText: 'Card Number',
-            labelStyle: const TextStyle(color: primaryGold),
-            hintText: '4### #### #### ####',
-            filled: true,
-            fillColor: darkGray,
-            prefixIcon: const Icon(Icons.credit_card, color: primaryGold),
-            suffixIcon: _cardBrand.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      _cardBrand,
-                      style: const TextStyle(
-                        color: primaryGold,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        
-        // Expiry and CVC
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _cardExpiryController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: white),
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
-                  _ExpiryDateFormatter(),
-                ],
-                decoration: InputDecoration(
-                  labelText: 'Expiry',
-                  labelStyle: const TextStyle(color: primaryGold),
-                  hintText: '12/25',
-                  filled: true,
-                  fillColor: darkGray,
-                  prefixIcon: const Icon(Icons.calendar_today, color: primaryGold, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _cardCvcController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: white),
-                obscureText: true,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(3),
-                ],
-                decoration: InputDecoration(
-                  labelText: 'CVV',
-                  labelStyle: const TextStyle(color: primaryGold),
-                  hintText: '123',
-                  filled: true,
-                  fillColor: darkGray,
-                  prefixIcon: const Icon(Icons.lock_outline, color: primaryGold, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        
-        // Card Holder Name
-        TextFormField(
-          controller: _cardHolderController,
-          keyboardType: TextInputType.name,
-          textCapitalization: TextCapitalization.words,
-          style: const TextStyle(color: white),
-          decoration: InputDecoration(
-            labelText: 'Name on Card',
-            labelStyle: const TextStyle(color: primaryGold),
-            hintText: 'John Doe',
-            filled: true,
-            fillColor: darkGray,
-            prefixIcon: const Icon(Icons.person_outline, color: primaryGold),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSecurityBadge() {
+    String provider = _selectedPaymentMethod == PaymentMethod.mpesa 
+        ? 'IntaSend' 
+        : 'Paystack';
+    
     return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -810,8 +813,8 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           const Icon(Icons.lock, color: primaryGold, size: 16),
           const SizedBox(width: 8),
           Text(
-            'Secured by IntaSend',
-            style: TextStyle(
+            'Secured by $provider',
+            style: const TextStyle(
               color: lightGray,
               fontSize: 12,
             ),
@@ -939,7 +942,6 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   }
 
   Future<void> _proceedToPayment() async {
-    // CRITICAL FIX: Allow payment with pending login credentials
     if (!_hasPendingLogin) {
       final isLoggedIn = await UserSession.isLoggedIn();
       if (!isLoggedIn) {
@@ -954,53 +956,15 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       return;
     }
     
-    final isKES = widget.selectedCurrency == 'KES';
-    
-    if (isKES && _phoneController.text.trim().isEmpty) {
+    if (_selectedPaymentMethod == PaymentMethod.mpesa && _phoneController.text.trim().isEmpty) {
       _showErrorSnackBar('Phone number is required for M-Pesa');
       return;
-    }
-    
-    // Validate card fields for non-KES payments
-    if (!isKES) {
-      if (_cardNumberController.text.trim().isEmpty) {
-        _showErrorSnackBar('Card number is required');
-        return;
-      }
-      if (_cardExpiryController.text.trim().isEmpty) {
-        _showErrorSnackBar('Card expiry date is required');
-        return;
-      }
-      if (_cardCvcController.text.trim().isEmpty) {
-        _showErrorSnackBar('Card CVC is required');
-        return;
-      }
-      if (_cardHolderController.text.trim().isEmpty) {
-        _showErrorSnackBar('Cardholder name is required');
-        return;
-      }
-      
-      final cardNumber = _cardNumberController.text.replaceAll(' ', '');
-      if (cardNumber.length < 13 || cardNumber.length > 19) {
-        _showErrorSnackBar('Invalid card number');
-        return;
-      }
-      
-      if (!_cardExpiryController.text.contains('/') || _cardExpiryController.text.length != 5) {
-        _showErrorSnackBar('Invalid expiry date format (MM/YY)');
-        return;
-      }
-      
-      if (_cardCvcController.text.length < 3) {
-        _showErrorSnackBar('Invalid CVC');
-        return;
-      }
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final phoneNumber = isKES 
+      final phoneNumber = _selectedPaymentMethod == PaymentMethod.mpesa
           ? _formatPhoneNumber(_phoneController.text.trim())
           : null;
 
@@ -1008,21 +972,17 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       print('Has Pending Login: $_hasPendingLogin');
       print('Email: ${_emailController.text.trim()}');
       print('Phone: $phoneNumber');
+      print('Payment Method: ${_selectedPaymentMethod.name}');
       print('Currency: ${widget.selectedCurrency}');
       print('======================');
 
       final checkoutResult = await PaymentService.createCheckout(
         planId: widget.selectedPlan.id,
         currency: widget.selectedCurrency,
+        paymentMethod: _selectedPaymentMethod.name,
         phoneNumber: phoneNumber,
         email: _emailController.text.trim(),
         redirectUrl: 'your-app://payment-complete',
-        cardNumber: !isKES ? _cardNumberController.text.replaceAll(' ', '') : null,
-        cardExpiry: !isKES ? _cardExpiryController.text.replaceAll('/', '') : null,
-        cardCvc: !isKES ? _cardCvcController.text : null,
-        cardHolderName: !isKES ? _cardHolderController.text.trim() : null,
-        country: !isKES ? _selectedCountry : null,
-        // CRITICAL: Pass pending login credentials
         pendingLoginEmail: widget.pendingLoginEmail,
         pendingLoginPassword: widget.pendingLoginPassword,
         pendingLoginUserType: widget.pendingLoginUserType,
@@ -1030,19 +990,27 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
 
       if (checkoutResult['success'] == true) {
         final paymentType = checkoutResult['payment_type'] ?? 'web_checkout';
+        final provider = checkoutResult['provider'] ?? 'unknown';
+        
+        print('=== CHECKOUT SUCCESS ===');
+        print('Provider: $provider');
+        print('Payment Type: $paymentType');
+        print('========================');
         
         if (paymentType == 'mpesa_stk_push') {
+          // M-Pesa STK Push via IntaSend
           _handleMpesaStkPush(checkoutResult);
         } else {
-          final checkoutUrl = checkoutResult['checkout_url'] ?? checkoutResult['url'];
-          final checkoutId = checkoutResult['checkout_id'] ?? checkoutResult['id'];
+          // Card or Bank Transfer via Paystack
+          final checkoutUrl = checkoutResult['checkout_url'] ?? checkoutResult['authorization_url'];
+          final reference = checkoutResult['reference'];
           
           if (checkoutUrl != null) {
             _initializeWebView();
             
             setState(() {
               _checkoutUrl = checkoutUrl;
-              _checkoutId = checkoutId;
+              _paymentReference = reference;
               _showWebView = true;
             });
             
@@ -1056,7 +1024,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           }
         }
       } else {
-        _showErrorSnackBar(checkoutResult['message'] ?? 'Failed to create payment session');
+        _showErrorSnackBar(checkoutResult['message'] ?? checkoutResult['error'] ?? 'Failed to create payment session');
       }
     } catch (e) {
       String errorMessage = e.toString();
@@ -1070,19 +1038,14 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   }
 
   void _handleMpesaStkPush(Map<String, dynamic> checkoutResult) {
-    final checkoutId = checkoutResult['checkout_id'];
-    final invoiceId = checkoutResult['invoice_id'];
-    final apiRef = checkoutResult['reference'];
+    final reference = checkoutResult['reference'];
     final phoneNumber = checkoutResult['phone_number'];
     final message = checkoutResult['message'] ?? 'Please check your phone for M-Pesa prompt';
 
-    _checkoutId = checkoutId;
-    _invoiceId = invoiceId;
-    _apiRef = apiRef;
+    _paymentReference = reference;
 
     print('=== M-PESA STK PUSH INITIATED ===');
-    print('Checkout ID: $checkoutId');
-    print('Invoice ID: $invoiceId');
+    print('Reference: $reference');
     print('Phone: $phoneNumber');
     print('================================');
 
@@ -1093,14 +1056,12 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
         return _MpesaWaitingDialog(
           message: message,
           phoneNumber: phoneNumber,
-          invoiceId: invoiceId,
+          reference: reference,
           onVerify: () => _verifyPayment(),
           onCancel: () {
             Navigator.of(context).pop();
             setState(() {
-              _checkoutId = null;
-              _invoiceId = null;
-              _apiRef = null;
+              _paymentReference = null;
             });
           },
         );
@@ -1123,7 +1084,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   }
 
   Future<void> _verifyPayment() async {
-    if (_checkoutId == null && _invoiceId == null && _apiRef == null) {
+    if (_paymentReference == null) {
       _showErrorSnackBar('No payment to verify');
       return;
     }
@@ -1132,12 +1093,12 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
 
     try {
       print('=== VERIFYING PAYMENT ===');
-      print('Checkout ID: $_checkoutId');
+      print('Reference: $_paymentReference');
       print('Has Pending Login: $_hasPendingLogin');
       print('========================');
 
       final result = await PaymentService.verifyPayment(
-        _checkoutId!,
+        _paymentReference!,
         pendingLoginEmail: widget.pendingLoginEmail,
         pendingLoginPassword: widget.pendingLoginPassword,
         pendingLoginUserType: widget.pendingLoginUserType,
@@ -1149,37 +1110,37 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       print('Message: ${result['message']}');
       print('===========================');
       
-      final state = result['state']?.toString().toUpperCase() ?? '';
+      final success = result['success'] ?? false;
       final status = result['status']?.toString().toLowerCase() ?? '';
       
-      if (result['success'] == true || state == 'COMPLETE' || state == 'COMPLETED' || status == 'complete') {
+      if (success || status == 'complete') {
+        // Close any open dialogs
         if (Navigator.canPop(context)) {
           Navigator.of(context).pop();
         }
         
         _showSuccessSnackBar('Payment successful! Your subscription is now active.');
         
+        // Navigate back after success
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             Navigator.of(context).pop(true);
           }
         });
-      } else if (state == 'PENDING' || status == 'pending') {
+      } else if (status == 'pending') {
         _showErrorSnackBar('Payment is still processing. Please wait and try again.');
       } else {
         final errorMessage = result['message'] ?? 'Payment verification failed';
         _showErrorSnackBar(errorMessage);
         
-        if (state == 'FAILED' || state == 'CANCELLED') {
+        if (status == 'failed' || status == 'cancelled') {
           if (Navigator.canPop(context)) {
             Navigator.of(context).pop();
           }
           setState(() {
             _showWebView = false;
             _checkoutUrl = null;
-            _checkoutId = null;
-            _invoiceId = null;
-            _apiRef = null;
+            _paymentReference = null;
           });
         }
       }
@@ -1224,61 +1185,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
   void dispose() {
     _phoneController.dispose();
     _emailController.dispose();
-    _cardNumberController.dispose();
-    _cardExpiryController.dispose();
-    _cardCvcController.dispose();
-    _cardHolderController.dispose();
     super.dispose();
-  }
-}
-
-// Input Formatters
-class _CardNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll(' ', '');
-    final buffer = StringBuffer();
-    
-    for (int i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      final nonZeroIndex = i + 1;
-      if (nonZeroIndex % 4 == 0 && nonZeroIndex != text.length) {
-        buffer.write(' ');
-      }
-    }
-    
-    final string = buffer.toString();
-    return newValue.copyWith(
-      text: string,
-      selection: TextSelection.collapsed(offset: string.length),
-    );
-  }
-}
-
-class _ExpiryDateFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll('/', '');
-    final buffer = StringBuffer();
-    
-    for (int i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      if (i == 1 && text.length > 2) {
-        buffer.write('/');
-      }
-    }
-    
-    final string = buffer.toString();
-    return newValue.copyWith(
-      text: string,
-      selection: TextSelection.collapsed(offset: string.length),
-    );
   }
 }
 
@@ -1286,7 +1193,7 @@ class _ExpiryDateFormatter extends TextInputFormatter {
 class _MpesaWaitingDialog extends StatelessWidget {
   final String message;
   final String? phoneNumber;
-  final String? invoiceId;
+  final String? reference;
   final VoidCallback onVerify;
   final VoidCallback onCancel;
 
@@ -1294,7 +1201,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
     Key? key,
     required this.message,
     this.phoneNumber,
-    this.invoiceId,
+    this.reference,
     required this.onVerify,
     required this.onCancel,
   }) : super(key: key);
@@ -1309,7 +1216,7 @@ class _MpesaWaitingDialog extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Icon(Icons.phone_android, color: const Color(0xFFFFD700)),
+          const Icon(Icons.phone_android, color: Color(0xFFFFD700)),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
@@ -1353,6 +1260,24 @@ class _MpesaWaitingDialog extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+          if (reference != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'Ref: $reference',
+                style: const TextStyle(
+                  color: Color(0xFFCCCCCC),
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
           ],

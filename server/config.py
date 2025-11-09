@@ -24,6 +24,10 @@ class Config:
     INTASEND_SECRET_KEY ='ISSecretKey_live_ef0d34b2-b6e9-4801-80e7-dbce8cc93a79'
     INTASEND_IS_TEST = os.environ.get('INTASEND_IS_TEST', 'False').lower() == 'true'
     
+    PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '')
+    PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY', '')
+    PAYSTACK_IS_TEST = os.getenv('PAYSTACK_IS_TEST', 'True').lower() == 'true'
+    
     # Base URL for your application (for webhooks)
     BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
 

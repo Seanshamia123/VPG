@@ -4,6 +4,7 @@ import 'package:escort/device_utility/device_checker.dart';
 import 'package:escort/features/advertisers/presentation/screens/subscription_plans_page.dart';
 import 'package:escort/features/settings/presentation/screens/settings_screen.dart';
 import 'package:escort/features/advertisers/presentation/screens/reviewspage.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription_status_widget.dart';
 import 'package:escort/features/settings/presentation/screens/terms_and_conditions_screen.dart';
 import 'package:escort/services/advertiser_service.dart';
 import 'package:escort/services/user_session.dart';
@@ -1422,6 +1423,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                             ],
                           ),
                         ),
+                        SizedBox(height: 20),
+                        const SubscriptionStatusWidget(),
+                        SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -1662,6 +1666,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               ),
             ),
     );
+
+    
   }
 
   Widget _buildStatColumn(String number, String label) {

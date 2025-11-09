@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_restful import Api
 from flasgger import Swagger
 import os
@@ -9,7 +9,16 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 
 def create_app(config_name=None):
+
+    
     app = Flask(__name__)
+    
+    app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+    app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@vpg.com')
 
     # Development CORS: allow local and emulator/web origins
     CORS(app, resources={r"/*": {"origins": "*"}})
@@ -30,6 +39,10 @@ def create_app(config_name=None):
         'pool_timeout': 20,
         'max_overflow': 0
     }
+    
+    # Upload folder configuration
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
+    app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
     
     # Cloudinary configuration
     app.config['CLOUDINARY_CLOUD_NAME'] = os.environ.get('CLOUDINARY_CLOUD_NAME')
@@ -116,7 +129,43 @@ def create_app(config_name=None):
     api.add_namespace(payments_ns, path='/api/payment')
     # api.add_namespace(notifications_ns, path='/api/notifications')
 
+    from services.email_service import email_service
+    email_service.init_app(app)
+        
+        # Initialize subscription reminder scheduler
+    from tasks.subscription_reminders import init_scheduler
+    scheduler = init_scheduler(app)
+    app.extensions['scheduler'] = scheduler
+        
+    print('[App] ✓ Email service initialized')
+    print('[App] ✓ Subscription scheduler initialized')
+    # ========== MEDIA FILE SERVING ==========
     
+    @app.route('/media/<category>/<filename>')
+    def serve_media(category, filename):
+        """Serve media files (images, videos, audio) from uploads directory"""
+        try:
+            media_path = os.path.join(app.config['UPLOAD_FOLDER'], category)
+            return send_from_directory(media_path, filename, as_attachment=False)
+        except FileNotFoundError:
+            return {'error': 'File not found'}, 404
+        except Exception as e:
+            print(f'[App] Error serving media: {e}')
+            return {'error': 'Error retrieving file'}, 500
+
+    @app.route('/media/thumbnails/<filename>')
+    def serve_thumbnail(filename):
+        """Serve thumbnail files from uploads directory"""
+        try:
+            thumbnail_path = os.path.join(app.config['UPLOAD_FOLDER'], 'thumbnails')
+            return send_from_directory(thumbnail_path, filename, as_attachment=False)
+        except FileNotFoundError:
+            return {'error': 'Thumbnail not found'}, 404
+        except Exception as e:
+            print(f'[App] Error serving thumbnail: {e}')
+            return {'error': 'Error retrieving thumbnail'}, 500
+
+    # ========== END MEDIA FILE SERVING ==========
 
     # Simple health endpoint for frontend connectivity checks
     @app.route('/health')
@@ -145,6 +194,9 @@ def create_app(config_name=None):
 
     return app
 
+
+
+
 if __name__ == '__main__':
     app = create_app()
     with app.app_context():
@@ -152,5 +204,14 @@ if __name__ == '__main__':
         from server.cloudinary_service import cloudinary_service
         cloudinary_service.init_app(app)
         db.create_all()
+        
+        # Create upload directories
+        upload_folder = app.config['UPLOAD_FOLDER']
+        os.makedirs(os.path.join(upload_folder, 'image'), exist_ok=True)
+        os.makedirs(os.path.join(upload_folder, 'video'), exist_ok=True)
+        os.makedirs(os.path.join(upload_folder, 'audio'), exist_ok=True)
+        os.makedirs(os.path.join(upload_folder, 'thumbnails'), exist_ok=True)
+        print('[App] Upload directories created successfully')
+    
     # Run through SocketIO to enable websockets
     app.extensions['socketio'].run(app, debug=True, port=5002)

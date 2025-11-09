@@ -1,9 +1,22 @@
+import 'dart:convert';
 import 'package:escort/config/api_config.dart';
 import 'package:escort/services/api_client.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
+
+// Remove the old conditional import that caused FileReader to be unresolved.
+// ...existing code...
+
+// Add conditional import for platform-specific file helper
+import 'package:escort/services/platform_file_io.dart'
+  if (dart.library.html) 'package:escort/services/platform_file_web.dart'
+  as platform_file;
 
 class ConversationsService {
   /// Get or create a conversation with an advertiser
-  /// Returns: {'id': int, 'conversation_id': int, ...}
   static Future<Map<String, dynamic>> getOrCreateWithAdvertiser(
     int advertiserId,
   ) async {
@@ -45,7 +58,6 @@ class ConversationsService {
   }
 
   /// Get messages for a conversation
-  /// Returns messages with sender information and sender_type
   static Future<List<Map<String, dynamic>>> getMessages(
     int conversationId, {
     int page = 1,
@@ -61,7 +73,6 @@ class ConversationsService {
     print('[ConversationsService] Messages response type: ${data.runtimeType}');
     
     if (data is Map<String, dynamic>) {
-      // If response has 'messages' key
       if (data['messages'] is List) {
         print('[ConversationsService] Found ${(data['messages'] as List).length} messages');
         return (data['messages'] as List).cast<Map<String, dynamic>>();
@@ -82,15 +93,13 @@ class ConversationsService {
     return [];
   }
 
-  /// Send a message to a conversation
-  /// Requires both sender_id and sender_type to distinguish between users and advertisers
+  /// Send a text message to a conversation
   static Future<Map<String, dynamic>> sendMessage({
     required int conversationId,
     required int senderId,
-    required String senderType, // 'user' or 'advertiser'
+    required String senderType,
     required String content,
   }) async {
-    // Normalize sender type
     String normalizedType = _normalizeSenderType(senderType);
     
     final Map<String, dynamic> body = {
@@ -98,24 +107,212 @@ class ConversationsService {
       'sender_id': senderId,
       'sender_type': normalizedType,
       'content': content,
+      'message_type': 'text',
     };
     final url = '${ApiConfig.api}/messages/';
     
-    print('[ConversationsService] ===== SENDING MESSAGE =====');
+    print('[ConversationsService] ===== SENDING TEXT MESSAGE =====');
     print('[ConversationsService] URL: $url');
     print('[ConversationsService] Body: $body');
-    print('[ConversationsService] Auth: true');
     
     try {
       final response = await ApiClient.postJson(url, body, auth: true);
       print('[ConversationsService] ===== MESSAGE SENT SUCCESSFULLY =====');
-      print('[ConversationsService] Response: $response');
-      print('[ConversationsService] Sent by: $normalizedType:$senderId');
       return response;
     } catch (e, stackTrace) {
       print('[ConversationsService] ===== ERROR SENDING MESSAGE =====');
       print('[ConversationsService] Error: $e');
       print('[ConversationsService] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Send a media message (image, video, or audio) - WEB COMPATIBLE VERSION
+  static Future<Map<String, dynamic>> sendMediaMessage({
+    required int conversationId,
+    required int senderId,
+    required String senderType,
+    required dynamic file, // Can be File (mobile) or html.File (web)
+    required String mediaType,
+    String content = '',
+  }) async {
+    try {
+      String normalizedType = _normalizeSenderType(senderType);
+      
+      final url = '${ApiConfig.api}/messages/';
+      
+      print('[ConversationsService] ===== SENDING MEDIA MESSAGE =====');
+      print('[ConversationsService] URL: $url');
+      print('[ConversationsService] Media Type: $mediaType');
+      print('[ConversationsService] Platform: ${kIsWeb ? "Web" : "Native"}');
+      print('[ConversationsService] Sender: $normalizedType:$senderId');
+      
+      // Get auth token
+      final token = await ApiClient.getAccessToken();
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+      
+      // Create multipart request
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+      
+      // Add headers
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add form fields
+      request.fields['conversation_id'] = conversationId.toString();
+      request.fields['sender_id'] = senderId.toString();
+      request.fields['sender_type'] = normalizedType;
+      request.fields['message_type'] = mediaType;
+      if (content.isNotEmpty) {
+        request.fields['content'] = content;
+      }
+      
+      // Add file - WEB vs NATIVE handling
+      http.MultipartFile multipartFile;
+      
+      if (kIsWeb) {
+        // WEB: Use bytes from html.File via helper
+        print('[ConversationsService] Using web file upload');
+        final webFile = file; // dynamic html.File at runtime
+        final webData = await platform_file.readFileAsBytes(webFile);
+        final bytes = webData['bytes'] as Uint8List;
+        final filename = webData['name'] as String;
+        
+        // Determine MIME type from filename
+        final mimeType = lookupMimeType(filename) ?? 'application/octet-stream';
+        final mimeTypeParts = mimeType.split('/');
+        
+        print('[ConversationsService] File name: $filename');
+        print('[ConversationsService] File size: ${bytes.length} bytes');
+        print('[ConversationsService] MIME Type: $mimeType');
+        
+        multipartFile = http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: filename,
+          contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+        );
+      } else {
+        // NATIVE: Use file path
+        print('[ConversationsService] Using native file upload');
+        final nativeFile = file; // dynamic; expects an object with .path
+        final filePath = nativeFile.path;
+        
+        final mimeType = lookupMimeType(filePath) ?? 'application/octet-stream';
+        final mimeTypeParts = mimeType.split('/');
+        
+        print('[ConversationsService] File Path: $filePath');
+        print('[ConversationsService] MIME Type: $mimeType');
+        
+        multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+        );
+      }
+      
+      request.files.add(multipartFile);
+      
+      // Send request
+      print('[ConversationsService] Sending multipart request...');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      print('[ConversationsService] Response Status: ${response.statusCode}');
+      print('[ConversationsService] Response Body: ${response.body}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('[ConversationsService] ===== MEDIA MESSAGE SENT SUCCESSFULLY =====');
+        
+        // Parse JSON response
+        final jsonResponse = ApiClient.parseResponse(response);
+        return jsonResponse as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to send media message: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e, stackTrace) {
+      print('[ConversationsService] ===== ERROR SENDING MEDIA MESSAGE =====');
+      print('[ConversationsService] Error: $e');
+      print('[ConversationsService] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Upload media file without sending a message (for pre-upload) - WEB COMPATIBLE
+  static Future<Map<String, dynamic>> uploadMedia({
+    required dynamic file,
+    required String mediaType,
+  }) async {
+    try {
+      final url = '${ApiConfig.api}/messages/upload';
+      
+      print('[ConversationsService] ===== UPLOADING MEDIA =====');
+      print('[ConversationsService] URL: $url');
+      print('[ConversationsService] Media Type: $mediaType');
+      print('[ConversationsService] Platform: ${kIsWeb ? "Web" : "Native"}');
+      
+      // Get auth token
+      final token = await ApiClient.getAccessToken();
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+      
+      // Create multipart request
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+      
+      // Add headers
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add form fields
+      request.fields['media_type'] = mediaType;
+      
+      // Add file - WEB vs NATIVE handling
+      http.MultipartFile multipartFile;
+      
+      if (kIsWeb) {
+        // WEB: Use bytes
+        final webFile = file; // dynamic html.File at runtime
+        final webData = await platform_file.readFileAsBytes(webFile);
+        final bytes = webData['bytes'] as Uint8List;
+        final filename = webData['name'] as String;
+        final mimeType = lookupMimeType(filename) ?? 'application/octet-stream';
+        final mimeTypeParts = mimeType.split('/');
+        
+        multipartFile = http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: filename,
+          contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+        );
+      } else {
+        // NATIVE: Use file path
+        final nativeFile = file; // dynamic; expects an object with .path
+        final mimeType = lookupMimeType(nativeFile.path) ?? 'application/octet-stream';
+        final mimeTypeParts = mimeType.split('/');
+        
+        multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          nativeFile.path,
+          contentType: MediaType(mimeTypeParts[0], mimeTypeParts[1]),
+        );
+      }
+      
+      request.files.add(multipartFile);
+      
+      // Send request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        print('[ConversationsService] ===== MEDIA UPLOADED SUCCESSFULLY =====');
+        final jsonResponse = jsonDecode(response.body);
+        return jsonResponse as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to upload media: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('[ConversationsService] Error uploading media: $e');
       rethrow;
     }
   }
