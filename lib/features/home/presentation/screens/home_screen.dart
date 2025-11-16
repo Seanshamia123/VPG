@@ -7,6 +7,9 @@ library;
 
 // import 'package:flutter/foundation.dart' show kIsWeb;
 // import 'package:escort/screens/advertisers_screens/advertiser_public_profile.dart';
+import 'dart:convert';
+
+import 'package:escort/config/api_config.dart';
 import 'package:escort/features/home/presentation/screens/location_screen.dart';
 import 'package:escort/services/token_storage.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +36,8 @@ import 'package:escort/features/messages/presentation/screens/chat_screen.dart';
 import 'package:escort/features/messages/presentation/screens/message.dart';
 
 import 'package:escort/features/advertisers/presentation/screens/advertiser_public.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 // import 'package:escort/screens/advertiser_public.dart'
 // Helper extension for string capitalization
@@ -627,10 +632,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     _futureFeed = _fetchFeed();
-    _futureTopAdvertisers = AdvertiserService.fetchAdvertisers(
-      page: 1,
-      perPage: 10,
-    );
+    _futureTopAdvertisers =  _fetchTopAdvertisersByLikes();
 
     _searchFocus.addListener(() {
       if (!_searchFocus.hasFocus) {
@@ -641,6 +643,8 @@ class _HomeScreenState extends State<HomeScreen>
     // Load current user's profile from session
     _loadCurrentUserFromSession();
   }
+
+  
 
   Future<List<FeedPost>> _fetchFeed() async {
     try {
@@ -676,6 +680,86 @@ class _HomeScreenState extends State<HomeScreen>
       return [];
     }
   }
+  // Add this method to fetch top advertisers by likes
+Future<List<Map<String, dynamic>>> _fetchTopAdvertisersByLikes() async {
+  try {
+    final token = await TokenStorage.getAccessToken();
+    if (token == null) {
+      throw Exception('No access token');
+    }
+
+    final response = await http.get(
+      Uri.parse('${ApiConfig.api}/posts/top-advertisers-by-likes?limit=10'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['advertisers'] ?? []);
+    } else {
+      throw Exception('Failed to load top advertisers: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching top advertisers by likes: $e');
+    return [];
+  }
+}
+
+// Update the initState to use the new method
+
+// Update the _buildStoryItem to accept advertiser ID and make it clickable
+Widget _buildStoryItem(String name, String imageUrl, int advertiserId) {
+  return GestureDetector(
+    onTap: () async {
+      if (advertiserId > 0) {
+        await _navigateToAdvertiserProfile(advertiserId);
+      }
+    },
+    child: Container(
+      margin: const EdgeInsets.only(right: 12),
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _primaryColor, width: 2),
+            ),
+            child: CircleAvatar(
+              radius: 28,
+              backgroundImage: imageUrl.isNotEmpty
+                  ? NetworkImage(imageUrl)
+                  : null,
+              backgroundColor: _surfaceVariantColor,
+              child: imageUrl.isEmpty
+                  ? Icon(Icons.person, color: _textSecondaryColor)
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 70,
+            child: Text(
+              name,
+              style: _textTheme.bodySmall?.copyWith(
+                    color: _textPrimaryColor,
+                    fontSize: 12,
+                  ) ??
+                  TextStyle(color: _textPrimaryColor, fontSize: 12),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   void dispose() {
@@ -685,6 +769,8 @@ class _HomeScreenState extends State<HomeScreen>
     _searchFocus.dispose();
     super.dispose();
   }
+
+  
 
   Future<void> _navigateToAdvertiserProfile(int advertiserId) async {
     if (advertiserId <= 0) {
@@ -715,6 +801,8 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
   }
+
+
 
   Future<void> _loadCurrentUserFromSession() async {
     try {
@@ -1530,25 +1618,31 @@ class _HomeScreenState extends State<HomeScreen>
                         if (items.isEmpty) {
                           return const SizedBox.shrink();
                         }
-                        return ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: items.length,
-                          itemBuilder: (context, index) {
-                            final a = items[index];
-                            final name = (a['name'] ?? a['username'] ?? 'Adv')
-                                .toString();
-                            final raw = (a['profile_image_url'] ?? '')
-                                .toString();
-                            final image =
-                                (raw.isNotEmpty &&
-                                    !raw.contains('via.placeholder.com') &&
-                                    !raw.contains('placeholder.com') &&
-                                    !raw.contains('picsum.photos'))
-                                ? raw
-                                : '';
-                            return _buildStoryItem(name, image);
-                          },
-                        );
+                        return // FIND THIS in your FutureBuilder (around line 1637):
+ListView.builder(
+  scrollDirection: Axis.horizontal,
+  itemCount: items.length,
+  itemBuilder: (context, index) {
+    final a = items[index];
+    final name = (a['name'] ?? a['username'] ?? 'Adv')
+        .toString();
+    final raw = (a['profile_image_url'] ?? '')
+        .toString();
+    final image =
+        (raw.isNotEmpty &&
+            !raw.contains('via.placeholder.com') &&
+            !raw.contains('placeholder.com') &&
+            !raw.contains('picsum.photos'))
+        ? raw
+        : '';
+    
+    // ADD THIS LINE - extract the advertiser ID:
+    final advertiserId = int.tryParse(a['id']?.toString() ?? '') ?? 0;
+    
+    // CHANGE THIS LINE - pass all 3 arguments:
+    return _buildStoryItem(name, image, advertiserId);
+  },
+);
                       },
                     ),
                   ),
@@ -1974,43 +2068,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildStoryItem(String name, String imageUrl) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      child: Column(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: _primaryColor, width: 2),
-            ),
-            child: CircleAvatar(
-              radius: 28,
-              backgroundImage: imageUrl.isNotEmpty
-                  ? NetworkImage(imageUrl)
-                  : null,
-              backgroundColor: _surfaceVariantColor,
-              child: imageUrl.isEmpty
-                  ? Icon(Icons.person, color: _textSecondaryColor)
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            name,
-            style: _textTheme.bodySmall?.copyWith(
-                  color: _textPrimaryColor,
-                  fontSize: 12,
-                ) ??
-                TextStyle(color: _textPrimaryColor, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   Widget _buildSidePanel() {
     return Container(
       width: 300,

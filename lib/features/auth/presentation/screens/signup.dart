@@ -1,145 +1,12 @@
-// Enhanced signup.dart with Navigator and simplified success handling
+// Enhanced signup.dart with integrated subscription flow
 import 'package:escort/device_utility/device_checker.dart';
-import 'package:escort/features/advertisers/presentation/screens/subscription.dart';
+import 'package:escort/features/advertisers/presentation/screens/subscription_plans_page.dart';
 import 'package:escort/features/auth/presentation/screens/login.dart';
 import 'package:escort/styles/app_size.dart';
 import 'package:escort/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-
-// Top-level widget class - MUST be outside any State class
-class SubscriptionDialogWithCallback extends StatelessWidget {
-  final dynamic userId;
-  final VoidCallback onSubscriptionComplete;
-  final VoidCallback onSkip;
-
-  const SubscriptionDialogWithCallback({
-    Key? key,
-    required this.userId,
-    required this.onSubscriptionComplete,
-    required this.onSkip,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxWidth: 600,
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFFFD700).withOpacity(0.5),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFFFD700).withOpacity(0.2),
-                  Colors.transparent,
-                ],
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.workspace_premium,
-                  color: Color(0xFFFFD700),
-                  size: 32,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Complete Your Registration',
-                        style: TextStyle(
-                          color: Color(0xFFFFD700),
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Choose a subscription plan to activate your account',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Subscription content
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: SubscriptionDialog(
-                  userId: userId,
-                  onSubscriptionComplete: onSubscriptionComplete,
-                ),
-              ),
-            ),
-          ),
-
-          // Footer with skip option
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: const Color(0xFFFFD700).withOpacity(0.3),
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: onSkip,
-                  child: const Text(
-                    'Skip for now',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-                const Text(
-                  'Note: You cannot login without an active subscription',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class Signup extends StatefulWidget {
   final String userType; // 'user' or 'advertiser'
@@ -267,7 +134,7 @@ class _SignupState extends State<Signup> {
       if (isSuccess) {
         _showSuccessSnackBar(
           widget.userType == 'advertiser'
-              ? 'Account created! Please complete subscription to activate.'
+              ? 'Account created! Please choose a subscription plan.'
               : 'Account created successfully! Welcome to VipGalz!',
         );
 
@@ -275,20 +142,19 @@ class _SignupState extends State<Signup> {
 
         if (mounted) {
           if (widget.userType == 'advertiser') {
-            // For advertisers, show subscription dialog before login
-            print('Showing subscription dialog for advertiser...');
+            // For advertisers, navigate to subscription plans with pending login credentials
+            print('Navigating to subscription plans for advertiser...');
 
-            // Store registration data temporarily (optional)
             final userId = result['user_id'] ?? result['data']?['user_id'];
 
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => WillPopScope(
-                onWillPop: () async => false,
-                child: Dialog(
-                  child: SubscriptionDialogWithCallback(
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => SubscriptionPlansPage(
                     userId: userId,
+                    pendingLoginEmail: _emailController.text.trim(),
+                    pendingLoginPassword: _passwordController.text,
+                    pendingLoginUserType: 'advertiser',
                     onSubscriptionComplete: () {
                       // After successful subscription, navigate to login
                       Navigator.of(context).pushAndRemoveUntil(
@@ -296,17 +162,11 @@ class _SignupState extends State<Signup> {
                         (route) => false,
                       );
                     },
-                    onSkip: () {
-                      // If they skip, go to login (they won't be able to login without subscription)
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (route) => false,
-                      );
-                    },
                   ),
                 ),
-              ),
-            );
+                (route) => false,
+              );
+            }
           } else {
             // For regular users, go directly to login
             print('Navigating to login screen for user...');
@@ -393,7 +253,6 @@ class _SignupState extends State<Signup> {
   String _extractErrorMessage(Map<String, dynamic> result) {
     String errorMessage = 'Registration failed';
 
-    // Check various error fields
     if (result.containsKey('message')) {
       errorMessage = result['message'].toString();
     } else if (result.containsKey('error')) {
@@ -410,7 +269,6 @@ class _SignupState extends State<Signup> {
       } else if (errors is List && errors.isNotEmpty) {
         errorMessage = errors.first.toString();
       } else if (errors is Map) {
-        // Handle validation errors
         List<String> errorList = [];
         errors.forEach((key, value) {
           if (value is List) {
@@ -425,38 +283,11 @@ class _SignupState extends State<Signup> {
       }
     }
 
-    // Add status code if available
     if (result.containsKey('statusCode')) {
       errorMessage += ' (Status: ${result['statusCode']})';
     }
 
     return errorMessage;
-  }
-
-  void _handleSuccessfulRegistration(Map<String, dynamic> result) {
-    if (result.containsKey('data') && result['data'] != null) {
-      final data = result['data'];
-
-      // Safely extract data with null checks
-      String? accessToken = data['access_token'];
-      String? refreshToken = data['refresh_token'];
-      dynamic userId = data['user_id'];
-      String? userType = data['user_type'];
-
-      print('=== TOKEN EXTRACTION ===');
-      print(
-        'Access Token: ${accessToken != null ? 'Present (${accessToken.length} chars)' : 'Missing'}',
-      );
-      print(
-        'Refresh Token: ${refreshToken != null ? 'Present (${refreshToken.length} chars)' : 'Missing'}',
-      );
-      print('User ID: $userId');
-      print('User Type: $userType');
-      print('========================');
-
-      // TODO: Store tokens securely using SharedPreferences or FlutterSecureStorage
-      // await _storeTokens(accessToken, refreshToken, userId, userType);
-    }
   }
 
   @override
@@ -561,6 +392,7 @@ class _SignupState extends State<Signup> {
                               // Username
                               TextFormField(
                                 controller: _usernameController,
+                                style: const TextStyle(color: white),
                                 decoration: const InputDecoration(
                                   labelText: 'Username',
                                   hintText: 'Enter username',
@@ -578,6 +410,7 @@ class _SignupState extends State<Signup> {
                               // Full Name
                               TextFormField(
                                 controller: _nameController,
+                                style: const TextStyle(color: white),
                                 decoration: const InputDecoration(
                                   labelText: 'Full Name',
                                   hintText: 'Enter your full name',
@@ -595,6 +428,7 @@ class _SignupState extends State<Signup> {
                               // Email
                               TextFormField(
                                 controller: _emailController,
+                                style: const TextStyle(color: white),
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: const InputDecoration(
                                   labelText: 'Email',
@@ -616,6 +450,7 @@ class _SignupState extends State<Signup> {
                               // Phone Number
                               TextFormField(
                                 controller: _phoneController,
+                                style: const TextStyle(color: white),
                                 keyboardType: TextInputType.phone,
                                 decoration: const InputDecoration(
                                   labelText: 'Phone Number',
@@ -634,6 +469,7 @@ class _SignupState extends State<Signup> {
                               // Location
                               TextFormField(
                                 controller: _locationController,
+                                style: const TextStyle(color: white),
                                 decoration: const InputDecoration(
                                   labelText: 'Location',
                                   hintText: 'City, Country',
@@ -651,6 +487,7 @@ class _SignupState extends State<Signup> {
                               // Gender Dropdown
                               DropdownButtonFormField<String>(
                                 value: _selectedGender,
+                                style: const TextStyle(color: white),
                                 decoration: InputDecoration(
                                   labelText: "Gender",
                                   prefixIcon: const Icon(Iconsax.user_tag),
@@ -721,6 +558,7 @@ class _SignupState extends State<Signup> {
                               // Password
                               TextFormField(
                                 controller: _passwordController,
+                                style: const TextStyle(color: white),
                                 obscureText: !_isPasswordVisible,
                                 decoration: InputDecoration(
                                   labelText: 'Password',
@@ -879,5 +717,6 @@ class _SignupState extends State<Signup> {
     );
   }
 }
+
 /// Feature: Auth
 /// Screen: Signup

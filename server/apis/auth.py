@@ -11,7 +11,7 @@ api = Namespace('auth', description='Authentication operations')
 # ============================================
 # DEVELOPMENT MODE FLAG
 # ============================================
-DEVELOPMENT_MODE = True  # Set to False to re-enable subscription checks
+DEVELOPMENT_MODE = False # Set to False to re-enable subscription checks
 # ============================================
 
 # Configuration

@@ -9,8 +9,6 @@ import 'package:escort/features/settings/presentation/screens/terms_and_conditio
 import 'package:escort/services/advertiser_service.dart';
 import 'package:escort/services/user_session.dart';
 import 'package:escort/features/auth/presentation/screens/login.dart';
-// import 'package:escort/styles/app_size.dart';
-// import 'package:escort/styles/post_cards_styling.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,10 +33,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ImagePicker _picker = ImagePicker();
 
-  // Enhanced color palette constants
-  static const Color goldColor = Color(0xFFFFD700);
-  static const Color brightGold = Color(0xFFFFC107);
-
   // User data variables
   String userName = 'Loading...';
   String userEmail = '';
@@ -50,15 +44,32 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   bool isOnline = false;
   bool isLoading = true;
 
-  Color get _primaryTextColor => Theme.of(context).colorScheme.onSurface;
-  Color get _secondaryTextColor =>
-      Theme.of(context).colorScheme.onSurfaceVariant;
-  Color get _scaffoldColor => Theme.of(context).scaffoldBackgroundColor;
-  Color get _surfaceColor => Theme.of(context).colorScheme.surface;
-  Color get _borderColor => Theme.of(context).dividerColor;
-  Color get _primaryColor => Theme.of(context).colorScheme.primary;
-  Color get _dangerColor => Theme.of(context).colorScheme.error;
-  Color get _successColor => Theme.of(context).colorScheme.tertiary;
+  // Updated color getters to match home_screen.dart
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
+  ThemeData get _theme => Theme.of(context);
+  TextTheme get _textTheme => Theme.of(context).textTheme;
+  bool get _isDark => _theme.brightness == Brightness.dark;
+
+  Color get _primaryColor => _scheme.primary;
+  Color get _onPrimaryColor => _scheme.onPrimary;
+  Color get _surfaceColor => _theme.scaffoldBackgroundColor;
+  Color get _surfaceVariantColor => _scheme.surface;
+  Color get _onSurfaceColor => _scheme.onSurface;
+  Color get _onSurfaceVariantColor => _scheme.onSurfaceVariant;
+  Color get _dividerColor => _theme.dividerColor;
+
+  Color get _panelBackgroundColor =>
+      _isDark ? const Color(0xFF111315) : _surfaceColor;
+  Color get _panelSurfaceColor =>
+      _isDark ? const Color(0xFF1F2426) : _surfaceVariantColor;
+  Color get _panelCardColor =>
+      _isDark ? const Color(0xFF1C1F20) : _theme.cardColor;
+  Color get _textPrimaryColor =>
+      _isDark ? Colors.white : _onSurfaceColor;
+  Color get _textSecondaryColor =>
+      _isDark ? Colors.white70 : _onSurfaceVariantColor;
+  Color get _borderNeutralColor =>
+      _isDark ? Colors.white24 : _dividerColor;
 
   @override
   void initState() {
@@ -69,7 +80,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   late Future<List<Map<String, dynamic>>> _futureMyPosts =
       _fetchMyPostsWithFullData();
 
-  // Updated method to fetch posts by advertiser ID using the new endpoint
   Future<List<Map<String, dynamic>>> _fetchPostsByAdvertiserId(
     int advertiserId,
   ) async {
@@ -89,7 +99,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
       List<Map<String, dynamic>> posts = [];
 
-      // Handle the response structure from the new endpoint
       if (res['posts'] is List) {
         posts = (res['posts'] as List).cast<Map<String, dynamic>>();
       } else if (res['data'] is List) {
@@ -110,10 +119,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     }
   }
 
-  // Method to fetch current user's posts using their advertiser ID
   Future<List<Map<String, dynamic>>> _fetchMyPostsFullData() async {
     try {
-      // Get current user's advertiser ID
       final userData = await UserSession.getCurrentUserData();
       final advertiserId = userData?['id'];
 
@@ -130,45 +137,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     }
   }
 
-  // Alternative: If you only have individual post endpoints and need to fetch multiple posts
-  Future<List<Map<String, dynamic>>> _fetchPostsByIds(List<int> postIds) async {
-    try {
-      final accessToken = await UserSession.getAccessToken();
-      if (accessToken == null) return [];
-
-      List<Map<String, dynamic>> posts = [];
-
-      // Fetch each post individually
-      for (int postId in postIds) {
-        try {
-          final res = await ApiClient.getJson(
-            '${ApiConfig.api}/posts/$postId',
-            auth: true,
-          );
-
-          if (res['data'] != null) {
-            posts.add(res['data']);
-          } else if (res['id'] != null) {
-            // If the response is the post object directly
-            posts.add(res);
-          }
-        } catch (e) {
-          print('Error fetching post $postId: $e');
-          // Continue with other posts even if one fails
-        }
-      }
-
-      return posts;
-    } catch (e) {
-      print('Error fetching posts by IDs: $e');
-      return [];
-    }
-  }
-
-  // Updated method that returns full post objects instead of just image URLs
   Future<List<Map<String, dynamic>>> _fetchMyPostsWithFullData() async {
     try {
-      // Get current user's advertiser ID
       final userData = await UserSession.getCurrentUserData();
       final advertiserId = userData?['id'];
 
@@ -184,23 +154,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     }
   }
 
-  // For displaying in the grid (extracting image URLs from full post data)
-  Future<List<String>> _fetchMyPostImages() async {
-    try {
-      final posts = await _fetchMyPostsWithFullData();
-      return posts
-          .map((post) => (post['image_url'] ?? '').toString())
-          .where((url) => url.isNotEmpty)
-          .toList();
-    } catch (e) {
-      print('Error extracting image URLs: $e');
-      return [];
-    }
-  }
-
   Future<void> _loadUserData() async {
     try {
-      // Load user data from session
       final userData = await UserSession.getCurrentUserData();
 
       if (userData != null) {
@@ -242,12 +197,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     }
   }
 
-  // Method to get profile image widget
   Widget _getProfileImage({required double radius, bool showBorder = true}) {
     Widget imageWidget;
 
     if (profileImageUrl != null && profileImageUrl!.isNotEmpty) {
-      // Use network image if available
       imageWidget = CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(profileImageUrl!),
@@ -256,11 +209,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         },
       );
     } else {
-      // Use a default user icon when no profile image
       imageWidget = CircleAvatar(
         radius: radius,
-        backgroundColor: goldColor.withOpacity(0.15),
-        child: Icon(Icons.person, color: goldColor, size: radius),
+        backgroundColor: _panelSurfaceColor,
+        child: Icon(Icons.person, color: _textSecondaryColor, size: radius),
       );
     }
 
@@ -269,8 +221,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: isVerified ? brightGold : goldColor,
-            width: isVerified ? 4 : 3,
+            color: isVerified ? _primaryColor : _borderNeutralColor,
+            width: isVerified ? 3 : 2,
           ),
         ),
         child: imageWidget,
@@ -280,7 +232,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     return imageWidget;
   }
 
-  // Fixed "New" story highlight handler - this is the main entry point
   Future<void> _handleNewStoryTap() async {
     await showModalBottomSheet(
       context: context,
@@ -293,11 +244,11 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   Widget _buildMediaSelectionBottomSheet() {
     return Container(
       decoration: BoxDecoration(
-        color: _scaffoldColor,
+        color: _panelSurfaceColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
         boxShadow: [
           BoxShadow(
-            color: _primaryTextColor.withOpacity(0.1),
+            color: _textPrimaryColor.withOpacity(0.1),
             blurRadius: 10,
             offset: Offset(0, -5),
           ),
@@ -308,28 +259,25 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
             Container(
               width: 50,
               height: 4,
               decoration: BoxDecoration(
-                color: _secondaryTextColor.withOpacity(0.3),
+                color: _textSecondaryColor.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             SizedBox(height: 20),
-
-            // Title
             Row(
               children: [
-                Icon(Icons.add_circle, color: goldColor, size: 28),
+                Icon(Icons.add_circle, color: _primaryColor, size: 28),
                 SizedBox(width: 12),
                 Text(
                   'Create New Post',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: _primaryTextColor,
+                    color: _textPrimaryColor,
                   ),
                 ),
               ],
@@ -337,11 +285,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             SizedBox(height: 8),
             Text(
               'Choose how you want to add media',
-              style: TextStyle(color: _secondaryTextColor, fontSize: 16),
+              style: TextStyle(color: _textSecondaryColor, fontSize: 16),
             ),
             SizedBox(height: 30),
-
-            // Media options
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -384,12 +330,12 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         width: 140,
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: goldColor.withOpacity(0.08),
+          color: _primaryColor.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: goldColor.withOpacity(0.3), width: 1),
+          border: Border.all(color: _primaryColor.withOpacity(0.3), width: 1),
           boxShadow: [
             BoxShadow(
-              color: goldColor.withOpacity(0.1),
+              color: _primaryColor.withOpacity(0.1),
               blurRadius: 8,
               offset: Offset(0, 4),
             ),
@@ -401,10 +347,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: goldColor.withOpacity(0.2),
+                color: _primaryColor.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 32, color: _primaryTextColor),
+              child: Icon(icon, size: 32, color: _textPrimaryColor),
             ),
             SizedBox(height: 12),
             Text(
@@ -412,13 +358,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: _primaryTextColor,
+                color: _textPrimaryColor,
               ),
             ),
             SizedBox(height: 4),
             Text(
               subtitle,
-              style: TextStyle(fontSize: 12, color: _secondaryTextColor),
+              style: TextStyle(fontSize: 12, color: _textSecondaryColor),
               textAlign: TextAlign.center,
             ),
           ],
@@ -430,7 +376,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   Future<void> _showCameraOptions() async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: _scaffoldColor,
+      backgroundColor: _panelSurfaceColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -444,7 +390,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: _primaryTextColor,
+                color: _textPrimaryColor,
               ),
             ),
             SizedBox(height: 20),
@@ -452,13 +398,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               leading: Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: goldColor.withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.camera_alt, color: goldColor),
+                child: Icon(Icons.camera_alt, color: _primaryColor),
               ),
-              title: Text('Take Photo'),
-              subtitle: Text('Capture a new photo'),
+              title: Text('Take Photo', style: TextStyle(color: _textPrimaryColor)),
+              subtitle: Text('Capture a new photo', style: TextStyle(color: _textSecondaryColor)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMedia(ImageSource.camera, isVideo: false);
@@ -468,13 +414,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               leading: Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: goldColor.withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.videocam, color: goldColor),
+                child: Icon(Icons.videocam, color: _primaryColor),
               ),
-              title: Text('Record Video'),
-              subtitle: Text('Record a new video'),
+              title: Text('Record Video', style: TextStyle(color: _textPrimaryColor)),
+              subtitle: Text('Record a new video', style: TextStyle(color: _textSecondaryColor)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMedia(ImageSource.camera, isVideo: true);
@@ -489,7 +435,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   Future<void> _showGalleryOptions() async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: _scaffoldColor,
+      backgroundColor: _panelSurfaceColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -503,7 +449,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: _primaryTextColor,
+                color: _textPrimaryColor,
               ),
             ),
             SizedBox(height: 20),
@@ -511,13 +457,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               leading: Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: goldColor.withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.image, color: goldColor),
+                child: Icon(Icons.image, color: _primaryColor),
               ),
-              title: Text('Select Photo'),
-              subtitle: Text('Choose photo from gallery'),
+              title: Text('Select Photo', style: TextStyle(color: _textPrimaryColor)),
+              subtitle: Text('Choose photo from gallery', style: TextStyle(color: _textSecondaryColor)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMedia(ImageSource.gallery, isVideo: false);
@@ -527,13 +473,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               leading: Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: goldColor.withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.video_library, color: goldColor),
+                child: Icon(Icons.video_library, color: _primaryColor),
               ),
-              title: Text('Select Video'),
-              subtitle: Text('Choose video from gallery'),
+              title: Text('Select Video', style: TextStyle(color: _textPrimaryColor)),
+              subtitle: Text('Choose video from gallery', style: TextStyle(color: _textSecondaryColor)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMedia(ImageSource.gallery, isVideo: true);
@@ -550,7 +496,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     required bool isVideo,
   }) async {
     try {
-      // Show loading
       _showLoadingDialog('Selecting media...');
 
       XFile? pickedFile;
@@ -569,29 +514,25 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         );
       }
 
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
       if (pickedFile != null) {
         String mediaPath;
 
         if (kIsWeb) {
-          // On web, use the path directly (it's already a blob URL)
           mediaPath = pickedFile.path;
         } else {
-          // On mobile/desktop, use the file path
           mediaPath = pickedFile.path;
         }
 
         if (isVideo) {
-          // For video, go directly to post creation
           await _showPostCreationDialog(mediaPath, isVideo: true);
         } else {
-          // For images, show editing options first
           await _showImageEditingOptions(mediaPath);
         }
       }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       print('Error picking media: $e');
       _showErrorSnackBar('Error selecting media. Please try again.');
     }
@@ -600,7 +541,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
   Future<void> _showImageEditingOptions(String imagePath) async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: _scaffoldColor,
+      backgroundColor: _panelSurfaceColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -614,31 +555,25 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: _primaryTextColor,
+                color: _textPrimaryColor,
               ),
             ),
             SizedBox(height: 20),
-
-            // Image preview - FIXED FOR WEB
             Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: goldColor, width: 2),
+                border: Border.all(color: _primaryColor, width: 2),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(13),
                 child: kIsWeb
-                    ? Image.network(
-                        imagePath, // On web, imagePath will be a blob URL
-                        fit: BoxFit.cover,
-                      )
+                    ? Image.network(imagePath, fit: BoxFit.cover)
                     : Image.file(File(imagePath), fit: BoxFit.cover),
               ),
             ),
             SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -676,17 +611,17 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: goldColor.withOpacity(0.1),
+          color: _primaryColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: goldColor.withOpacity(0.3)),
+          border: Border.all(color: _primaryColor.withOpacity(0.3)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: goldColor, size: 28),
+            Icon(icon, color: _primaryColor, size: 28),
             SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(color: _primaryTextColor, fontWeight: FontWeight.w600),
+              style: TextStyle(color: _textPrimaryColor, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -700,20 +635,19 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
       CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: imagePath,
-
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
-            toolbarColor: goldColor,
-            toolbarWidgetColor: _primaryTextColor,
+            toolbarColor: _primaryColor,
+            toolbarWidgetColor: _textPrimaryColor,
             initAspectRatio: CropAspectRatioPreset.original,
             lockAspectRatio: false,
-            statusBarColor: goldColor,
-            backgroundColor: _scaffoldColor,
-            activeControlsWidgetColor: goldColor,
-            dimmedLayerColor: _primaryTextColor.withOpacity(0.8),
-            cropFrameColor: goldColor,
-            cropGridColor: goldColor.withOpacity(0.5),
+            statusBarColor: _primaryColor,
+            backgroundColor: _panelBackgroundColor,
+            activeControlsWidgetColor: _primaryColor,
+            dimmedLayerColor: _textPrimaryColor.withOpacity(0.8),
+            cropFrameColor: _primaryColor,
+            cropGridColor: _primaryColor.withOpacity(0.5),
           ),
           IOSUiSettings(
             title: 'Crop Image',
@@ -723,13 +657,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         ],
       );
 
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
       if (croppedFile != null) {
         await _showPostCreationDialog(croppedFile.path, isVideo: false);
       }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       print('Error cropping image: $e');
       _showErrorSnackBar('Error editing image. Using original image.');
       await _showPostCreationDialog(imagePath, isVideo: false);
@@ -750,7 +684,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: _scaffoldColor,
+              backgroundColor: _panelSurfaceColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -758,14 +692,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 children: [
                   Icon(
                     isVideo ? Icons.videocam : Icons.image,
-                    color: goldColor,
+                    color: _primaryColor,
                     size: 24,
                   ),
                   SizedBox(width: 10),
                   Text(
                     "Create Post",
                     style: TextStyle(
-                      color: _primaryTextColor,
+                      color: _textPrimaryColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
                     ),
@@ -777,16 +711,15 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Media preview - FIXED FOR WEB
                     Container(
                       height: 200,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: goldColor, width: 2),
+                        border: Border.all(color: _primaryColor, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: _primaryTextColor.withOpacity(0.1),
+                            color: _textPrimaryColor.withOpacity(0.1),
                             blurRadius: 8,
                             offset: Offset(0, 4),
                           ),
@@ -796,20 +729,20 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                         borderRadius: BorderRadius.circular(13),
                         child: isVideo
                             ? Container(
-                                color: _primaryTextColor.withOpacity(0.1),
+                                color: _textPrimaryColor.withOpacity(0.1),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
                                       Icons.play_circle_filled,
                                       size: 60,
-                                      color: goldColor,
+                                      color: _primaryColor,
                                     ),
                                     SizedBox(height: 10),
                                     Text(
                                       "Video Ready",
                                       style: TextStyle(
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -817,20 +750,15 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                 ),
                               )
                             : kIsWeb
-                            ? Image.network(
-                                filePath, // On web, filePath will be a blob URL
-                                fit: BoxFit.cover,
-                              )
+                            ? Image.network(filePath, fit: BoxFit.cover)
                             : Image.file(File(filePath), fit: BoxFit.cover),
                       ),
                     ),
                     SizedBox(height: 25),
-
-                    // Caption input
                     Text(
                       "Caption",
                       style: TextStyle(
-                        color: _primaryTextColor,
+                        color: _textPrimaryColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
@@ -842,22 +770,21 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                       enabled: !isPosting,
                       decoration: InputDecoration(
                         hintText: "Write a caption for your post...",
-                        hintStyle: TextStyle(color: _secondaryTextColor),
+                        hintStyle: TextStyle(color: _textSecondaryColor),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: _secondaryTextColor.withOpacity(0.3),
+                            color: _textSecondaryColor.withOpacity(0.3),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: goldColor, width: 2),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
                         ),
                         contentPadding: EdgeInsets.all(16),
                       ),
-                      style: TextStyle(color: _primaryTextColor),
+                      style: TextStyle(color: _textPrimaryColor),
                     ),
-
                     if (isPosting) ...[
                       SizedBox(height: 20),
                       Center(
@@ -865,13 +792,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                           children: [
                             CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                goldColor,
+                                _primaryColor,
                               ),
                             ),
                             SizedBox(height: 10),
                             Text(
                               'Creating your post...',
-                              style: TextStyle(color: _secondaryTextColor, fontSize: 14),
+                              style: TextStyle(color: _textSecondaryColor, fontSize: 14),
                             ),
                           ],
                         ),
@@ -888,7 +815,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                         child: Text(
                           "Cancel",
                           style: TextStyle(
-                            color: _secondaryTextColor,
+                            color: _textSecondaryColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -898,7 +825,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: goldColor.withOpacity(0.3),
+                              color: _primaryColor.withOpacity(0.3),
                               blurRadius: 6,
                               offset: Offset(0, 3),
                             ),
@@ -926,8 +853,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                               _showSuccessSnackBar(
                                 'Post created successfully!',
                               );
-
-                              // Refresh posts count
                             } catch (e) {
                               setState(() {
                                 isPosting = false;
@@ -938,8 +863,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: goldColor,
-                            foregroundColor: _primaryTextColor,
+                            backgroundColor: _primaryColor,
+                            foregroundColor: _textPrimaryColor,
                             padding: EdgeInsets.symmetric(
                               horizontal: 24,
                               vertical: 12,
@@ -966,7 +891,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     );
   }
 
-  // FIXED: Updated API call to match your backend expectations
   Future<void> _createPostAPI({
     required String filePath,
     required String caption,
@@ -978,7 +902,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       print('Caption: $caption');
       print('Is Video: $isVideo');
 
-      // Get access token
       final accessToken = await UserSession.getAccessToken();
       if (accessToken == null) {
         throw Exception('No access token available');
@@ -987,7 +910,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       String base64String;
 
       if (kIsWeb) {
-        // On web, we need to fetch the blob URL and convert to base64
         final response = await http.get(Uri.parse(filePath));
         if (response.statusCode == 200) {
           base64String = base64Encode(response.bodyBytes);
@@ -995,7 +917,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           throw Exception('Failed to read file on web');
         }
       } else {
-        // On mobile/desktop, read file normally
         final bytes = await File(filePath).readAsBytes();
         base64String = base64Encode(bytes);
       }
@@ -1004,15 +925,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         'File converted to base64, size: ${base64String.length} characters',
       );
 
-      // Prepare the request body matching your backend expectations
       final requestBody = {
-        'image': base64String, // Your backend expects 'image' field
+        'image': base64String,
         'caption': caption,
       };
 
       print('Making API call to posts endpoint...');
 
-      // Make API request to your correct endpoint
       final response = await ApiClient.postJson(
         '${ApiConfig.api}/posts/',
         requestBody,
@@ -1025,7 +944,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       print('==============================');
 
       if ((response['statusCode'] ?? 0) == 201) {
-        // Success - post created
         final responseData = response;
         final id = responseData['id'] ?? responseData['data']?['id'];
         final imageUrl =
@@ -1033,20 +951,16 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
         print('Post created successfully with ID: $id');
         print('Image uploaded to Cloudinary: $imageUrl');
       } else if ((response['statusCode'] ?? 0) == 400) {
-        // Bad request - parse error message
         final errorMessage =
             response['message'] ?? response['error'] ?? 'Bad request';
         throw Exception(errorMessage);
       } else if ((response['statusCode'] ?? 0) == 401) {
-        // Unauthorized
         throw Exception('Authentication failed. Please login again.');
       } else if ((response['statusCode'] ?? 0) == 500) {
-        // Server error
         final errorMessage =
             response['message'] ?? response['error'] ?? 'Server error';
         throw Exception(errorMessage);
       } else {
-        // Other errors
         throw Exception(
           'Failed to create post (HTTP ${response['statusCode']})',
         );
@@ -1062,16 +976,16 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: _scaffoldColor,
+        backgroundColor: _panelSurfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(goldColor),
+              valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
             ),
             SizedBox(height: 16),
-            Text(message, style: TextStyle(color: _primaryTextColor, fontSize: 16)),
+            Text(message, style: TextStyle(color: _textPrimaryColor, fontSize: 16)),
           ],
         ),
       ),
@@ -1083,15 +997,15 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle, color: _primaryTextColor),
+            Icon(Icons.check_circle, color: _onPrimaryColor),
             SizedBox(width: 12),
             Text(
               message,
-              style: TextStyle(color: _primaryTextColor, fontWeight: FontWeight.w600),
+              style: TextStyle(color: _onPrimaryColor, fontWeight: FontWeight.w600),
             ),
           ],
         ),
-        backgroundColor: goldColor,
+        backgroundColor: _primaryColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: Duration(seconds: 3),
@@ -1104,20 +1018,20 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error, color: _scaffoldColor),
+            Icon(Icons.error, color: Colors.white),
             SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
                 style: TextStyle(
-                  color: _scaffoldColor,
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ],
         ),
-        backgroundColor: _dangerColor,
+        backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: Duration(seconds: 4),
@@ -1130,7 +1044,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     final textStyle = context.textStyle;
     final formFactor = context.formFactor;
 
-    // Define responsive sizes based on device type
     double appBarHeight;
     double avatarRadius;
     double spacing;
@@ -1158,15 +1071,15 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: _scaffoldColor,
+      backgroundColor: _panelBackgroundColor,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(appBarHeight),
         child: Container(
           decoration: BoxDecoration(
-            color: _surfaceColor,
+            color: _panelSurfaceColor,
             border: Border(
               bottom: BorderSide(
-                color: _borderColor.withValues(alpha: 0.3),
+                color: _borderNeutralColor.withValues(alpha: 0.3),
               ),
             ),
           ),
@@ -1176,7 +1089,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
             centerTitle: true,
             leading: GestureDetector(
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
-              child: Icon(Icons.menu, color: _primaryTextColor),
+              child: Icon(Icons.menu, color: _textPrimaryColor),
             ),
             title: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1185,23 +1098,23 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   isLoading ? 'Loading...' : userName,
                   style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: _primaryTextColor,
+                        color: _textPrimaryColor,
                       ) ??
                       TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 18,
-                        color: _primaryTextColor,
+                        color: _textPrimaryColor,
                       ),
                 ),
                 if (isVerified) ...[
                   SizedBox(width: 4),
-                  Icon(Icons.verified, color: brightGold, size: 16),
+                  Icon(Icons.verified, color: _primaryColor, size: 16),
                 ],
               ],
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.message_outlined, color: _primaryTextColor),
+                icon: Icon(Icons.message_outlined, color: _textPrimaryColor),
                 tooltip: 'Messages',
                 onPressed: () {
                   Navigator.of(context).pushNamed('/messages');
@@ -1224,9 +1137,9 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   Text(
                     'Loading profile...',
                     style: textTheme.bodyMedium?.copyWith(
-                          color: _secondaryTextColor,
+                          color: _textSecondaryColor,
                         ) ??
-                        TextStyle(color: _secondaryTextColor),
+                        TextStyle(color: _textSecondaryColor),
                   ),
                 ],
               ),
@@ -1234,9 +1147,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Replace the existing Profile Header Section in your build method with this:
-
-                  // Profile Header Section
+                  // Profile Header Section - UPDATED (removed stats and buttons)
                   Padding(
                     padding: EdgeInsets.all(16),
                     child: Column(
@@ -1247,19 +1158,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                             // Profile Image - centered
                             _getProfileImage(radius: 45),
                             SizedBox(height: 16),
-
-                            // Stats
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildStatColumn('120', 'Followers'),
-                                _buildStatColumn('45', 'Posts'),
-                                _buildStatColumn('30', 'Likes'),
-                              ],
-                            ),
                           ],
                         ),
-                        SizedBox(height: 16),
 
                         // Bio section
                         Container(
@@ -1272,23 +1172,23 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                   userLocation,
                                   style: textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: _primaryTextColor,
+                                        color: _textPrimaryColor,
                                       ) ??
                                       TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
-                                        color: _primaryTextColor,
+                                        color: _textPrimaryColor,
                                       ),
                                 ),
                               SizedBox(height: 4),
                               Text(
                                 userBio,
                                 style: textTheme.bodyMedium?.copyWith(
-                                      color: _secondaryTextColor,
+                                      color: _textSecondaryColor,
                                     ) ??
                                     TextStyle(
                                       fontSize: 14,
-                                      color: _secondaryTextColor,
+                                      color: _textSecondaryColor,
                                     ),
                               ),
                               if (userEmail.isNotEmpty) ...[
@@ -1296,116 +1196,16 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                 Text(
                                   userEmail,
                                   style: textTheme.bodySmall?.copyWith(
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                       ) ??
                                       TextStyle(
                                         fontSize: 14,
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                       ),
                                 ),
                               ],
                             ],
                           ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Action buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    // Navigate to advertiser edit profile
-                                    final result = await Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AdvertiserEditProfileScreen(),
-                                      ),
-                                    );
-                                    if (result != null && mounted) {
-                                      // Refresh local UI from session or returned data
-                                      await _loadUserData();
-                                      setState(() {});
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _borderColor.withValues(alpha: 0.15),
-                                    foregroundColor: _primaryTextColor,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Edit profile',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Container(
-                                height: 32,
-                                child: ElevatedButton(
-                                  onPressed: () => Get.to(
-                                    () => CommentSection(),
-                                    transition: Transition.upToDown,
-                                    duration: const Duration(milliseconds: 500),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: goldColor,
-                                    foregroundColor: _primaryTextColor,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'View archive',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Container(
-                              height: 32,
-                              width: 32,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // Settings functionality
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SettingsScreen(),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _borderColor.withValues(alpha: 0.15),
-                                  foregroundColor: _primaryTextColor,
-                                  elevation: 0,
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.person_add_outlined,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                         SizedBox(height: 20),
 
@@ -1419,7 +1219,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                 title: 'New',
                                 onTap: _handleNewStoryTap,
                               ),
-                              // Add more story highlights here if needed
                             ],
                           ),
                         ),
@@ -1441,26 +1240,29 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                             Tab(icon: Icon(Icons.bookmark_border)),
                             Tab(icon: Icon(Icons.person_outline)),
                           ],
-                          labelColor: _primaryTextColor,
-                          unselectedLabelColor: _secondaryTextColor,
-                          indicatorColor: _primaryTextColor,
-                          indicatorWeight: 1,
+                          labelColor: _textPrimaryColor,
+                          unselectedLabelColor: _textSecondaryColor,
+                          indicatorColor: _primaryColor,
+                          indicatorWeight: 2,
                         ),
                         Container(
-                          height: 400, // Fixed height for the tab view
+                          height: 400,
                           child: TabBarView(
                             children: [
                               // Posts tab
-                              // In your TabBarView, update the Posts tab:
                               FutureBuilder<List<Map<String, dynamic>>>(
                                 future: _futureMyPosts,
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState ==
                                       ConnectionState.waiting) {
-                                    return const Center(
+                                    return Center(
                                       child: Padding(
                                         padding: EdgeInsets.all(16.0),
-                                        child: CircularProgressIndicator(),
+                                        child: CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            _primaryColor,
+                                          ),
+                                        ),
                                       ),
                                     );
                                   }
@@ -1470,7 +1272,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                         padding: const EdgeInsets.all(16.0),
                                         child: Text(
                                           'Failed to load posts',
-                                          style: TextStyle(color: _secondaryTextColor),
+                                          style: TextStyle(color: _textSecondaryColor),
                                         ),
                                       ),
                                     );
@@ -1493,7 +1295,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
                                       return GestureDetector(
                                         onTap: () {
-                                          // Navigate to PostDetailScreen with the full post data
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
@@ -1501,7 +1302,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                                   PostDetailScreen(post: post),
                                             ),
                                           ).then((_) {
-                                            // Refresh posts when coming back from detail screen
                                             setState(() {
                                               _futureMyPosts =
                                                   _fetchMyPostsWithFullData();
@@ -1510,7 +1310,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                         },
                                         child: Container(
                                           decoration: BoxDecoration(
-                                            color: _secondaryTextColor.withOpacity(0.1),
+                                            color: _textSecondaryColor.withOpacity(0.1),
                                           ),
                                           child: Stack(
                                             fit: StackFit.expand,
@@ -1526,11 +1326,11 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                                         stackTrace,
                                                       ) {
                                                         return Container(
-                                                          color: _secondaryTextColor
+                                                          color: _textSecondaryColor
                                                               .withOpacity(0.2),
                                                           child: Icon(
                                                             Icons.broken_image,
-                                                            color: _secondaryTextColor,
+                                                            color: _textSecondaryColor,
                                                             size: 40,
                                                           ),
                                                         );
@@ -1538,23 +1338,22 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                                 )
                                               else
                                                 Container(
-                                                  color: _secondaryTextColor.withOpacity(
+                                                  color: _textSecondaryColor.withOpacity(
                                                     0.2,
                                                   ),
                                                   child: Icon(
                                                     Icons.image_not_supported,
-                                                    color: _secondaryTextColor,
+                                                    color: _textSecondaryColor,
                                                     size: 40,
                                                   ),
                                                 ),
-                                              // Add a subtle overlay to indicate it's tappable
                                               Positioned(
                                                 top: 4,
                                                 right: 4,
                                                 child: Container(
                                                   padding: EdgeInsets.all(2),
                                                   decoration: BoxDecoration(
-                                                    color: _primaryTextColor
+                                                    color: _textPrimaryColor
                                                         .withOpacity(0.6),
                                                     borderRadius:
                                                         BorderRadius.circular(
@@ -1567,14 +1366,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                                     children: [
                                                       Icon(
                                                         Icons.favorite,
-                                                        color: _scaffoldColor,
+                                                        color: _surfaceColor,
                                                         size: 12,
                                                       ),
                                                       SizedBox(width: 2),
                                                       Text(
                                                         '${post['likes_count'] ?? 0}',
                                                         style: TextStyle(
-                                                          color: _scaffoldColor,
+                                                          color: _surfaceColor,
                                                           fontSize: 10,
                                                           fontWeight:
                                                               FontWeight.bold,
@@ -1601,13 +1400,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                     Icon(
                                       Icons.play_circle_outline,
                                       size: 60,
-                                      color: _secondaryTextColor,
+                                      color: _textSecondaryColor,
                                     ),
                                     SizedBox(height: 16),
                                     Text(
                                       'No reels yet',
                                       style: TextStyle(
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                         fontSize: 16,
                                       ),
                                     ),
@@ -1622,13 +1421,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                     Icon(
                                       Icons.bookmark_outline,
                                       size: 60,
-                                      color: _secondaryTextColor,
+                                      color: _textSecondaryColor,
                                     ),
                                     SizedBox(height: 16),
                                     Text(
                                       'No saved posts',
                                       style: TextStyle(
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                         fontSize: 16,
                                       ),
                                     ),
@@ -1643,13 +1442,13 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                                     Icon(
                                       Icons.person_outline,
                                       size: 60,
-                                      color: _secondaryTextColor,
+                                      color: _textSecondaryColor,
                                     ),
                                     SizedBox(height: 16),
                                     Text(
                                       'No tagged posts',
                                       style: TextStyle(
-                                        color: _secondaryTextColor,
+                                        color: _textSecondaryColor,
                                         fontSize: 16,
                                       ),
                                     ),
@@ -1665,37 +1464,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 ],
               ),
             ),
-    );
-
-    
-  }
-
-  Widget _buildStatColumn(String number, String label) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          number,
-          style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: scheme.onSurface,
-              ) ??
-              TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: scheme.onSurface,
-              ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ) ??
-              TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-        ),
-      ],
     );
   }
 
@@ -1717,10 +1485,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isNew
-                      ? Theme.of(context)
-                          .dividerColor
-                          .withValues(alpha: 0.3)
-                      : goldColor,
+                      ? _borderNeutralColor.withValues(alpha: 0.3)
+                      : _primaryColor,
                   width: 2,
                 ),
               ),
@@ -1730,14 +1496,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: [
-                            goldColor.withOpacity(0.1),
-                            goldColor.withOpacity(0.3),
+                            _primaryColor.withOpacity(0.1),
+                            _primaryColor.withOpacity(0.3),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: Icon(Icons.add, size: 30, color: goldColor),
+                      child: Icon(Icons.add, size: 30, color: _primaryColor),
                     )
                   : CircleAvatar(
                       radius: 30,
@@ -1751,63 +1517,12 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
               title,
               style: TextStyle(
                 fontSize: 12,
-                color: _primaryTextColor,
+                color: _textPrimaryColor,
                 fontWeight: isNew ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildOptionsMenu() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: Icon(Icons.location_city, color: _primaryTextColor),
-            title: Text('Set Location (City, Country)'),
-            onTap: () async {
-              Navigator.pop(context);
-              await _showSetLocationDialog();
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.settings, color: _primaryTextColor),
-            title: Text('Settings'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SettingsScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.description, color: _primaryTextColor),
-            title: Text('Terms and Conditions'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TermsAndConditionsScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.logout, color: _dangerColor),
-            title: Text('Logout', style: TextStyle(color: _dangerColor)),
-            onTap: () {
-              Navigator.pop(context);
-              _showLogoutDialog();
-            },
-          ),
-        ],
       ),
     );
   }
@@ -1819,30 +1534,39 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Set Coordinates'),
+          backgroundColor: _panelSurfaceColor,
+          title: Text('Set Coordinates', style: TextStyle(color: _textPrimaryColor)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: latCtrl,
+                style: TextStyle(color: _textPrimaryColor),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(labelText: 'Latitude'),
+                decoration: InputDecoration(
+                  labelText: 'Latitude',
+                  labelStyle: TextStyle(color: _textSecondaryColor),
+                ),
               ),
               TextField(
                 controller: lonCtrl,
+                style: TextStyle(color: _textPrimaryColor),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(labelText: 'Longitude'),
+                decoration: InputDecoration(
+                  labelText: 'Longitude',
+                  labelStyle: TextStyle(color: _textSecondaryColor),
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: _textSecondaryColor)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -1892,6 +1616,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   Navigator.pop(ctx);
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: _onPrimaryColor,
+              ),
               child: const Text('Save'),
             ),
           ],
@@ -1907,24 +1635,33 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Set Location'),
+          backgroundColor: _panelSurfaceColor,
+          title: Text('Set Location', style: TextStyle(color: _textPrimaryColor)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: cityCtrl,
-                decoration: const InputDecoration(labelText: 'City'),
+                style: TextStyle(color: _textPrimaryColor),
+                decoration: InputDecoration(
+                  labelText: 'City',
+                  labelStyle: TextStyle(color: _textSecondaryColor),
+                ),
               ),
               TextField(
                 controller: countryCtrl,
-                decoration: const InputDecoration(labelText: 'Country'),
+                style: TextStyle(color: _textPrimaryColor),
+                decoration: InputDecoration(
+                  labelText: 'Country',
+                  labelStyle: TextStyle(color: _textSecondaryColor),
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: _textSecondaryColor)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -1966,6 +1703,10 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   }
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: _onPrimaryColor,
+              ),
               child: const Text('Save'),
             ),
           ],
@@ -1976,22 +1717,17 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
 
   Widget _buildSidebar() {
     return Drawer(
-      backgroundColor: _scaffoldColor,
+      backgroundColor: _panelBackgroundColor,
       child: Column(
         children: [
-          // Enhanced header with gradient
           Container(
             height: 220,
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [goldColor, brightGold],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: _panelSurfaceColor,
               boxShadow: [
                 BoxShadow(
-                  color: _primaryTextColor.withOpacity(0.2),
+                  color: _textPrimaryColor.withOpacity(0.1),
                   blurRadius: 8,
                   offset: Offset(0, 4),
                 ),
@@ -2008,14 +1744,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                     Text(
                       isLoading ? 'Loading...' : userName,
                       style: TextStyle(
-                        color: _primaryTextColor,
+                        color: _textPrimaryColor,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     if (isVerified) ...[
                       SizedBox(width: 8),
-                      Icon(Icons.verified, color: _primaryTextColor, size: 20),
+                      Icon(Icons.verified, color: _primaryColor, size: 20),
                     ],
                   ],
                 ),
@@ -2026,27 +1762,26 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                     Text(
                       "Advertiser",
                       style: TextStyle(
-                        color: _primaryTextColor.withOpacity(0.7),
+                        color: _textSecondaryColor,
                         fontSize: 14,
                       ),
                     ),
                     if (isOnline) ...[
                       SizedBox(width: 8),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _successColor,
-                        shape: BoxShape.circle,
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
                     ],
                   ],
                 ),
               ],
             ),
           ),
-          // Enhanced menu items
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -2069,25 +1804,23 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   },
                 ),
                 _buildDrawerItem(
-  icon: Icons.subscriptions,
-  title: "Subscriptions",
-  onTap: () {
-    Navigator.pop(context); // Close drawer
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SubscriptionPlansPage(),
-      ),
-    ).then((result) {
-      if (result == true) {
-        // Subscription successful - refresh profile or show success
-        _showSuccessSnackBar('Subscription activated successfully!');
-        // You might want to refresh user data here
-        setState(() {});
-      }
-    });
-  },
-),
+                  icon: Icons.subscriptions,
+                  title: "Subscriptions",
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SubscriptionPlansPage(),
+                      ),
+                    ).then((result) {
+                      if (result == true) {
+                        _showSuccessSnackBar('Subscription activated successfully!');
+                        setState(() {});
+                      }
+                    });
+                  },
+                ),
                 _buildDrawerItem(
                   icon: Icons.settings,
                   title: "Settings",
@@ -2111,7 +1844,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   },
                 ),
                 Divider(
-                  color: _secondaryTextColor.withOpacity(0.3),
+                  color: _textSecondaryColor.withOpacity(0.3),
                   thickness: 1,
                   indent: 20,
                   endIndent: 20,
@@ -2139,7 +1872,6 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
     required VoidCallback onTap,
     bool isLogout = false,
   }) {
-    final theme = Theme.of(context);
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: ListTile(
@@ -2147,32 +1879,27 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           padding: EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: isLogout
-                ? _dangerColor.withValues(alpha: 0.1)
-                : goldColor.withOpacity(0.1),
+                ? Colors.red.withValues(alpha: 0.1)
+                : _primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: isLogout ? _dangerColor : _primaryTextColor,
+            color: isLogout ? Colors.red : _textPrimaryColor,
             size: 20,
           ),
         ),
         title: Text(
           title,
-          style: theme.textTheme.bodyMedium?.copyWith(
-                color: isLogout ? _dangerColor : _primaryTextColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ) ??
-              TextStyle(
-                color: isLogout ? _dangerColor : _primaryTextColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+          style: TextStyle(
+            color: isLogout ? Colors.red : _textPrimaryColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
         ),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        hoverColor: goldColor.withOpacity(0.1),
+        hoverColor: _primaryColor.withOpacity(0.1),
       ),
     );
   }
@@ -2182,18 +1909,18 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: _scaffoldColor,
+          backgroundColor: _panelSurfaceColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Row(
             children: [
-              Icon(Icons.logout, color: _dangerColor, size: 24),
+              Icon(Icons.logout, color: Colors.red, size: 24),
               SizedBox(width: 10),
               Text(
                 "Logout",
                 style: TextStyle(
-                  color: _primaryTextColor,
+                  color: _textPrimaryColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
                 ),
@@ -2202,14 +1929,14 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
           ),
           content: Text(
             "Are you sure you want to logout from your account?",
-            style: TextStyle(color: _secondaryTextColor, fontSize: 16),
+            style: TextStyle(color: _textSecondaryColor, fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 "Cancel",
-                style: TextStyle(color: _secondaryTextColor, fontWeight: FontWeight.w600),
+                style: TextStyle(color: _textSecondaryColor, fontWeight: FontWeight.w600),
               ),
             ),
             Container(
@@ -2217,7 +1944,7 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: _dangerColor.withValues(alpha: 0.3),
+                    color: Colors.red.withValues(alpha: 0.3),
                     blurRadius: 6,
                     offset: Offset(0, 3),
                   ),
@@ -2227,10 +1954,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                 onPressed: () async {
                   Navigator.pop(context);
 
-                  // Clear user session
                   await UserSession.clearSession();
 
-                  // Navigate back to login screen
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => Login()),
                     (route) => false,
@@ -2240,18 +1965,18 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                     SnackBar(
                       content: Row(
                         children: [
-                          Icon(Icons.logout, color: _scaffoldColor),
+                          Icon(Icons.logout, color: Colors.white),
                           SizedBox(width: 12),
                           Text(
                             'Logged out successfully!',
                             style: TextStyle(
-                              color: _scaffoldColor,
+                              color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
-                      backgroundColor: _dangerColor,
+                      backgroundColor: Colors.red,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -2260,8 +1985,8 @@ class _AdvertiserProfileState extends State<AdvertiserProfile> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _dangerColor,
-                  foregroundColor: _scaffoldColor,
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

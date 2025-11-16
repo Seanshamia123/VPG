@@ -361,71 +361,135 @@ class IntaSendService:
         return cleaned if len(cleaned) >= 9 else None
     
     def verify_payment(self, checkout_id: str = None, invoice_id: str = None, 
-                      api_ref: str = None) -> Dict[str, Any]:
-        """Verify payment status"""
-        params = {}
-        
-        if invoice_id:
-            url = f"{self.base_url}/api/v1/payment/status/"
-            params = {"invoice_id": invoice_id}
-            identifier = f"invoice_id={invoice_id}"
-        elif api_ref:
-            url = f"{self.base_url}/api/v1/payment/status/"
-            params = {"api_ref": api_ref}
-            identifier = f"api_ref={api_ref}"
-        elif checkout_id:
-            url = f"{self.base_url}/api/v1/payment/collection/{checkout_id}/"
-            params = {}
-            identifier = f"checkout_id={checkout_id}"
-        else:
-            return {"error": "Must provide checkout_id, invoice_id, or api_ref"}
+                  api_ref: str = None) -> Dict[str, Any]:
+        """Verify payment status using POST requests"""
         
         try:
             print(f"=== Verifying payment ===")
-            print(f"URL: {url}")
-            print(f"Identifier: {identifier}")
             
-            response = requests.get(
-                url,
-                params=params,
-                headers=self._get_headers(),
-                timeout=30
-            )
+            # Try invoice_id first (most reliable)
+            if invoice_id:
+                url = f"{self.base_url}/api/v1/payment/status/"
+                payload = {"invoice_id": invoice_id}
+                identifier = f"invoice_id={invoice_id}"
+                
+                print(f"URL: {url}")
+                print(f"Identifier: {identifier}")
+                
+                response = requests.post(  # Changed from GET to POST
+                    url,
+                    json=payload,
+                    headers=self._get_headers(),
+                    timeout=30
+                )
+                
+                print(f"Verification Response Status: {response.status_code}")
+                print(f"Verification Response: {response.text[:500]}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    invoice = result.get('invoice', result)
+                    state = invoice.get('state', '').upper()
+                    
+                    is_complete = state in ['COMPLETE', 'COMPLETED', 'SUCCESS', 'PAID']
+                    
+                    return {
+                        "success": is_complete,
+                        "state": state,
+                        "invoice_id": invoice.get('invoice_id'),
+                        "api_ref": invoice.get('api_ref'),
+                        "value": invoice.get('value') or invoice.get('amount'),
+                        "currency": invoice.get('currency'),
+                        "reference": invoice.get('api_ref'),
+                        "mpesa_reference": invoice.get('mpesa_reference'),
+                        "account": invoice.get('account'),
+                        "charges": invoice.get('charges', 0),
+                        "net_amount": invoice.get('net_amount'),
+                        "raw_response": result
+                    }
             
-            print(f"Verification Response Status: {response.status_code}")
-            print(f"Verification Response: {response.text[:500]}")
+            # Try api_ref as fallback
+            if api_ref:
+                url = f"{self.base_url}/api/v1/payment/status/"
+                payload = {"api_ref": api_ref}
+                identifier = f"api_ref={api_ref}"
+                
+                print(f"URL: {url}")
+                print(f"Identifier: {identifier}")
+                
+                response = requests.post(  # Changed from GET to POST
+                    url,
+                    json=payload,
+                    headers=self._get_headers(),
+                    timeout=30
+                )
+                
+                print(f"Verification Response Status: {response.status_code}")
+                print(f"Verification Response: {response.text[:500]}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    invoice = result.get('invoice', result)
+                    state = invoice.get('state', '').upper()
+                    
+                    is_complete = state in ['COMPLETE', 'COMPLETED', 'SUCCESS', 'PAID']
+                    
+                    return {
+                        "success": is_complete,
+                        "state": state,
+                        "invoice_id": invoice.get('invoice_id'),
+                        "api_ref": invoice.get('api_ref'),
+                        "value": invoice.get('value') or invoice.get('amount'),
+                        "currency": invoice.get('currency'),
+                        "reference": invoice.get('api_ref'),
+                        "mpesa_reference": invoice.get('mpesa_reference'),
+                        "account": invoice.get('account'),
+                        "charges": invoice.get('charges', 0),
+                        "net_amount": invoice.get('net_amount'),
+                        "raw_response": result
+                    }
             
-            if response.status_code == 404:
-                print("Payment not found (404)")
-                return {
-                    "success": False,
-                    "state": "PENDING",
-                    "message": "Payment not found. It may still be processing."
-                }
+            # Try checkout_id as last resort
+            if checkout_id:
+                url = f"{self.base_url}/api/v1/payment/collection/{checkout_id}/"
+                identifier = f"checkout_id={checkout_id}"
+                
+                print(f"URL: {url}")
+                print(f"Identifier: {identifier}")
+                
+                response = requests.get(
+                    url,
+                    headers=self._get_headers(),
+                    timeout=30
+                )
+                
+                print(f"Verification Response Status: {response.status_code}")
+                print(f"Verification Response: {response.text[:500]}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    invoice = result.get('invoice', result)
+                    state = invoice.get('state', '').upper()
+                    
+                    is_complete = state in ['COMPLETE', 'COMPLETED', 'SUCCESS', 'PAID']
+                    
+                    return {
+                        "success": is_complete,
+                        "state": state,
+                        "invoice_id": invoice.get('invoice_id'),
+                        "api_ref": invoice.get('api_ref'),
+                        "value": invoice.get('value') or invoice.get('amount'),
+                        "currency": invoice.get('currency'),
+                        "reference": invoice.get('api_ref'),
+                        "mpesa_reference": invoice.get('mpesa_reference'),
+                        "account": invoice.get('account'),
+                        "charges": invoice.get('charges', 0),
+                        "net_amount": invoice.get('net_amount'),
+                        "raw_response": result
+                    }
             
-            response.raise_for_status()
-            
-            result = response.json()
-            invoice = result.get('invoice', result)
-            state = invoice.get('state', '').upper()
-            
-            is_complete = state in ['COMPLETE', 'COMPLETED', 'SUCCESS', 'PAID']
-            
-            return {
-                "success": is_complete,
-                "state": state,
-                "invoice_id": invoice.get('invoice_id'),
-                "api_ref": invoice.get('api_ref'),
-                "value": invoice.get('value') or invoice.get('amount'),
-                "currency": invoice.get('currency'),
-                "reference": invoice.get('api_ref'),
-                "mpesa_reference": invoice.get('mpesa_reference'),
-                "account": invoice.get('account'),
-                "charges": invoice.get('charges', 0),
-                "net_amount": invoice.get('net_amount'),
-                "raw_response": result
-            }
-            
+            return {"error": "Must provide checkout_id, invoice_id, or api_ref"}
+                
         except requests.exceptions.HTTPError as e:
             error_message = f"HTTP {e.response.status_code}"
             try:
@@ -440,7 +504,8 @@ class IntaSendService:
         except Exception as e:
             print(f"Verification Error: {str(e)}")
             return {"error": str(e)}
-    
+
+
     def get_supported_currencies(self) -> list:
         """Get list of supported currencies"""
         return [

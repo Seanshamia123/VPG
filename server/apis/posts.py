@@ -1072,3 +1072,56 @@ class SearchPosts(Resource):
             
         except Exception as e:
             api.abort(500, f'Failed to search posts: {str(e)}')
+
+
+@api.route('/top-advertisers-by-likes')
+class TopAdvertisersByLikes(Resource):
+    @api.doc('get_top_advertisers_by_likes')
+    @token_required
+    def get(self, current_user):
+        """Get top advertisers ranked by total likes across all their posts"""
+        try:
+            limit = request.args.get('limit', 10, type=int)
+            
+            # Query to get advertisers with total likes count
+            # Join Post -> PostLike, group by advertiser, order by total likes
+            from sqlalchemy import func
+            
+            top_advertisers = db.session.query(
+                Advertiser.id,
+                Advertiser.name,
+                Advertiser.username,
+                Advertiser.profile_image_url,
+                Advertiser.is_verified,
+                Advertiser.is_online,
+                func.count(PostLike.id).label('total_likes')
+            ).join(
+                Post, Post.advertiser_id == Advertiser.id
+            ).join(
+                PostLike, PostLike.post_id == Post.id
+            ).group_by(
+                Advertiser.id
+            ).order_by(
+                func.count(PostLike.id).desc()
+            ).limit(limit).all()
+            
+            result = []
+            for adv in top_advertisers:
+                result.append({
+                    'id': adv.id,
+                    'name': adv.name,
+                    'username': adv.username,
+                    'profile_image_url': adv.profile_image_url,
+                    'is_verified': adv.is_verified,
+                    'is_online': adv.is_online,
+                    'total_likes': adv.total_likes
+                })
+            
+            return {
+                'advertisers': result,
+                'count': len(result)
+            }
+            
+        except Exception as e:
+            print(f"Error fetching top advertisers by likes: {e}")
+            api.abort(500, f'Failed to retrieve top advertisers: {str(e)}')

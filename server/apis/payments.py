@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import uuid
 import logging
 from werkzeug.security import check_password_hash
+import jwt
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,7 +19,7 @@ from config import Config
 # ============================================
 # DEVELOPMENT MODE FLAG
 # ============================================
-DEVELOPMENT_MODE = True # Set to False to re-enable subscription checks
+DEVELOPMENT_MODE = False # Set to False to re-enable subscription checks
 # ============================================
 
 # Import payment services with error handling
@@ -896,6 +897,8 @@ def activate_subscription(subscription):
         return False
         
 
+# Replace the /subscription-status endpoint in payments.py with this version:
+
 @api.route('/subscription-status')
 class SubscriptionStatus(Resource):
     def get(self):
@@ -919,31 +922,81 @@ class SubscriptionStatus(Resource):
             }, 200
         
         current_user = None
+        user_type = None
         
-        # Try JWT authentication
+        # Extract token from Authorization header
         auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
-            try:
-                from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-                verify_jwt_in_request()
-                user_id = get_jwt_identity()
-                current_user = Advertiser.query.get(user_id) or User.query.get(user_id)
-            except Exception as e:
-                logging.warning(f"JWT verification failed: {e}")
-        
-        if not current_user:
+        if not auth_header.startswith('Bearer '):
+            logging.warning("No Bearer token in Authorization header")
             return {
                 'has_subscription': False,
-                'message': 'Authentication required'
+                'message': 'Authentication required. Please log in.',
+                'error': 'no_auth'
             }, 401
         
         try:
+            token = auth_header.split(' ')[1]
+            secret_key = os.environ.get('SECRET_KEY', '732ffbadb13fee4198fbd1e32394e7366c595da6cc66d2a3')
+            
+            # Decode the custom JWT token (matching auth.py format)
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            
+            user_id = payload.get('user_id')
+            user_type = payload.get('user_type')
+            
+            logging.info(f"✓ Token verified - user_id: {user_id}, user_type: {user_type}")
+            
+            # Load user from database
+            if user_type == 'advertiser':
+                current_user = Advertiser.query.get(user_id)
+            else:
+                current_user = User.query.get(user_id)
+            
+            if current_user:
+                logging.info(f"✓ User loaded: {user_id}")
+            else:
+                logging.warning(f"User not found in database for ID: {user_id}")
+                return {
+                    'has_subscription': False,
+                    'error': 'User not found',
+                    'error_code': 'user_not_found'
+                }, 404
+                
+        except jwt.ExpiredSignatureError:
+            logging.warning("Token has expired")
+            return {
+                'has_subscription': False,
+                'error': 'Token has expired. Please log in again.',
+                'error_code': 'token_expired'
+            }, 401
+        except jwt.InvalidTokenError as e:
+            logging.warning(f"Invalid token: {e}")
+            return {
+                'has_subscription': False,
+                'error': 'Invalid token. Please log in again.',
+                'error_code': 'invalid_token'
+            }, 401
+        except Exception as e:
+            logging.error(f"Token verification error: {e}")
+            return {
+                'has_subscription': False,
+                'error': 'Token verification failed',
+                'error_code': 'verification_failed'
+            }, 401
+        
+        try:
+            logging.info(f"=== CHECKING SUBSCRIPTION STATUS ===")
+            logging.info(f"User: {current_user.email} (ID: {current_user.id})")
+            logging.info(f"User Type: {type(current_user).__name__}")
+            
             # Check if user is an advertiser
             if not isinstance(current_user, Advertiser):
+                logging.info(f"User is not an advertiser (type: {type(current_user).__name__})")
                 return {
                     'has_subscription': False,
                     'is_advertiser': False,
-                    'message': 'Subscriptions are only for advertisers'
+                    'message': 'Subscriptions are only for advertisers',
+                    'user_type': type(current_user).__name__
                 }, 200
             
             # Get active subscription
@@ -953,6 +1006,7 @@ class SubscriptionStatus(Resource):
             ).order_by(Subscription.end_date.desc()).first()
             
             if not subscription:
+                logging.info(f"No active subscription found for user: {current_user.id}")
                 return {
                     'has_subscription': False,
                     'is_advertiser': True,
@@ -963,6 +1017,7 @@ class SubscriptionStatus(Resource):
             # Check if subscription is expired
             now = datetime.utcnow()
             if subscription.end_date and subscription.end_date < now:
+                logging.info(f"Subscription expired: {subscription.end_date}")
                 subscription.status = 'expired'
                 db.session.commit()
                 
@@ -976,6 +1031,182 @@ class SubscriptionStatus(Resource):
             
             # Active subscription found
             days_remaining = (subscription.end_date - now).days if subscription.end_date else None
+            
+            # Calculate days until renewal (if auto-renew is enabled)
+            days_until_renewal = None
+            if hasattr(subscription, 'next_billing_date') and subscription.next_billing_date:
+                days_until_renewal = (subscription.next_billing_date - now).days
+            
+            logging.info(f"✓ Active subscription found: {subscription.plan_name}")
+            logging.info(f"  Days remaining: {days_remaining}")
+            
+            return {
+                'has_subscription': True,
+                'is_advertiser': True,
+                'subscription': {
+                    'id': subscription.id,
+                    'plan_name': subscription.plan_name,
+                    'plan_id': subscription.plan_id,
+                    'status': subscription.status,
+                    'start_date': subscription.start_date.isoformat() if subscription.start_date else None,
+                    'end_date': subscription.end_date.isoformat() if subscription.end_date else None,
+                    'days_remaining': days_remaining,
+                    'days_until_renewal': days_until_renewal,
+                    'payment_status': subscription.payment_status,
+                    'amount_paid': str(subscription.amount_paid) if subscription.amount_paid else None,
+                    'currency': subscription.currency,
+                    'payment_method': subscription.payment_method,
+                    'auto_renew': subscription.auto_renew if hasattr(subscription, 'auto_renew') else False,
+                    'next_billing_date': subscription.next_billing_date.isoformat() if hasattr(subscription, 'next_billing_date') and subscription.next_billing_date else None
+                }
+            }, 200
+            
+        except Exception as e:
+            logging.error(f"Error checking subscription status: {str(e)}", exc_info=True)
+            return {
+                'error': 'Failed to check subscription status',
+                'details': str(e)
+            }, 500
+
+# In your payments.py, replace the /subscription-status endpoint with this:
+
+
+
+@api.route('/subscription-status')
+class SubscriptionStatus(Resource):
+    def get(self):
+        """Check current subscription status for authenticated advertiser"""
+        if DEVELOPMENT_MODE:
+            logging.warning("⚠️  DEVELOPMENT MODE: Returning dummy active subscription")
+            return {
+                'has_subscription': True,
+                'is_advertiser': True,
+                'development_mode': True,
+                'subscription': {
+                    'id': 0,
+                    'plan_name': 'Development Mode - No Subscription Required',
+                    'status': 'active',
+                    'start_date': datetime.utcnow().isoformat(),
+                    'end_date': (datetime.utcnow() + timedelta(days=365)).isoformat(),
+                    'days_remaining': 365,
+                    'payment_status': 'dev_mode'
+                },
+                'message': 'Development mode active - subscription checks disabled'
+            }, 200
+        
+        current_user = None
+        user_type = None
+        
+        # Extract token from Authorization header
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            logging.warning("No Bearer token in Authorization header")
+            return {
+                'has_subscription': False,
+                'message': 'Authentication required. Please log in.',
+                'error': 'no_auth'
+            }, 401
+        
+        try:
+            token = auth_header.split(' ')[1]
+            secret_key = os.environ.get('SECRET_KEY', '732ffbadb13fee4198fbd1e32394e7366c595da6cc66d2a3')
+            
+            # Decode the custom JWT token (matching auth.py format)
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            
+            user_id = payload.get('user_id')
+            user_type = payload.get('user_type')
+            
+            logging.info(f"✓ Token verified - user_id: {user_id}, user_type: {user_type}")
+            
+            # Load user from database
+            if user_type == 'advertiser':
+                current_user = Advertiser.query.get(user_id)
+            else:
+                current_user = User.query.get(user_id)
+            
+            if current_user:
+                logging.info(f"✓ User loaded: {user_id}")
+            else:
+                logging.warning(f"User not found in database for ID: {user_id}")
+                return {
+                    'has_subscription': False,
+                    'error': 'User not found',
+                    'error_code': 'user_not_found'
+                }, 404
+                
+        except jwt.ExpiredSignatureError:
+            logging.warning("Token has expired")
+            return {
+                'has_subscription': False,
+                'error': 'Token has expired. Please log in again.',
+                'error_code': 'token_expired'
+            }, 401
+        except jwt.InvalidTokenError as e:
+            logging.warning(f"Invalid token: {e}")
+            return {
+                'has_subscription': False,
+                'error': 'Invalid token. Please log in again.',
+                'error_code': 'invalid_token'
+            }, 401
+        except Exception as e:
+            logging.error(f"Token verification error: {e}")
+            return {
+                'has_subscription': False,
+                'error': 'Token verification failed',
+                'error_code': 'verification_failed'
+            }, 401
+        
+        try:
+            logging.info(f"=== CHECKING SUBSCRIPTION STATUS ===")
+            logging.info(f"User: {current_user.email} (ID: {current_user.id})")
+            logging.info(f"User Type: {type(current_user).__name__}")
+            
+            # Check if user is an advertiser
+            if not isinstance(current_user, Advertiser):
+                logging.info(f"User is not an advertiser (type: {type(current_user).__name__})")
+                return {
+                    'has_subscription': False,
+                    'is_advertiser': False,
+                    'message': 'Subscriptions are only for advertisers',
+                    'user_type': type(current_user).__name__
+                }, 200
+            
+            # Get active subscription
+            subscription = Subscription.query.filter_by(
+                user_id=current_user.id,
+                status='active'
+            ).order_by(Subscription.end_date.desc()).first()
+            
+            if not subscription:
+                logging.info(f"No active subscription found for user: {current_user.id}")
+                return {
+                    'has_subscription': False,
+                    'is_advertiser': True,
+                    'message': 'No active subscription found',
+                    'status': 'no_subscription'
+                }, 200
+            
+            # Check if subscription is expired
+            now = datetime.utcnow()
+            if subscription.end_date and subscription.end_date < now:
+                logging.info(f"Subscription expired: {subscription.end_date}")
+                subscription.status = 'expired'
+                db.session.commit()
+                
+                return {
+                    'has_subscription': False,
+                    'is_advertiser': True,
+                    'message': 'Subscription has expired',
+                    'expired_at': subscription.end_date.isoformat(),
+                    'status': 'expired'
+                }, 200
+            
+            # Active subscription found
+            days_remaining = (subscription.end_date - now).days if subscription.end_date else None
+            
+            logging.info(f"✓ Active subscription found: {subscription.plan_name}")
+            logging.info(f"  Days remaining: {days_remaining}")
             
             return {
                 'has_subscription': True,
@@ -991,42 +1222,18 @@ class SubscriptionStatus(Resource):
                     'payment_status': subscription.payment_status,
                     'amount_paid': str(subscription.amount_paid) if subscription.amount_paid else None,
                     'currency': subscription.currency,
-                    'payment_method': subscription.payment_method
+                    'payment_method': subscription.payment_method,
+                    'auto_renew': subscription.auto_renew if hasattr(subscription, 'auto_renew') else False,
+                    'next_billing_date': subscription.next_billing_date.isoformat() if hasattr(subscription, 'next_billing_date') and subscription.next_billing_date else None
                 }
             }, 200
             
         except Exception as e:
-            logging.error(f"Error checking subscription status: {str(e)}")
+            logging.error(f"Error checking subscription status: {str(e)}", exc_info=True)
             return {
-                'error': 'Failed to check subscription status'
+                'error': 'Failed to check subscription status',
+                'details': str(e)
             }, 500
-
-
-@api.route('/my-subscriptions')
-class MySubscriptions(Resource):
-    @token_required
-    def get(self, current_user):
-        """Get all subscriptions for the current user"""
-        try:
-            if not isinstance(current_user, Advertiser):
-                return {
-                    'subscriptions': [],
-                    'message': 'Only advertisers have subscriptions'
-                }, 200
-            
-            subscriptions = Subscription.query.filter_by(
-                user_id=current_user.id
-            ).order_by(Subscription.created_at.desc()).all()
-            
-            return {
-                'subscriptions': [sub.to_dict() for sub in subscriptions],
-                'count': len(subscriptions)
-            }, 200
-            
-        except Exception as e:
-            logging.error(f"Error fetching subscriptions: {str(e)}")
-            return {'error': 'Failed to fetch subscriptions'}, 500
-
 
 @api.route('/webhook/intasend')
 class IntaSendWebhook(Resource):

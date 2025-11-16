@@ -26,3 +26,4 @@ ffmpeg-python
 Pillow
 Flask-Mail
 APScheduler
+flask-jwt-extended
