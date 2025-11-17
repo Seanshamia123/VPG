@@ -27,3 +27,4 @@ Pillow
 Flask-Mail
 APScheduler
 flask-jwt-extended
+gunicorn==21.2.0
