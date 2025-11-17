@@ -2,7 +2,7 @@ from flask import request, jsonify
 from flask_restx import Namespace, Resource, fields
 from models import User, Post, UserBlock, db
 from .decorators import token_required
-from .cloudinary_service import get_service as get_cloudinary_service
+from cloudinary_service import get_service as get_cloudinary_service
 from flask_restx import fields
 
 api = Namespace('users', description='User management operations')

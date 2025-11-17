@@ -182,7 +182,7 @@ def create_app(config_name=None):
         
         # Initialize Cloudinary service
         try:
-            from .cloudinary_service import cloudinary_service
+            from cloudinary_service import cloudinary_service
             cloudinary_service.init_app(app)
             logger.info("✓ Cloudinary service initialized")
         except Exception as e:
@@ -301,7 +301,7 @@ if __name__ == '__main__':
         
         try:
             # Initialize Cloudinary service within app context
-            from .cloudinary_service import cloudinary_service
+            from cloudinary_service import cloudinary_service
             cloudinary_service.init_app(app)
             logger.info("✓ Cloudinary initialized")
         except Exception as e:
