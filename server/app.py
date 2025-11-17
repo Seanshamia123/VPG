@@ -83,7 +83,7 @@ def create_app(config_name=None):
     app.config['PAYSTACK_SECRET_KEY'] = os.environ.get('PAYSTACK_SECRET_KEY', '')
     app.config['PAYSTACK_PUBLIC_KEY'] = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
     app.config['PAYSTACK_IS_TEST'] = os.environ.get('PAYSTACK_IS_TEST', 'True').lower() == 'true'
-    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
+    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'https://vpg-9wlv.onrender.com')
         
     # ========== SWAGGER CONFIG ==========
     swagger_config = {

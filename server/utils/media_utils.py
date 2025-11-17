@@ -10,7 +10,7 @@ MEDIA_ROOT = os.path.join(os.getcwd(), "uploads")   # Base folder for uploads
 MAX_FILE_SIZE_MB = 100                              # Max file size (MB)
 
 # Get base URL from environment or use default
-BASE_URL = 'http://127.0.0.1:5000'
+BASE_URL = 'https://vpg-9wlv.onrender.com'
 
 # Allowed file extensions by category
 ALLOWED_TYPES = {

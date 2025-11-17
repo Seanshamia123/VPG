@@ -1,4 +1,4 @@
 class ApiConfig {
-  static const String baseUrl = "http://127.0.0.1:5000";
+  static const String baseUrl = "https://vpg-9wlv.onrender.com";
   static String get api => baseUrl; 
 }
