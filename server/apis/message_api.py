@@ -12,11 +12,11 @@ api = Namespace('messages', description='Message management operations')
 
 # Import media utilities (create this file from the artifact)
 try:
-    from .utils.media_utils import upload_media_file
+    from utils.media_utils import upload_media_file
 
     MEDIA_UPLOAD_ENABLED = True
 except ImportError:
-    print("[MessageAPI] WARNING: media_utils not found. Media upload disabled.")
+    print("[MessageAPI] WARNING:  not found. Media upload disabled.")
     MEDIA_UPLOAD_ENABLED = False
 
 # Models for Swagger documentation
