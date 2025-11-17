@@ -5,7 +5,7 @@ from .decorators import token_required, advertiser_required
 
 import time
 import base64
-from server.cloudinary_service import get_service as get_cloudinary_service 
+from .cloudinary_service import get_service as get_cloudinary_service 
 
 api = Namespace('posts', description='Post management operations')
 

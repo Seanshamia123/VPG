@@ -12,7 +12,7 @@ api = Namespace('messages', description='Message management operations')
 
 # Import media utilities (create this file from the artifact)
 try:
-    from server.utils.media_utils import upload_media_file
+    from .utils.media_utils import upload_media_file
 
     MEDIA_UPLOAD_ENABLED = True
 except ImportError:
