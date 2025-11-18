@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 from dotenv import load_dotenv
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
