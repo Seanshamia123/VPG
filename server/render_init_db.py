@@ -45,7 +45,8 @@ def init_database():
                 
                 # Check database connection
                 logger.info("Testing database connection...")
-                db.session.execute('SELECT 1')
+                db.session.execute(text('SELECT 1'))
+                db.session.commit()
                 logger.info("✓ Database connection successful")
                 
                 # Create all tables
