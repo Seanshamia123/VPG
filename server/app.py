@@ -323,10 +323,12 @@ if __name__ == '__main__':
             logger.warning(f"⚠ Cloudinary initialization warning: {e}")
         
         try:
+            # Auto-create all database tables
             db.create_all()
-            logger.info("✓ Database tables created")
+            logger.info("✓ Database tables created/verified")
         except Exception as e:
             logger.error(f"✗ Error creating database tables: {e}")
+            logger.error(f"Error details: {str(e)}")
         
         # Create upload directories
         try:
