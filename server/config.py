@@ -1,6 +1,5 @@
-
 # ============================================
-# config.py - UPDATED with JWT Support
+# config.py - UPDATED with JWT Support & PostgreSQL
 # ============================================
 
 import os
@@ -23,15 +22,23 @@ class Config:
     JWT_HEADER_NAME = 'Authorization'
     JWT_HEADER_TYPE = 'Bearer'
     
-    # ========== MYSQL CONFIGURATION ==========
-    MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
-    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
-    MYSQL_USER = os.environ.get('MYSQL_USER') or 'sophie'
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or 'Smm_smm_m8'
-    MYSQL_DB = os.environ.get('MYSQL_DB') or 'VPG'
-
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
+    # ========== DATABASE CONFIGURATION ==========
+    # Check if DATABASE_URL exists (Render provides this for PostgreSQL)
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    
+    if DATABASE_URL:
+        # Production: Using PostgreSQL on Render
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # Development: Using MySQL locally
+        # ========== MYSQL CONFIGURATION (LOCAL DEVELOPMENT ONLY) ==========
+        MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
+        MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+        MYSQL_USER = os.environ.get('MYSQL_USER') or 'sophie'
+        MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or 'Smm_smm_m8'
+        MYSQL_DB = os.environ.get('MYSQL_DB') or 'VPG'
+        
+        SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -78,13 +85,13 @@ class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
     TESTING = False
-    # Add SSL for production
+    # Add SSL for production PostgreSQL
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
         'pool_timeout': 20,
         'max_overflow': 0,
-        'connect_args': {'ssl': True}
+        'connect_args': {'sslmode': 'require'}
     }
 
 config = {

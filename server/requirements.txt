@@ -28,3 +28,4 @@ Flask-Mail
 APScheduler
 flask-jwt-extended
 gunicorn==21.2.0
+psycopg2-binary

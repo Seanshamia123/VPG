@@ -1,5 +1,5 @@
 # ============================================
-# app.py - UPDATED with JWT Support
+# app.py - UPDATED with JWT Support & PostgreSQL
 # ============================================
 
 from flask import Flask, jsonify, send_from_directory
@@ -39,12 +39,27 @@ def create_app(config_name=None):
 
     # ========== DATABASE CONFIG ==========
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['SQLALCHEMY_DATABASE_URI'] = (
-        os.environ.get('DATABASE_URL')
-        or f"mysql+pymysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD', 'your_password')}@"
-           f"{os.environ.get('MYSQL_HOST', 'localhost')}:{os.environ.get('MYSQL_PORT', '3306')}/"
-           f"{os.environ.get('MYSQL_DB', 'flutter_app_db')}"
-    )
+    
+    # Check if DATABASE_URL exists (Render provides this for PostgreSQL)
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if database_url:
+        # Production: Using PostgreSQL on Render
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        logger.info("✓ Using PostgreSQL (Production Database)")
+    else:
+        # Development: Using MySQL locally
+        MYSQL_USER = os.environ.get('MYSQL_USER', 'sophie')
+        MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'Smm_smm_m8')
+        MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+        MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
+        MYSQL_DB = os.environ.get('MYSQL_DB', 'VPG')
+        
+        app.config['SQLALCHEMY_DATABASE_URI'] = (
+            f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
+        )
+        logger.info("✓ Using MySQL (Local Development Database)")
+    
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
@@ -157,7 +172,7 @@ def create_app(config_name=None):
             return Advertiser.query.get(identity) or User.query.get(identity)
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize JWT: {e}")
+        logger.error(f"✗ Failed to initialize JWT: {e}")
         raise
     
     # Initialize Socket.IO
@@ -177,7 +192,7 @@ def create_app(config_name=None):
             from models.user import User
             logger.info("✓ All models imported successfully")
         except Exception as e:
-            logger.error(f"❌ Error importing models: {e}")
+            logger.error(f"✗ Error importing models: {e}")
             raise
         
         # Initialize Cloudinary service
@@ -214,7 +229,7 @@ def create_app(config_name=None):
         
         logger.info("✓ All API namespaces registered")
     except Exception as e:
-        logger.error(f"❌ Error registering API namespaces: {e}")
+        logger.error(f"✗ Error registering API namespaces: {e}")
         raise
 
     # ========== INITIALIZE SERVICES ==========
@@ -311,7 +326,7 @@ if __name__ == '__main__':
             db.create_all()
             logger.info("✓ Database tables created")
         except Exception as e:
-            logger.error(f"❌ Error creating database tables: {e}")
+            logger.error(f"✗ Error creating database tables: {e}")
         
         # Create upload directories
         try:
@@ -322,7 +337,7 @@ if __name__ == '__main__':
             os.makedirs(os.path.join(upload_folder, 'thumbnails'), exist_ok=True)
             logger.info("✓ Upload directories created")
         except Exception as e:
-            logger.error(f"❌ Error creating upload directories: {e}")
+            logger.error(f"✗ Error creating upload directories: {e}")
         
         logger.info("=" * 50)
         logger.info("APPLICATION READY")
@@ -332,4 +347,3 @@ if __name__ == '__main__':
     
     # Run through SocketIO to enable websockets
     app.extensions['socketio'].run(app, debug=True, host='0.0.0.0', port=5002)
-
