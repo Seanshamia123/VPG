@@ -58,7 +58,7 @@ class Config:
     PAYSTACK_IS_TEST = os.environ.get('PAYSTACK_IS_TEST', 'True').lower() == 'true'
     
     # ========== BASE URL FOR WEBHOOKS ==========
-    BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
+    BASE_URL = os.environ.get('BASE_URL', 'https://vpg-9wlv.onrender.com')
     
     # ========== JSON CONFIGURATION ==========
     JSON_SORT_KEYS = False
